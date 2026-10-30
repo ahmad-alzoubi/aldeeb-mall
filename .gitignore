@@ -1,0 +1,11 @@
+# Dependencies & Builds
+node_modules/
+dist/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.env
+.env.local
+.DS_Store
+*.log

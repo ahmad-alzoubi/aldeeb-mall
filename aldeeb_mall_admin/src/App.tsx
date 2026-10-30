@@ -1,0 +1,216 @@
+import React, { useState } from 'react';
+import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
+import { DashboardPage } from './pages/DashboardPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { CouponsPage } from './pages/CouponsPage';
+import { LoyaltyPage } from './pages/LoyaltyPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { 
+  initialOrders, 
+  initialProducts, 
+  initialCategories, 
+  initialCoupons, 
+  initialCustomers 
+} from './lib/supabase';
+import { Order, Product, Category, Coupon, Customer } from './types';
+
+export const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [isStoreOpen, setIsStoreOpen] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Core Datasets
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+
+  // Play pleasant synthetic order chime via Web Audio API
+  const playOrderChime = () => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc1.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1174.66, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.5);
+      osc2.stop(ctx.currentTime + 0.5);
+    } catch {
+      // Audio not permitted yet
+    }
+  };
+
+  // Status Updater
+  const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+    );
+    playOrderChime();
+  };
+
+  // Product Actions
+  const handleAddProduct = (newProduct: Product) => {
+    setProducts((prev) => [newProduct, ...prev]);
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
+  };
+
+  // Category Actions
+  const handleAddCategory = (newCategory: Category) => {
+    setCategories((prev) => [...prev, newCategory]);
+  };
+
+  // Coupon Actions
+  const handleAddCoupon = (newCoupon: Coupon) => {
+    setCoupons((prev) => [newCoupon, ...prev]);
+  };
+
+  const handleToggleCoupon = (couponId: string) => {
+    setCoupons((prev) =>
+      prev.map((c) => (c.id === couponId ? { ...c, is_active: !c.is_active } : c))
+    );
+  };
+
+  const handleDeleteCoupon = (couponId: string) => {
+    setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+  };
+
+  // Customer Loyalty Actions
+  const handleAddPoints = (customerId: string, points: number) => {
+    setCustomers((prev) =>
+      prev.map((c) => {
+        if (c.id === customerId) {
+          const newPts = c.loyalty_points + points;
+          const newTier = newPts > 1000 ? 'Platinum' : newPts > 300 ? 'Gold' : 'Silver';
+          return { ...c, loyalty_points: newPts, tier: newTier };
+        }
+        return c;
+      })
+    );
+  };
+
+  const pendingCount = orders.filter((o) => o.status === 'pending').length;
+
+  const getPageTitle = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return { title: 'لوحة التحكم والتحليلات', subtitle: 'نظرة شاملة ومؤشرات أداء مبيعات الديب مول' };
+      case 'orders':
+        return { title: 'إدارة الطلبات الفورية والفرز', subtitle: 'متابعة الطلبات المباشرة من الاستلام حتى تسليم السائق' };
+      case 'products':
+        return { title: 'كتالوج المنتجات والمخزون', subtitle: 'إدارة وتعديل الأصناف، الأسعار، العروض، ومستويات المستودع' };
+      case 'categories':
+        return { title: 'أقسام وتصنيفات الهايبرماركت', subtitle: 'ترتيب وإضافة الأقسام المعروضة للعملاء' };
+      case 'coupons':
+        return { title: 'كوبونات الخصم والعروض الترويجية', subtitle: 'إطلاق ومتابعة فاعلية حملات الأكواد التسويقية' };
+      case 'loyalty':
+        return { title: 'نادي العملاء ونقاط الولاء', subtitle: 'سجل العملاء، النقاط التراكمية، ومكافآت التقدير' };
+      case 'settings':
+        return { title: 'إعدادات المول وسياسات التوصيل', subtitle: 'العملة، رسوم التوصيل المجاني، ومعلومات الاتصال' };
+      default:
+        return { title: 'الديب مول', subtitle: '' };
+    }
+  };
+
+  const pageInfo = getPageTitle();
+
+  return (
+    <div className="flex bg-slate-50 min-h-screen text-slate-800">
+      {/* Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isStoreOpen={isStoreOpen}
+        setIsStoreOpen={setIsStoreOpen}
+        pendingOrdersCount={pendingCount}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header
+          title={pageInfo.title}
+          subtitle={pageInfo.subtitle}
+          soundEnabled={soundEnabled}
+          setSoundEnabled={setSoundEnabled}
+          onRefresh={() => playOrderChime()}
+        />
+
+        <main className="p-8 flex-1 overflow-y-auto">
+          {activeTab === 'dashboard' && (
+            <DashboardPage
+              orders={orders}
+              products={products}
+              setActiveTab={setActiveTab}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          )}
+
+          {activeTab === 'orders' && (
+            <OrdersPage
+              orders={orders}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          )}
+
+          {activeTab === 'products' && (
+            <ProductsPage
+              products={products}
+              categories={categories}
+              onAddProduct={handleAddProduct}
+              onDeleteProduct={handleDeleteProduct}
+            />
+          )}
+
+          {activeTab === 'categories' && (
+            <CategoriesPage
+              categories={categories}
+              onAddCategory={handleAddCategory}
+            />
+          )}
+
+          {activeTab === 'coupons' && (
+            <CouponsPage
+              coupons={coupons}
+              onAddCoupon={handleAddCoupon}
+              onToggleCoupon={handleToggleCoupon}
+              onDeleteCoupon={handleDeleteCoupon}
+            />
+          )}
+
+          {activeTab === 'loyalty' && (
+            <LoyaltyPage
+              customers={customers}
+              onAddPoints={handleAddPoints}
+            />
+          )}
+
+          {activeTab === 'settings' && <SettingsPage />}
+        </main>
+      </div>
+    </div>
+  );
+};
