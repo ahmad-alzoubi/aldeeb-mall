@@ -17,6 +17,8 @@ interface SidebarProps {
   isStoreOpen: boolean;
   setIsStoreOpen: (open: boolean) => void;
   pendingOrdersCount: number;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,6 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isStoreOpen,
   setIsStoreOpen,
   pendingOrdersCount,
+  isOpenMobile = false,
+  onCloseMobile,
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم والتحليلات', icon: LayoutDashboard },
@@ -42,7 +46,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-72 bg-slate-900 text-white min-h-screen flex flex-col justify-between border-l border-slate-800 shadow-xl select-none">
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpenMobile && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+        />
+      )}
+
+      <aside
+        className={`fixed lg:static top-0 right-0 z-50 w-72 bg-slate-900 text-white min-h-screen flex flex-col justify-between border-l border-slate-800 shadow-2xl lg:shadow-xl select-none transition-transform duration-300 ease-in-out ${
+          isOpenMobile ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+        }`}
+      >
       <div>
         {/* Brand Logo & Name */}
         <div className="p-6 border-b border-slate-800 flex items-center space-x-3 space-x-reverse">
@@ -123,5 +140,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </aside>
+    </>
   );
 };

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/order_provider.dart';
+import '../../core/utils/responsive.dart';
 import '../auth/login_screen.dart';
 import '../orders/order_tracking_screen.dart';
 
@@ -23,8 +24,10 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
+        child: MaxWidthContainer(
+          maxWidth: 900,
+          child: Column(
+            children: [
             // User Header Card
             Container(
               padding: const EdgeInsets.all(16),
@@ -232,7 +235,8 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _statCard(IconData icon, String title, String value, Color color) {

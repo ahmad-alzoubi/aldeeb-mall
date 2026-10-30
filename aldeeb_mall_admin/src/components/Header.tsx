@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Volume2, VolumeX, RefreshCw } from 'lucide-react';
+import { Bell, Volume2, VolumeX, RefreshCw, Menu } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -7,6 +7,7 @@ interface HeaderProps {
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
   onRefresh: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,12 +16,24 @@ export const Header: React.FC<HeaderProps> = ({
   soundEnabled,
   setSoundEnabled,
   onRefresh,
+  onToggleMobileMenu,
 }) => {
   return (
-    <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shadow-sm">
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-800">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-500 font-medium">{subtitle}</p>}
+    <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between shadow-sm sticky top-0 z-30">
+      <div className="flex items-center gap-3">
+        {onToggleMobileMenu && (
+          <button
+            onClick={onToggleMobileMenu}
+            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200"
+            title="القائمة"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <div>
+          <h2 className="text-lg md:text-xl font-extrabold text-slate-800">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-500 font-medium hidden sm:block">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">

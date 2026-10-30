@@ -7,6 +7,7 @@ import '../../core/models/banner_model.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
 import '../loyalty/loyalty_screen.dart';
 import 'widgets/product_card.dart';
@@ -22,8 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _bannerController = PageController();
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
-
-  // Flash Sale Countdown Simulation
   late Duration _remainingTime;
   Timer? _countdownTimer;
 
@@ -35,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startTimers() {
-    _bannerTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_bannerController.hasClients) {
         final mall = Provider.of<MallProvider>(context, listen: false);
         if (mall.banners.isNotEmpty) {
@@ -81,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final mall = Provider.of<MallProvider>(context);
     final cart = Provider.of<CartProvider>(context);
     final auth = Provider.of<AuthService>(context);
+    final isDesktop = Responsive.isDesktop(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -88,458 +88,691 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              // 1. App Bar with Location & Brand
-              SliverAppBar(
-                floating: true,
-                pinned: true,
-                elevation: 0,
-                backgroundColor: AppColors.primary,
-                expandedHeight: 125,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.primaryDark, AppColors.primary],
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                      ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 40, 16, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header row: Location & Points & Cart
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.location_on, color: Colors.white, size: 18),
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'التوصيل إلى',
-                                    style: TextStyle(color: Colors.white70, fontSize: 10),
-                                  ),
-                                  Text(
-                                    'وسط دبي، برج فيوز B',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
+              // 1. Navigation App Bar (Adaptive Desktop vs Mobile)
+              if (isDesktop)
+                SliverToBoxAdapter(
+                  child: _buildDesktopTopNav(context, cart, auth, mall),
+                )
+              else
+                _buildMobileSliverAppBar(context, auth, mall),
 
-                            // Loyalty Points Pill
-                            InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${auth.currentUser?.loyaltyPoints ?? 50} نقطة',
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-
-                            // Notifications
-                            IconButton(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('لديك 3 كوبونات خصم جديدة في صندوق الوارد!')),
-                                );
-                              },
-                              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+              // 2. Department Category Strip
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  child: _buildCategoriesStrip(mall, isDesktop),
                 ),
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(54),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: AppColors.cardShadow,
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 12),
-                          const Icon(Icons.search, color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              onChanged: (val) => mall.setSearchQuery(val),
-                              decoration: const InputDecoration(
-                                hintText: 'ابحث في آلاف منتجات الديب مول...',
-                                hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(vertical: 10),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 20),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('ماسح الباركود السريع: وجّه الكاميرا لباركود المنتج')),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+              ),
+
+              // 3. Hero Promo Section (Split grid on desktop, carousel on mobile)
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildHeroSection(mall, isDesktop),
+                ),
+              ),
+
+              // 4. Flash Deals Header & Horizontal Scroller
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                  child: _buildFlashDealsHeader(),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  child: SizedBox(
+                    height: 295,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: mall.dailyDeals.length,
+                      itemBuilder: (ctx, index) {
+                        return Container(
+                          width: isDesktop ? 220 : 170,
+                          margin: const EdgeInsetsDirectional.only(end: 12),
+                          child: ProductCard(product: mall.dailyDeals[index]),
+                        );
+                      },
                     ),
                   ),
                 ),
               ),
 
-              // 2. Hero Banners Carousel
+              // 5. Section Header for All Products
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 160,
-                        child: PageView.builder(
-                          controller: _bannerController,
-                          onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
-                          itemCount: mall.banners.length,
-                          itemBuilder: (ctx, index) {
-                            final b = mall.banners[index];
-                            return _buildBannerSlide(b);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Indicators
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(mall.banners.length, (idx) {
-                          final isSel = _currentBannerIndex == idx;
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: isSel ? 18 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: isSel ? AppColors.primary : AppColors.border,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          );
-                        }),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // 3. Quick Categories Strip
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'أقسام الهايبرماركت',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                            ),
-                            TextButton(
-                              onPressed: () => mall.selectCategory(null),
-                              child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 95,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: mall.categories.length,
-                          itemBuilder: (ctx, index) {
-                            final cat = mall.categories[index];
-                            final isSel = mall.selectedCategoryId == cat.id;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: InkWell(
-                                onTap: () {
-                                  mall.selectCategory(isSel ? null : cat.id);
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 58,
-                                      height: 58,
-                                      decoration: BoxDecoration(
-                                        color: isSel ? AppColors.primary : Colors.white,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isSel ? AppColors.primary : AppColors.border,
-                                          width: 2,
-                                        ),
-                                        boxShadow: AppColors.cardShadow,
-                                      ),
-                                      child: ClipOval(
-                                        child: cat.imageUrl != null
-                                            ? CachedNetworkImage(
-                                                imageUrl: cat.imageUrl!,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : const Icon(Icons.shopping_basket, color: AppColors.primary),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    SizedBox(
-                                      width: 70,
-                                      child: Text(
-                                        cat.nameAr,
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                          color: isSel ? AppColors.primary : AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // 4. Flash Deals Section (Carrefour Mega Deals)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.flash_on_rounded, color: AppColors.secondary, size: 22),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'عروض الصفقات الكبرى',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.secondary),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _formatDuration(_remainingTime),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Flash Deals Horizontal List
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 290,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: mall.dailyDeals.length,
-                    itemBuilder: (ctx, index) {
-                      return Container(
-                        width: 170,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ProductCard(product: mall.dailyDeals[index]),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              // 5. All Products Grid Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                child: MaxWidthContainer(
+                  padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        mall.selectedCategoryId != null ? 'المنتجات المختارة' : 'جميع المنتجات والعروض',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            mall.selectedCategoryId != null ? 'المنتجات المختارة' : 'كافة منتجات الهايبرماركت',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                       Text(
-                        '${mall.filteredProducts.length} صنف',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                        '${mall.filteredProducts.length} صنف متاح',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              // 6. Products Grid
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.65,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, index) => ProductCard(product: mall.filteredProducts[index]),
-                    childCount: mall.filteredProducts.length,
+              // 6. Responsive Products Grid
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: Responsive.gridColumns(context),
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: Responsive.productCardAspectRatio(context),
+                    ),
+                    itemCount: mall.filteredProducts.length,
+                    itemBuilder: (ctx, index) => ProductCard(product: mall.filteredProducts[index]),
                   ),
                 ),
               ),
             ],
           ),
 
-          // Floating Smart Cart Bar (Slides up when items > 0)
-          if (cart.itemCount > 0)
+          // Floating Smart Cart Bar (Mobile Only - on Desktop it's in the top nav!)
+          if (!isDesktop && cart.itemCount > 0)
             Positioned(
               left: 16,
               right: 16,
               bottom: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppColors.floatingShadow,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${cart.itemCount}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${cart.totalAmount.toStringAsFixed(2)} د.إ',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        Text(
-                          cart.isFreeDelivery ? 'توصيل مجاني 🛵' : 'تبقّى ${cart.remainingForFreeDelivery.toStringAsFixed(2)} د.إ للمجاني',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const CartScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        minimumSize: const Size(100, 40),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                      ),
-                      child: const Row(
-                        children: [
-                          Text('عرض السلة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 12),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _buildFloatingCartBar(cart),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildBannerSlide(BannerModel banner) {
+  // ===========================================================================
+  // Desktop Luxury Top Header (Apple & Carrefour Web Grade)
+  // ===========================================================================
+  Widget _buildDesktopTopNav(
+    BuildContext context,
+    CartProvider cart,
+    AuthService auth,
+    MallProvider mall,
+  ) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A0D47A1),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Main Top Navigation Bar
+          MaxWidthContainer(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            child: Row(
+              children: [
+                // Brand Logo
+                InkWell(
+                  onTap: () => mall.selectCategory(null),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.shopping_bag_rounded, color: AppColors.primary, size: 26),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'الديب مول',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            'Aldeeb Hypermarket',
+                            style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 32),
+
+                // Delivery Location Dropdown Chip
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                          Text(
+                            'وسط دبي، برج فيوز B',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+
+                // Large Search Bar (Takes remaining space)
+                Expanded(
+                  child: Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 14),
+                        const Icon(Icons.search, color: AppColors.primary, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            onChanged: (val) => mall.setSearchQuery(val),
+                            decoration: const InputDecoration(
+                              hintText: 'ابحث عن آلاف المنتجات، الخضار، الألبان، والمؤن في الديب مول...',
+                              hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          margin: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'بحث',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 24),
+
+                // Loyalty Points Star Pill
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 20),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${auth.currentUser?.loyaltyPoints ?? 50} نقطة ولاء',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Cart Button with Total
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                    );
+                  },
+                  icon: Badge(
+                    label: Text('${cart.itemCount}'),
+                    isLabelVisible: cart.itemCount > 0,
+                    child: const Icon(Icons.shopping_cart_outlined, size: 20),
+                  ),
+                  label: Text(
+                    cart.itemCount > 0 ? '${cart.totalAmount.toStringAsFixed(2)} د.إ' : 'السلة',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Mobile Sliver App Bar
+  // ===========================================================================
+  Widget _buildMobileSliverAppBar(BuildContext context, AuthService auth, MallProvider mall) {
+    return SliverAppBar(
+      floating: true,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: AppColors.primary,
+      expandedHeight: 125,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_on, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                        Text(
+                          'وسط دبي، برج فيوز B',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${auth.currentUser?.loyaltyPoints ?? 50} نقطة',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(54),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: AppColors.cardShadow,
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                const Icon(Icons.search, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    onChanged: (val) => mall.setSearchQuery(val),
+                    decoration: const InputDecoration(
+                      hintText: 'ابحث في آلاف منتجات الديب مول...',
+                      hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Categories Strip
+  // ===========================================================================
+  Widget _buildCategoriesStrip(MallProvider mall, bool isDesktop) {
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.symmetric(vertical: isDesktop ? 16 : 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'أقسام الهايبرماركت',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                TextButton(
+                  onPressed: () => mall.selectCategory(null),
+                  child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: isDesktop ? 100 : 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: mall.categories.length,
+              itemBuilder: (ctx, index) {
+                final cat = mall.categories[index];
+                final isSel = mall.selectedCategoryId == cat.id;
+                final size = isDesktop ? 64.0 : 54.0;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: InkWell(
+                    onTap: () => mall.selectCategory(isSel ? null : cat.id),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: size,
+                          height: size,
+                          decoration: BoxDecoration(
+                            color: isSel ? AppColors.primary : Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSel ? AppColors.primary : AppColors.border,
+                              width: 2,
+                            ),
+                            boxShadow: AppColors.cardShadow,
+                          ),
+                          child: ClipOval(
+                            child: cat.imageUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: cat.imageUrl!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(Icons.shopping_basket, color: AppColors.primary),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            cat.nameAr,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              color: isSel ? AppColors.primary : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Hero Section (Split on Desktop, Carousel on Mobile)
+  // ===========================================================================
+  Widget _buildHeroSection(MallProvider mall, bool isDesktop) {
+    if (mall.banners.isEmpty) return const SizedBox();
+
+    if (!isDesktop) {
+      // Mobile Single Carousel
+      return Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 165,
+              child: PageView.builder(
+                controller: _bannerController,
+                onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
+                itemCount: mall.banners.length,
+                itemBuilder: (ctx, index) => _buildBannerCard(mall.banners[index]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(mall.banners.length, (idx) {
+                final isSel = _currentBannerIndex == idx;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: isSel ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isSel ? AppColors.primary : AppColors.border,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Desktop Split Grid (2/3 Carousel + 1/3 Side Promo Cards - Carrefour Web Style)
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Main 2/3 Carousel
+          Expanded(
+            flex: 2,
+            child: SizedBox(
+              height: 320,
+              child: Stack(
+                children: [
+                  PageView.builder(
+                    controller: _bannerController,
+                    onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
+                    itemCount: mall.banners.length,
+                    itemBuilder: (ctx, index) => _buildBannerCard(mall.banners[index], height: 320),
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    left: 24,
+                    child: Row(
+                      children: List.generate(mall.banners.length, (idx) {
+                        final isSel = _currentBannerIndex == idx;
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: isSel ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isSel ? Colors.white : Colors.white54,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Side 1/3 Promo Deal Cards
+          Expanded(
+            flex: 1,
+            child: SizedBox(
+              height: 320,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _buildSideDealCard(
+                      'صفقة اليوم الطازجة 🍅',
+                      'طماطم مزارع محلية قطاف الصباح بخصم 25%',
+                      '3.75 د.إ / كجم',
+                      'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
+                      AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _buildSideDealCard(
+                      'توصيل فوري خلال 60 دقيقة 🛵',
+                      'اطلب طلبات البيت واستلمها على بابك',
+                      'مجاناً للطلبات فوق 100 د.إ',
+                      'https://images.unsplash.com/photo-1526367790999-0150786686a2?auto=format&fit=crop&w=400&q=80',
+                      AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBannerCard(BannerModel banner, {double height = 165}) {
+    return Container(
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: AppColors.cardShadow,
@@ -557,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withValues(alpha: 0.7),
+                    Colors.black.withValues(alpha: 0.75),
                     Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
@@ -566,41 +799,210 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 14,
+              left: 20,
+              right: 20,
+              bottom: 18,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (banner.badgeAr != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         banner.badgeAr!,
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ),
                   Text(
                     banner.titleAr,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
                   ),
                   if (banner.subtitleAr != null)
                     Text(
                       banner.subtitleAr!,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSideDealCard(
+    String title,
+    String subtitle,
+    String tag,
+    String imageUrl,
+    Color tagColor,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.8),
+                    Colors.black.withValues(alpha: 0.2),
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 14,
+              right: 14,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tagColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.white70, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlashDealsHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.secondaryLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.flash_on_rounded, color: AppColors.secondary, size: 24),
+          const SizedBox(width: 8),
+          const Text(
+            'عروض الصفقات الكبرى المؤقتة',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.secondary),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _formatDuration(_remainingTime),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingCartBar(CartProvider cart) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.floatingShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '${cart.itemCount}',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${cart.totalAmount.toStringAsFixed(2)} د.إ',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              Text(
+                cart.isFreeDelivery ? 'توصيل مجاني 🛵' : 'تبقّى ${cart.remainingForFreeDelivery.toStringAsFixed(2)} د.إ للمجاني',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+            ],
+          ),
+          const Spacer(),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primary,
+              minimumSize: const Size(100, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
+            child: const Row(
+              children: [
+                Text('عرض السلة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios_rounded, size: 12),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

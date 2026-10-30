@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/responsive.dart';
 
 class LoyaltyScreen extends StatelessWidget {
   const LoyaltyScreen({super.key});
@@ -20,8 +21,10 @@ class LoyaltyScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
+        child: MaxWidthContainer(
+          maxWidth: 800,
+          child: Column(
+            children: [
             // 1. Digital Loyalty Card (Carrefour Club Style)
             Container(
               height: 210,
@@ -202,7 +205,8 @@ class LoyaltyScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _perkItem(IconData icon, String title, String subtitle) {

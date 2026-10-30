@@ -21,6 +21,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isStoreOpen, setIsStoreOpen] = useState<boolean>(true);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Core Datasets
   const [orders, setOrders] = useState<Order[]>(initialOrders);
@@ -143,10 +144,15 @@ export const App: React.FC = () => {
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileSidebarOpen(false);
+        }}
         isStoreOpen={isStoreOpen}
         setIsStoreOpen={setIsStoreOpen}
         pendingOrdersCount={pendingCount}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -157,6 +163,7 @@ export const App: React.FC = () => {
           soundEnabled={soundEnabled}
           setSoundEnabled={setSoundEnabled}
           onRefresh={() => playOrderChime()}
+          onToggleMobileMenu={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
         <main className="p-8 flex-1 overflow-y-auto">

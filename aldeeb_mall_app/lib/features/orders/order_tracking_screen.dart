@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
+import '../../core/utils/responsive.dart';
 import '../home/main_navigation_screen.dart';
 
 class OrderTrackingScreen extends StatelessWidget {
@@ -28,9 +29,11 @@ class OrderTrackingScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: MaxWidthContainer(
+          maxWidth: 800,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Status Hero Card
             Container(
               padding: const EdgeInsets.all(20),
@@ -261,7 +264,8 @@ class OrderTrackingScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _trackerStep(int index, String title, IconData icon, int currentIndex) {
