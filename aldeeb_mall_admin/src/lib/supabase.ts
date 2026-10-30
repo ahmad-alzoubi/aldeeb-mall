@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, FlashDeal, Courier, Supplier, PurchaseOrder, SupportTicket } from '../types';
+import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, FlashDeal, Courier, Supplier, PurchaseOrder, SupportTicket, MarketingCampaign, DeliveryZone } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
@@ -487,5 +487,81 @@ export const initialSupportTickets: SupportTicket[] = [
     priority: 'low',
     created_at: 'أمس',
     last_message: 'تم تفعيل كود الخصم في حسابك بقيمة 25 د.إ، تسوق ممتع!',
+  },
+];
+
+
+export const initialCampaigns: MarketingCampaign[] = [
+  {
+    id: 'cmp-1',
+    title_ar: '⚡ عروض الجمعة الصفراء بدأت الآن!',
+    body_ar: 'خصومات حصرية حتى 50% على آلاف السلع الطازجة والمؤن + توصيل مجاني خلال 15 دقيقة لبابك!',
+    target_audience: 'all',
+    scheduled_at: 'اليوم (5:00 م)',
+    status: 'sent',
+    open_rate: 42.6,
+    conversion_rate: 18.4,
+    sent_count: 14200,
+  },
+  {
+    id: 'cmp-2',
+    title_ar: '🛒 سلتك تنتظرك في الديب مول!',
+    body_ar: 'لاحظنا أنك تركت بعض السلع في سلتك، أكمل طلبك الآن واستمتع بخصم إضافي 10% باستخدام كود ALDEEB10.',
+    target_audience: 'cart_abandoners',
+    scheduled_at: 'تلقائي (بعد ساعتين من ترك السلة)',
+    status: 'sent',
+    open_rate: 58.2,
+    conversion_rate: 27.5,
+    sent_count: 1850,
+  },
+  {
+    id: 'cmp-3',
+    title_ar: '👑 دعوة حصرية لأعضاء نادي الديب VIP',
+    body_ar: 'ضاعف نقاط ولائك اليوم 2X على جميع أصناف اللحوم والدواجن والألبان الطازجة!',
+    target_audience: 'vip_gold_platinum',
+    scheduled_at: 'غداً (10:00 ص)',
+    status: 'scheduled',
+    open_rate: 0,
+    conversion_rate: 0,
+    sent_count: 3400,
+  },
+];
+
+export const initialDeliveryZones: DeliveryZone[] = [
+  {
+    id: 'zn-1',
+    zone_name_ar: 'وسط دبي والمركز المالي (DIFC / Downtown)',
+    dark_store_code: 'DS-DXB-DOWNTOWN',
+    radius_km: 3.5,
+    base_delivery_fee: 10.0,
+    free_delivery_threshold: 100.0,
+    estimated_minutes: 15,
+    is_surge_pricing_active: false,
+    surge_fee: 0.0,
+    is_active: true,
+  },
+  {
+    id: 'zn-2',
+    zone_name_ar: 'دبي مارينا وجميرا بيتش ريزيدنس (JBR)',
+    dark_store_code: 'DS-DXB-MARINA',
+    radius_km: 4.0,
+    base_delivery_fee: 10.0,
+    free_delivery_threshold: 100.0,
+    estimated_minutes: 15,
+    is_surge_pricing_active: true,
+    surge_fee: 4.0, // Evening rush
+    is_active: true,
+  },
+  {
+    id: 'zn-3',
+    zone_name_ar: 'حي العليا والملز (الرياض)',
+    dark_store_code: 'DS-RUH-OLAYA',
+    radius_km: 3.5,
+    base_delivery_fee: 12.0,
+    free_delivery_threshold: 120.0,
+    estimated_minutes: 15,
+    is_surge_pricing_active: false,
+    surge_fee: 0.0,
+    is_active: true,
   },
 ];

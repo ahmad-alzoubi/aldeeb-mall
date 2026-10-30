@@ -14,7 +14,9 @@ import {
   Bike,
   Building2,
   Headset,
-  BarChart3
+  BarChart3,
+  Bell,
+  Compass
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -67,6 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
+    { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
+    { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
     { id: 'loyalty', label: 'العملاء ونقاط الولاء', icon: Award },
     { id: 'settings', label: 'إعدادات المول والتوصيل', icon: Settings },
   ];

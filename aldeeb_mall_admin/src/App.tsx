@@ -14,6 +14,8 @@ import { FleetPage } from './pages/FleetPage';
 import { SuppliersPage } from './pages/SuppliersPage';
 import { SupportPage } from './pages/SupportPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { CampaignsPage } from './pages/CampaignsPage';
+import { ZonesPage } from './pages/ZonesPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -26,7 +28,9 @@ import {
   initialCouriers,
   initialSuppliers,
   initialPurchaseOrders,
-  initialSupportTickets
+  initialSupportTickets,
+  initialCampaigns,
+  initialDeliveryZones
 } from './lib/supabase';
 import { 
   Order, 
@@ -40,7 +44,9 @@ import {
   Courier,
   Supplier,
   PurchaseOrder,
-  SupportTicket
+  SupportTicket,
+  MarketingCampaign,
+  DeliveryZone
 } from './types';
 
 export const App: React.FC = () => {
@@ -56,12 +62,14 @@ export const App: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [darkStores] = useState<DarkStore[]>(initialDarkStores);
-  const [pickerTasks] = useState<PickerTask[]>(initialPickerTasks);
+  const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
   const [flashDeals, setFlashDeals] = useState<FlashDeal[]>(initialFlashDeals);
   const [couriers] = useState<Courier[]>(initialCouriers);
   const [suppliers] = useState<Supplier[]>(initialSuppliers);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
   const [supportTickets] = useState<SupportTicket[]>(initialSupportTickets);
+  const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(initialCampaigns);
+  const [deliveryZones] = useState<DeliveryZone[]>(initialDeliveryZones);
 
   // Play pleasant synthetic order chime via Web Audio API
   const playOrderChime = () => {
@@ -184,6 +192,10 @@ export const App: React.FC = () => {
         return { title: 'إدارة الموردين وأوامر الشراء (Procurement)', subtitle: 'تتبع سلاسل الإمداد ومستويات إعادة الطلب التلقائية' };
       case 'support':
         return { title: 'مكتب خدمة العملاء والدردشة الحية (Support Desk)', subtitle: 'معالجة استفسارات وشكاوى العملاء الفورية' };
+      case 'campaigns':
+        return { title: 'الحملات التسويقية والإشعارات الفورية (Push Notifications)', subtitle: 'إطلاق إشعارات العروض وسلال الشراء المعلقة' };
+      case 'zones':
+        return { title: 'النطاقات الجغرافية ورسوم الذروة (Geofencing & Surge)', subtitle: 'أقطار خدمة الـ 15 دقيقة والتسعير الديناميكي' };
       case 'categories':
         return { title: 'أقسام وتصنيفات الهايبرماركت', subtitle: 'ترتيب وإضافة الأقسام المعروضة للعملاء' };
       case 'coupons':
@@ -295,6 +307,19 @@ export const App: React.FC = () => {
           {activeTab === 'support' && (
             <SupportPage
               tickets={supportTickets}
+            />
+          )}
+
+          {activeTab === 'campaigns' && (
+            <CampaignsPage
+              campaigns={campaigns}
+              onAddCampaign={(newCamp) => setCampaigns((prev) => [newCamp, ...prev])}
+            />
+          )}
+
+          {activeTab === 'zones' && (
+            <ZonesPage
+              zones={deliveryZones}
             />
           )}
 

@@ -12,6 +12,8 @@ import '../cart/cart_screen.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../scanner/barcode_scanner_screen.dart';
 import '../flyer/flyer_screen.dart';
+import '../voice/voice_assistant_modal.dart';
+import '../subscriptions/subscriptions_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -126,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _buildHeroSection(mall, isDesktop),
                       _buildFlyerBanner(context),
+                      _buildSubscribeAndSaveBanner(context),
                     ],
                   ),
                 ),
@@ -383,6 +386,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
+                          tooltip: 'البحث الصوتي الذكي (Voice AI)',
+                          onPressed: () => VoiceAssistantModal.show(context),
+                        ),
                         Container(
                           margin: const EdgeInsets.all(4),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -596,6 +604,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
                     );
                   },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
+                  tooltip: 'البحث الصوتي الذكي (Voice AI)',
+                  onPressed: () => VoiceAssistantModal.show(context),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -1163,6 +1176,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'تصفح صفحات المجلة التفاعلية واشترِ الصفقات مباشرة بخصم 45%',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubscribeAndSaveBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SubscriptionsScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF065F46), Color(0xFF059669)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.autorenew_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'اشتراكات المؤن الدورية (Subscribe & Save) 🔄',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'توصيل دوري للحليب والخبز والخضار مع خصم دائم 10% وتوصيل مجاني',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],

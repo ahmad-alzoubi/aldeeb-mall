@@ -175,3 +175,29 @@ export interface SupportTicket {
   created_at: string;
   last_message: string;
 }
+
+
+export interface MarketingCampaign {
+  id: string;
+  title_ar: string;
+  body_ar: string;
+  target_audience: 'all' | 'vip_gold_platinum' | 'cart_abandoners' | 'new_customers';
+  scheduled_at: string;
+  status: 'draft' | 'scheduled' | 'sent';
+  open_rate: number;
+  conversion_rate: number;
+  sent_count: number;
+}
+
+export interface DeliveryZone {
+  id: string;
+  zone_name_ar: string;
+  dark_store_code: string;
+  radius_km: number;
+  base_delivery_fee: number;
+  free_delivery_threshold: number;
+  estimated_minutes: number;
+  is_surge_pricing_active: boolean;
+  surge_fee: number;
+  is_active: boolean;
+}
