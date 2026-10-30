@@ -201,3 +201,47 @@ export interface DeliveryZone {
   surge_fee: number;
   is_active: boolean;
 }
+
+export interface ColdChainSensor {
+  id: string;
+  room_name_ar: string;
+  category: 'chiller_dairy' | 'chiller_meat' | 'freezer_ice' | 'produce_mist';
+  current_temp_celsius: number;
+  target_temp_celsius: number;
+  min_safe_temp: number;
+  max_safe_temp: number;
+  humidity_percent: number;
+  status: 'optimal' | 'warning' | 'critical';
+  last_ping: string;
+}
+
+export interface ExpiryBatchItem {
+  id: string;
+  product_id: string;
+  product_name_ar: string;
+  category_name_ar: string;
+  sku: string;
+  batch_number: string;
+  expiry_date: string;
+  hours_remaining: number;
+  stock_quantity: number;
+  original_price: number;
+  clearance_discount_percent: number;
+  clearance_active: boolean;
+}
+
+export interface ReturnRequest {
+  id: string;
+  return_number: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  items_summary: string;
+  reason: 'defective_fresh' | 'wrong_item' | 'past_expiry' | 'damaged_packaging';
+  reason_ar: string;
+  requested_at: string;
+  refund_amount: number;
+  photo_evidence_url: string;
+  status: 'pending_review' | 'approved_refunded' | 'approved_replacement' | 'rejected';
+}
+

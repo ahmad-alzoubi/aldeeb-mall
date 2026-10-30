@@ -16,7 +16,9 @@ import {
   Headset,
   BarChart3,
   Bell,
-  Compass
+  Compass,
+  ThermometerSnowflake,
+  RotateCcw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -71,6 +73,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
     { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
     { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
+    { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },
+    { id: 'returns', label: 'المرتجعات والنزاعات', icon: RotateCcw },
     { id: 'loyalty', label: 'العملاء ونقاط الولاء', icon: Award },
     { id: 'settings', label: 'إعدادات المول والتوصيل', icon: Settings },
   ];

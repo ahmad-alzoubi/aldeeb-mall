@@ -14,6 +14,8 @@ import '../scanner/barcode_scanner_screen.dart';
 import '../flyer/flyer_screen.dart';
 import '../voice/voice_assistant_modal.dart';
 import '../subscriptions/subscriptions_screen.dart';
+import '../wallet/wallet_screen.dart';
+import '../group_buying/group_deals_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -129,6 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildHeroSection(mall, isDesktop),
                       _buildFlyerBanner(context),
                       _buildSubscribeAndSaveBanner(context),
+                      _buildGroupDealsBanner(context),
                     ],
                   ),
                 ),
@@ -448,6 +451,45 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
+
+                // Aldeeb Pay Wallet Pill
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const WalletScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          'المحفظة: 150.00 ر.س',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 16),
 
                 // Cart Button with Total
@@ -552,6 +594,37 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${auth.currentUser?.loyaltyPoints ?? 50} نقطة',
                             style: const TextStyle(
                               color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const WalletScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 15),
+                          SizedBox(width: 4),
+                          Text(
+                            '150 ر.س',
+                            style: TextStyle(
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
                             ),
@@ -1231,6 +1304,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'توصيل دوري للحليب والخبز والخضار مع خصم دائم 10% وتوصيل مجاني',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupDealsBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GroupDealsScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFB91C1C), Color(0xFFDC2626)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.groups_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'صفقات الشراء الجماعي مع الجيران والأصدقاء 👥',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'وفر حتى 40% فور اكتمال المجموعة في حيك وتوصيل مجاني فوري لكل منزل',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],

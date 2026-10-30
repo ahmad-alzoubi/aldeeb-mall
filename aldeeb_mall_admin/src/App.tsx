@@ -16,6 +16,8 @@ import { SupportPage } from './pages/SupportPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { ZonesPage } from './pages/ZonesPage';
+import { ColdChainPage } from './pages/ColdChainPage';
+import { ReturnsPage } from './pages/ReturnsPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -321,6 +323,14 @@ export const App: React.FC = () => {
             <ZonesPage
               zones={deliveryZones}
             />
+          )}
+
+          {activeTab === 'cold_chain' && (
+            <ColdChainPage />
+          )}
+
+          {activeTab === 'returns' && (
+            <ReturnsPage />
           )}
 
           {activeTab === 'categories' && (

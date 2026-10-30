@@ -27,6 +27,7 @@ class MallProvider extends ChangeNotifier {
   bool _isLoading = false;
 
   List<CategoryModel> get categories => _categories;
+  List<ProductModel> get products => _products;
   List<BannerModel> get banners => _banners;
   String? get selectedCategoryId => _selectedCategoryId;
   String get searchQuery => _searchQuery;
