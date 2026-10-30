@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   Boxes,
   Zap,
-  Bike
+  Bike,
+  Building2,
+  Headset
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -59,6 +61,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Bike 
     },
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
+    { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
+    { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
     { id: 'loyalty', label: 'العملاء ونقاط الولاء', icon: Award },

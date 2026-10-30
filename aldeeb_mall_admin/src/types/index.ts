@@ -138,3 +138,40 @@ export interface Courier {
   assigned_orders_count: number;
   completed_today: number;
 }
+
+
+export interface Supplier {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  lead_time_days: number;
+  payment_terms: string;
+  active_products_count: number;
+  status: 'active' | 'under_review' | 'inactive';
+}
+
+export interface PurchaseOrder {
+  id: string;
+  po_number: string;
+  supplier_name: string;
+  total_items: number;
+  total_cost: number;
+  status: 'draft' | 'sent' | 'received' | 'cancelled';
+  order_date: string;
+  expected_arrival: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  ticket_number: string;
+  customer_name: string;
+  order_number?: string;
+  subject: string;
+  status: 'open' | 'in_progress' | 'resolved';
+  priority: 'low' | 'medium' | 'high';
+  created_at: string;
+  last_message: string;
+}

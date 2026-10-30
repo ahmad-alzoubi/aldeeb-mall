@@ -11,6 +11,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { FulfillmentPage } from './pages/FulfillmentPage';
 import { FlashDealsPage } from './pages/FlashDealsPage';
 import { FleetPage } from './pages/FleetPage';
+import { SuppliersPage } from './pages/SuppliersPage';
+import { SupportPage } from './pages/SupportPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -20,7 +22,10 @@ import {
   initialDarkStores,
   initialPickerTasks,
   initialFlashDeals,
-  initialCouriers
+  initialCouriers,
+  initialSuppliers,
+  initialPurchaseOrders,
+  initialSupportTickets
 } from './lib/supabase';
 import { 
   Order, 
@@ -31,7 +36,10 @@ import {
   DarkStore, 
   PickerTask, 
   FlashDeal, 
-  Courier 
+  Courier,
+  Supplier,
+  PurchaseOrder,
+  SupportTicket
 } from './types';
 
 export const App: React.FC = () => {
@@ -47,9 +55,12 @@ export const App: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [darkStores] = useState<DarkStore[]>(initialDarkStores);
-  const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
+  const [pickerTasks] = useState<PickerTask[]>(initialPickerTasks);
   const [flashDeals, setFlashDeals] = useState<FlashDeal[]>(initialFlashDeals);
   const [couriers] = useState<Courier[]>(initialCouriers);
+  const [suppliers] = useState<Supplier[]>(initialSuppliers);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
+  const [supportTickets] = useState<SupportTicket[]>(initialSupportTickets);
 
   // Play pleasant synthetic order chime via Web Audio API
   const playOrderChime = () => {
@@ -166,6 +177,10 @@ export const App: React.FC = () => {
         return { title: 'برج مراقبة أسطول التوصيل (Courier Dispatch)', subtitle: 'توزيع الطلبات والتتبع اللحظي لمندوبي التوصيل' };
       case 'products':
         return { title: 'كتالوج المنتجات والمخزون', subtitle: 'إدارة وتعديل الأصناف، الأسعار، العروض، ومستويات المستودع' };
+      case 'suppliers':
+        return { title: 'إدارة الموردين وأوامر الشراء (Procurement)', subtitle: 'تتبع سلاسل الإمداد ومستويات إعادة الطلب التلقائية' };
+      case 'support':
+        return { title: 'مكتب خدمة العملاء والدردشة الحية (Support Desk)', subtitle: 'معالجة استفسارات وشكاوى العملاء الفورية' };
       case 'categories':
         return { title: 'أقسام وتصنيفات الهايبرماركت', subtitle: 'ترتيب وإضافة الأقسام المعروضة للعملاء' };
       case 'coupons':
@@ -255,6 +270,21 @@ export const App: React.FC = () => {
               categories={categories}
               onAddProduct={handleAddProduct}
               onDeleteProduct={handleDeleteProduct}
+            />
+          )}
+
+          {activeTab === 'suppliers' && (
+            <SuppliersPage
+              suppliers={suppliers}
+              purchaseOrders={purchaseOrders}
+              products={products}
+              onAddPO={(newPO) => setPurchaseOrders((prev) => [newPO, ...prev])}
+            />
+          )}
+
+          {activeTab === 'support' && (
+            <SupportPage
+              tickets={supportTickets}
             />
           )}
 

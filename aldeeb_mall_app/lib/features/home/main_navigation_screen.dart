@@ -4,6 +4,7 @@ import '../../core/utils/responsive.dart';
 import '../catalog/catalog_screen.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../profile/profile_screen.dart';
+import '../recipes/recipes_screen.dart';
 import 'home_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = const [
     HomeScreen(),
     CatalogScreen(),
+    RecipesScreen(),
     LoyaltyScreen(),
     ProfileScreen(),
   ];
@@ -47,9 +49,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     const SizedBox(width: 8),
                     _desktopTabButton(1, 'تصفح كافة الأقسام', Icons.grid_view_rounded),
                     const SizedBox(width: 8),
-                    _desktopTabButton(2, 'نادي مكافآت الديب (نقاط الولاء)', Icons.stars_rounded),
+                    _desktopTabButton(2, 'طباخ الديب (وصفات ومقادير)', Icons.soup_kitchen_rounded),
                     const SizedBox(width: 8),
-                    _desktopTabButton(3, 'حسابي والطلبات السابقة', Icons.person),
+                    _desktopTabButton(3, 'نادي مكافآت الديب (نقاط الولاء)', Icons.stars_rounded),
+                    const SizedBox(width: 8),
+                    _desktopTabButton(4, 'حسابي والطلبات السابقة', Icons.person),
                     const Spacer(),
                     const Row(
                       children: [
@@ -104,6 +108,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             label: 'الأقسام',
           ),
           NavigationDestination(
+            icon: Icon(Icons.soup_kitchen_outlined),
+            selectedIcon: Icon(Icons.soup_kitchen_rounded, color: AppColors.primary),
+            label: 'الوصفات',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.stars_outlined),
             selectedIcon: Icon(Icons.stars_rounded, color: AppColors.accent),
             label: 'نقاطي',
@@ -128,17 +137,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         decoration: BoxDecoration(
           color: isSelected ? Colors.white.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: Colors.white24) : null,
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? AppColors.accent : Colors.white70, size: 16),
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : Colors.white70,
+            ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],

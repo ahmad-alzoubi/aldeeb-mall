@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, FlashDeal, Courier } from '../types';
+import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, FlashDeal, Courier, Supplier, PurchaseOrder, SupportTicket } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
@@ -379,5 +379,113 @@ export const initialCouriers: Courier[] = [
     rating: 4.92,
     assigned_orders_count: 0,
     completed_today: 15,
+  },
+];
+
+
+export const initialSuppliers: Supplier[] = [
+  {
+    id: 'sup-1',
+    name_ar: 'شركة المراعي للألبان والعصائر',
+    name_en: 'Almarai Dairy & Food Co.',
+    contact_person: 'م. فهد القحطاني',
+    phone: '+971 4 888 1234',
+    email: 'b2b.orders@almarai.com',
+    lead_time_days: 1,
+    payment_terms: 'آجل 30 يوماً',
+    active_products_count: 85,
+    status: 'active',
+  },
+  {
+    id: 'sup-2',
+    name_ar: 'شركة التنمية للدواجن والأغذية الطازجة',
+    name_en: 'Tanmiah Fresh Food Co.',
+    contact_person: 'د. سامر الرفاعي',
+    phone: '+971 4 777 5678',
+    email: 'supply@tanmiah.com',
+    lead_time_days: 1,
+    payment_terms: 'آجل 15 يوماً',
+    active_products_count: 32,
+    status: 'active',
+  },
+  {
+    id: 'sup-3',
+    name_ar: 'مؤسسة خيرات مزارع الإمارات المحلية',
+    name_en: 'Emirates Local Fresh Farms',
+    contact_person: 'علي الشامسي',
+    phone: '+971 50 444 3322',
+    email: 'farms@khairat.ae',
+    lead_time_days: 1,
+    payment_terms: 'أسبوعي',
+    active_products_count: 48,
+    status: 'active',
+  },
+];
+
+export const initialPurchaseOrders: PurchaseOrder[] = [
+  {
+    id: 'po-101',
+    po_number: 'PO-2026-089',
+    supplier_name: 'شركة المراعي للألبان والعصائر',
+    total_items: 600,
+    total_cost: 5400.00,
+    status: 'received',
+    order_date: '2026-10-28',
+    expected_arrival: '2026-10-29',
+  },
+  {
+    id: 'po-102',
+    po_number: 'PO-2026-090',
+    supplier_name: 'شركة التنمية للدواجن والأغذية الطازجة',
+    total_items: 250,
+    total_cost: 3750.00,
+    status: 'sent',
+    order_date: '2026-10-30',
+    expected_arrival: '2026-10-31',
+  },
+  {
+    id: 'po-103',
+    po_number: 'PO-2026-091',
+    supplier_name: 'مؤسسة خيرات مزارع الإمارات المحلية',
+    total_items: 450,
+    total_cost: 2100.00,
+    status: 'draft',
+    order_date: '2026-10-31',
+    expected_arrival: '2026-11-01',
+  },
+];
+
+export const initialSupportTickets: SupportTicket[] = [
+  {
+    id: 'tkt-1',
+    ticket_number: 'TKT-4412',
+    customer_name: 'فاطمة المنصوري',
+    order_number: 'DEEB-8843',
+    subject: 'طلب إضافة صنف إضافي مع الطلب قبل خروج المندوب',
+    status: 'open',
+    priority: 'high',
+    created_at: 'منذ 8 دقائق',
+    last_message: 'مرحباً، هل يمكن إضافة عبوة بيض بلدي إلى طلبي إذا كان لا يزال قيد التجهيز؟',
+  },
+  {
+    id: 'tkt-2',
+    ticket_number: 'TKT-4410',
+    customer_name: 'خالد السعدي',
+    order_number: 'DEEB-8844',
+    subject: 'استفسار عن موعد وصول الكابتن لبرج مارينا كراون',
+    status: 'in_progress',
+    priority: 'medium',
+    created_at: 'منذ 22 دقيقة',
+    last_message: 'الكابتن محمد في الطريق ويصلك خلال 7 دقائق بالضبط.',
+  },
+  {
+    id: 'tkt-3',
+    ticket_number: 'TKT-4401',
+    customer_name: 'أحمد الزعبي',
+    subject: 'استفسار عن تحويل نقاط ولاء العضوية الذهبية لكوبون خصم',
+    status: 'resolved',
+    priority: 'low',
+    created_at: 'أمس',
+    last_message: 'تم تفعيل كود الخصم في حسابك بقيمة 25 د.إ، تسوق ممتع!',
   },
 ];

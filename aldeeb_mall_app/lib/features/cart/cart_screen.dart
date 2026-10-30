@@ -420,7 +420,7 @@ class _CartScreenState extends State<CartScreen> {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
             value: cart.loyaltyPointsUsed > 0,
-            activeColor: AppColors.accent,
+            activeThumbColor: AppColors.accent,
             onChanged: (val) {
               if (val) {
                 cart.setLoyaltyPointsUsed(userPoints, userPoints);
