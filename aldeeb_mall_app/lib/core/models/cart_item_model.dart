@@ -12,6 +12,11 @@ class CartItemModel {
   });
 
   double get totalPrice => product.price * quantity;
+  String get productNameAr => product.nameAr;
+  String get productNameEn => product.nameEn;
+  String get productImage => product.firstImage;
+  String get unit => product.unitLabelAr;
+  double get unitPrice => product.price;
 
   String get formattedQuantity {
     if (quantity == quantity.roundToDouble()) {

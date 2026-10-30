@@ -96,6 +96,19 @@ class _HomeScreenState extends State<HomeScreen> {
               else
                 _buildMobileSliverAppBar(context, auth, mall),
 
+              // 1.5. Quick Commerce Mode Switcher (15-Min Noon Minutes vs Hypermarket)
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      _buildDeliveryModeSwitchBar(mall),
+                      if (mall.isExpress15Min) _buildExpressActiveBanner(),
+                    ],
+                  ),
+                ),
+              ),
+
               // 2. Department Category Strip
               SliverToBoxAdapter(
                 child: MaxWidthContainer(
@@ -935,6 +948,136 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryModeSwitchBar(MallProvider mall) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 15-Min Express Option (Noon Minutes / الديب ناو)
+          Expanded(
+            child: InkWell(
+              onTap: () => mall.toggleExpress15Min(true),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: mall.isExpress15Min ? AppColors.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.bolt,
+                      size: 18,
+                      color: mall.isExpress15Min ? AppColors.textPrimary : AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'الديب ناو (15 دقيقة)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: mall.isExpress15Min ? AppColors.textPrimary : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Scheduled / Hypermarket Option
+          Expanded(
+            child: InkWell(
+              onTap: () => mall.toggleExpress15Min(false),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: !mall.isExpress15Min ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.storefront_outlined,
+                      size: 18,
+                      color: !mall.isExpress15Min ? Colors.white : AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'سوبرماركت مجدول',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: !mall.isExpress15Min ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpressActiveBanner() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.electric_bolt, color: Color(0xFFD97706), size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'وضع التوصيل الفوري فائق السرعة نشط (Noon Minutes / 15-Min)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF92400E)),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'يتم جمع طلبك فوراً من أقرب مستودع مظلم وتوصيله خلال 15 دقيقة بسيارة مبردة.',
+                  style: TextStyle(fontSize: 10, color: Color(0xFFB45309)),
+                ),
+              ],
             ),
           ),
         ],

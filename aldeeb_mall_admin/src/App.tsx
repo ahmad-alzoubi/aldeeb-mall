@@ -8,14 +8,31 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { CouponsPage } from './pages/CouponsPage';
 import { LoyaltyPage } from './pages/LoyaltyPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { FulfillmentPage } from './pages/FulfillmentPage';
+import { FlashDealsPage } from './pages/FlashDealsPage';
+import { FleetPage } from './pages/FleetPage';
 import { 
   initialOrders, 
   initialProducts, 
   initialCategories, 
   initialCoupons, 
-  initialCustomers 
+  initialCustomers,
+  initialDarkStores,
+  initialPickerTasks,
+  initialFlashDeals,
+  initialCouriers
 } from './lib/supabase';
-import { Order, Product, Category, Coupon, Customer } from './types';
+import { 
+  Order, 
+  Product, 
+  Category, 
+  Coupon, 
+  Customer, 
+  DarkStore, 
+  PickerTask, 
+  FlashDeal, 
+  Courier 
+} from './types';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -29,6 +46,10 @@ export const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [darkStores] = useState<DarkStore[]>(initialDarkStores);
+  const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
+  const [flashDeals, setFlashDeals] = useState<FlashDeal[]>(initialFlashDeals);
+  const [couriers] = useState<Courier[]>(initialCouriers);
 
   // Play pleasant synthetic order chime via Web Audio API
   const playOrderChime = () => {
@@ -100,6 +121,21 @@ export const App: React.FC = () => {
     setCoupons((prev) => prev.filter((c) => c.id !== couponId));
   };
 
+  // Flash Deals Actions
+  const handleAddFlashDeal = (newDeal: FlashDeal) => {
+    setFlashDeals((prev) => [newDeal, ...prev]);
+  };
+
+  const handleDeleteFlashDeal = (dealId: string) => {
+    setFlashDeals((prev) => prev.filter((d) => d.id !== dealId));
+  };
+
+  const handleToggleFlashDeal = (dealId: string) => {
+    setFlashDeals((prev) =>
+      prev.map((d) => (d.id === dealId ? { ...d, is_active: !d.is_active } : d))
+    );
+  };
+
   // Customer Loyalty Actions
   const handleAddPoints = (customerId: string, points: number) => {
     setCustomers((prev) =>
@@ -122,6 +158,12 @@ export const App: React.FC = () => {
         return { title: 'لوحة التحكم والتحليلات', subtitle: 'نظرة شاملة ومؤشرات أداء مبيعات الديب مول' };
       case 'orders':
         return { title: 'إدارة الطلبات الفورية والفرز', subtitle: 'متابعة الطلبات المباشرة من الاستلام حتى تسليم السائق' };
+      case 'fulfillment':
+        return { title: 'المستودعات الذكية والجمع الفوري (15-Min)', subtitle: 'محطات الفرز الذكي ومطابقة الأصناف بالباركود الرقمي' };
+      case 'flash_deals':
+        return { title: 'عروض الفلاش والصفقات الخاطفة (Noon Deals)', subtitle: 'إدارة وتوقيت عروض الأسعار والكميات المحدودة' };
+      case 'fleet':
+        return { title: 'برج مراقبة أسطول التوصيل (Courier Dispatch)', subtitle: 'توزيع الطلبات والتتبع اللحظي لمندوبي التوصيل' };
       case 'products':
         return { title: 'كتالوج المنتجات والمخزون', subtitle: 'إدارة وتعديل الأصناف، الأسعار، العروض، ومستويات المستودع' };
       case 'categories':
@@ -180,6 +222,30 @@ export const App: React.FC = () => {
             <OrdersPage
               orders={orders}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          )}
+
+          {activeTab === 'fulfillment' && (
+            <FulfillmentPage
+              darkStores={darkStores}
+              pickerTasks={pickerTasks}
+            />
+          )}
+
+          {activeTab === 'flash_deals' && (
+            <FlashDealsPage
+              deals={flashDeals}
+              products={products}
+              onAddDeal={handleAddFlashDeal}
+              onDeleteDeal={handleDeleteFlashDeal}
+              onToggleDeal={handleToggleFlashDeal}
+            />
+          )}
+
+          {activeTab === 'fleet' && (
+            <FleetPage
+              couriers={couriers}
+              orders={orders}
             />
           )}
 

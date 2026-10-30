@@ -23,6 +23,7 @@ class MallProvider extends ChangeNotifier {
   String? _selectedCategoryId;
   String _searchQuery = '';
   ProductSortOption _currentSort = ProductSortOption.featured;
+  bool _isExpress15Min = false;
   bool _isLoading = false;
 
   List<CategoryModel> get categories => _categories;
@@ -31,7 +32,13 @@ class MallProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   ProductSortOption get currentSort => _currentSort;
   bool get isLoading => _isLoading;
+  bool get isExpress15Min => _isExpress15Min;
   Set<String> get favoriteProductIds => _favoriteProductIds;
+
+  void toggleExpress15Min(bool value) {
+    _isExpress15Min = value;
+    notifyListeners();
+  }
 
   // Filtered Products
   List<ProductModel> get filteredProducts {

@@ -6,9 +6,11 @@ import {
   MapPin, 
   Phone, 
   X,
-  PackageCheck
+  PackageCheck,
+  Receipt
 } from 'lucide-react';
 import { Order } from '../types';
+import { InvoiceModal } from '../components/InvoiceModal';
 
 interface OrdersPageProps {
   orders: Order[];
@@ -19,6 +21,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter((o) => {
     const matchesStatus = filterStatus === 'all' || o.status === filterStatus;
@@ -99,23 +102,23 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
                 <th className="p-4 text-center">الإجراءات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
-                    لا توجد طلبات مطابقة لهذا البحث
+                  <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold">
+                    لا توجد طلبات مطابقة للبحث أو التصفية الحالية
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="p-4 font-extrabold text-blue-900">
-                      #{order.order_number}
-                      <p className="text-[10px] text-slate-400 font-normal">{order.created_at}</p>
+                    <td className="p-4 font-mono font-extrabold text-blue-600">
+                      {order.order_number}
+                      <span className="block text-[10px] text-slate-400 font-normal">{order.created_at}</span>
                     </td>
                     <td className="p-4">
-                      <p className="font-bold text-slate-900">{order.customer_name}</p>
-                      <p className="text-slate-400 text-[11px] flex items-center gap-1 mt-0.5">
+                      <p className="font-extrabold text-slate-800">{order.customer_name}</p>
+                      <p className="text-slate-400 flex items-center gap-1 text-[11px] mt-0.5">
                         <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                         <span className="line-clamp-1">{order.customer_address}</span>
                       </p>
@@ -138,9 +141,16 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
                         <button
                           onClick={() => setSelectedOrder(order)}
                           className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200"
-                          title="عرض تفاصيل الطلب والفاتورة"
+                          title="عرض تفاصيل الطلب والفرز"
                         >
                           <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setInvoiceOrder(order)}
+                          className="p-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200"
+                          title="طباعة فاتورة ضريبية رسمية"
+                        >
+                          <Receipt className="w-4 h-4 text-emerald-600" />
                         </button>
                         {order.status === 'pending' && (
                           <button
@@ -176,27 +186,28 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
         </div>
       </div>
 
-      {/* Order Details & Bill Modal */}
+      {/* Order Details & Picking Sheet Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b pb-4 border-slate-100">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">
-                  تفاصيل الطلب #{selectedOrder.order_number}
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  تفاصيل الطلب: <span className="font-mono text-blue-600">{selectedOrder.order_number}</span>
                 </h3>
-                <p className="text-xs text-slate-400">تاريخ الطلب: {selectedOrder.created_at}</p>
+                <p className="text-xs text-slate-400 mt-0.5">تاريخ ووقت الإنشاء: {selectedOrder.created_at}</p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Customer Info */}
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            {/* Customer & Address Details */}
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
               <div>
                 <p className="text-xs text-slate-400 font-bold">بيانات العميل</p>
                 <p className="text-sm font-extrabold text-slate-800 mt-1">{selectedOrder.customer_name}</p>
@@ -268,11 +279,13 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
             {/* Modal Actions */}
             <div className="flex items-center justify-between pt-2">
               <button
-                onClick={() => window.print()}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                onClick={() => {
+                  setInvoiceOrder(selectedOrder);
+                }}
+                className="px-4 py-2 border border-blue-600 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-50 flex items-center gap-2"
               >
                 <Printer className="w-4 h-4" />
-                طباعة بوليصة التوصيل
+                طباعة الفاتورة الضريبية الرسمية
               </button>
 
               <div className="flex items-center gap-2">
@@ -287,6 +300,9 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
           </div>
         </div>
       )}
+
+      {/* Tax Invoice Modal */}
+      <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />
     </div>
   );
 };
