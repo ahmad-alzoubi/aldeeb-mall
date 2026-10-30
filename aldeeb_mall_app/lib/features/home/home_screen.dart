@@ -10,6 +10,8 @@ import '../../core/services/auth_service.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
 import '../loyalty/loyalty_screen.dart';
+import '../scanner/barcode_scanner_screen.dart';
+import '../flyer/flyer_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -120,7 +122,19 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: MaxWidthContainer(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildHeroSection(mall, isDesktop),
+                  child: Column(
+                    children: [
+                      _buildHeroSection(mall, isDesktop),
+                      _buildFlyerBanner(context),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 3.5. Quick Reorder / Buy Again Essentials
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  child: _buildBuyAgainSection(mall, cart, isDesktop),
                 ),
               ),
 
@@ -359,6 +373,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 22),
+                          tooltip: 'المسح الذكي للباركود (Scan & Go)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                            );
+                          },
+                        ),
                         Container(
                           margin: const EdgeInsets.all(4),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -563,6 +587,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 20),
+                  tooltip: 'المسح الذكي للباركود',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
               ],
             ),
           ),
@@ -1082,6 +1117,162 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFlyerBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FlyerScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'مجلة عروض وتخفيضات الديب الأسبوعية 📰',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'تصفح صفحات المجلة التفاعلية واشترِ الصفقات مباشرة بخصم 45%',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBuyAgainSection(MallProvider mall, CartProvider cart, bool isDesktop) {
+    final essentials = mall.filteredProducts.take(4).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
+                  SizedBox(width: 6),
+                  Text(
+                    'مشترياتك المعتادة (اشترِ مجدداً في 5 ثوانٍ)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+              Text(
+                'طلب سريع',
+                style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 110,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: essentials.length,
+            itemBuilder: (ctx, idx) {
+              final item = essentials[idx];
+              return Container(
+                width: isDesktop ? 260 : 210,
+                margin: const EdgeInsetsDirectional.only(end: 10),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: item.firstImage,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            item.nameAr,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item.price.toStringAsFixed(2)} د.إ',
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_shopping_cart, size: 18, color: AppColors.primary),
+                      onPressed: () {
+                        cart.addToCart(item);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ أضيفت ${item.nameAr} للسلة!'),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: AppColors.primary,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

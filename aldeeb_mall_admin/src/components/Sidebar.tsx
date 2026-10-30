@@ -13,7 +13,8 @@ import {
   Zap,
   Bike,
   Building2,
-  Headset
+  Headset,
+  BarChart3
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,7 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const menuItems = [
-    { id: 'dashboard', label: 'لوحة التحكم والتحليلات', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'لوحة التحكم والعمليات', icon: LayoutDashboard },
+    { id: 'analytics', label: 'ذكاء الأعمال والتحليلات', icon: BarChart3, badge: 'BI' },
     { 
       id: 'orders', 
       label: 'إدارة الطلبات الفورية', 

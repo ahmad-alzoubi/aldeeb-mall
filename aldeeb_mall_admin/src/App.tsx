@@ -13,6 +13,7 @@ import { FlashDealsPage } from './pages/FlashDealsPage';
 import { FleetPage } from './pages/FleetPage';
 import { SuppliersPage } from './pages/SuppliersPage';
 import { SupportPage } from './pages/SupportPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -166,7 +167,9 @@ export const App: React.FC = () => {
   const getPageTitle = () => {
     switch (activeTab) {
       case 'dashboard':
-        return { title: 'لوحة التحكم والتحليلات', subtitle: 'نظرة شاملة ومؤشرات أداء مبيعات الديب مول' };
+        return { title: 'لوحة التحكم والعمليات', subtitle: 'نظرة شاملة ومؤشرات أداء مبيعات الديب مول' };
+      case 'analytics':
+        return { title: 'ذكاء الأعمال والتحليلات المالية (BI Analytics)', subtitle: 'مؤشرات الإيرادات اللحظية، ساعات الذروة، ونسب التزام التوصيل 15 دقيقة' };
       case 'orders':
         return { title: 'إدارة الطلبات الفورية والفرز', subtitle: 'متابعة الطلبات المباشرة من الاستلام حتى تسليم السائق' };
       case 'fulfillment':
@@ -230,6 +233,13 @@ export const App: React.FC = () => {
               products={products}
               setActiveTab={setActiveTab}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsPage
+              orders={orders}
+              products={products}
             />
           )}
 
