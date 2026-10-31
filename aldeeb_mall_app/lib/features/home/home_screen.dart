@@ -33,6 +33,7 @@ import '../lockers/smart_locker_pickup_screen.dart';
 import '../drone_delivery/drone_tracking_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../butcher/butcher_customizer_screen.dart';
+import '../category/department_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -1052,8 +1053,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return InkWell(
                   onTap: () {
-                    mall.selectCategory(isSel ? null : cat.id);
-                    setState(() => _selectedSubcategory = null);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DepartmentScreen(category: cat),
+                      ),
+                    );
                   },
                   borderRadius: BorderRadius.circular(18),
                   child: AnimatedContainer(
@@ -2092,35 +2097,42 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE11D48),
-                        borderRadius: BorderRadius.circular(10),
+                InkWell(
+                  onTap: () {
+                    final cat = mall.categories.firstWhere((c) => c.id == 'c3', orElse: () => mall.categories.first);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentScreen(category: cat)));
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE11D48),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.kebab_dining_rounded, color: Colors.white, size: 20),
                       ),
-                      child: const Icon(Icons.kebab_dining_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'ملحمة وبحريات الديب الفاخرة 🥩🐟',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF881337),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'ملحمة وبحريات الديب الفاخرة 🥩🐟',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF881337),
+                            ),
                           ),
-                        ),
-                        Text(
-                          'ذبح بلدي طازج يومياً، أسماك طازجة، وخيارات تقطيع وتتبيل خاصة',
-                          style: TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
-                        ),
-                      ],
-                    ),
-                  ],
+                          Text(
+                            'ذبح بلدي طازج يومياً، أسماك طازجة • اضغط لعرض القسم ←',
+                            style: TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -2216,8 +2228,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    mall.selectCategory('c1');
-                    setState(() => _selectedSubcategory = null);
+                    final cat = mall.categories.firstWhere((c) => c.id == 'c1', orElse: () => mall.categories.first);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentScreen(category: cat)));
                   },
                   child: const Text(
                     'عرض كل الخضار والفواكه ←',

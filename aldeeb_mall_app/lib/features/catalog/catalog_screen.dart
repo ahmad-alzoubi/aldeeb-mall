@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/utils/responsive.dart';
+import '../category/department_screen.dart';
 import '../home/widgets/product_card.dart';
 
 class CatalogScreen extends StatefulWidget {
@@ -219,6 +220,54 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       ],
                     ),
                   ),
+
+                  // Direct Department Deals & Experience Link
+                  if (mall.selectedCategoryId != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                      child: InkWell(
+                        onTap: () {
+                          final cat = categories.firstWhere(
+                            (c) => c.id == mall.selectedCategoryId,
+                            orElse: () => categories.first,
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => DepartmentScreen(category: cat)),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: const [
+                              Row(
+                                children: [
+                                  Icon(Icons.local_fire_department_rounded, color: AppColors.secondary, size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'عرض عروض وتجربة هذا القسم المتكاملة 🔥',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Icon(Icons.arrow_forward_ios_rounded, color: AppColors.primary, size: 12),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // Mobile Sort & Count Row
                   Padding(
