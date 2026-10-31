@@ -6,6 +6,7 @@ import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/utils/responsive.dart';
+import '../cart/cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
@@ -686,9 +687,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     double currentQty,
     bool isDesktop,
   ) {
-    final actionWidget = currentQty > 0
-        ? _buildQuantityStepper(cart, currentQty)
-        : _buildAddToCartButton(context, cart);
+    if (currentQty > 0) {
+      return Expanded(
+        child: Row(
+          children: [
+            SizedBox(
+              width: isDesktop ? 140 : 120,
+              height: 48,
+              child: _buildQuantityStepper(cart, currentQty),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_back, size: 16),
+                  label: const Text(
+                    'إتمام الطلب 🛒',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.freshGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 1,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final actionWidget = _buildAddToCartButton(context, cart);
 
     if (isDesktop) {
       return SizedBox(
@@ -726,8 +765,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ],
             ),
+            action: SnackBarAction(
+              label: 'إتمام الطلب 🛒',
+              textColor: AppColors.accent,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                );
+              },
+            ),
             backgroundColor: AppColors.primary,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),

@@ -524,6 +524,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     }
                   },
                 ),
+              const SizedBox(height: 80),
             ],
           ),
         ),

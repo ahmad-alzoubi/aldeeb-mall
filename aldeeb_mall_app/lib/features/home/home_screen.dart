@@ -1595,7 +1595,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 CachedNetworkImage(
                   imageUrl: banner.imageUrl,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
+                  errorWidget: (context, url, error) => Container(
                     color: AppColors.primaryDark,
                     child: const Icon(Icons.image, color: Colors.white24, size: 48),
                   ),
@@ -1673,7 +1673,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 CachedNetworkImage(
                   imageUrl: banner.imageUrl,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
+                  errorWidget: (context, url, error) => Container(
                     color: AppColors.primaryDark,
                     child: const Icon(Icons.image, color: Colors.white24, size: 36),
                   ),
