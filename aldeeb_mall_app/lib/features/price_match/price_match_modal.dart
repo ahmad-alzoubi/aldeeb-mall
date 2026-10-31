@@ -245,7 +245,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
                                       children: [
                                         const Text('سعر الديب مول: ', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                                         Text(
-                                          '${_aldeebPrice.toStringAsFixed(2)} ر.س',
+                                          '${_aldeebPrice.toStringAsFixed(2)} ل.س',
                                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: AppColors.freshGreen),
                                         ),
                                       ],
@@ -304,7 +304,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
                         onChanged: (_) => _calculateRefund(),
                         decoration: InputDecoration(
                           hintText: 'مثال: 19.50',
-                          suffixText: 'ر.س',
+                          suffixText: 'ل.س',
                           suffixStyle: const TextStyle(fontWeight: FontWeight.bold),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -343,7 +343,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('سعر الديب مول:', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                                Text('${_aldeebPrice.toStringAsFixed(2)} ر.س', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text('${_aldeebPrice.toStringAsFixed(2)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold)),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -352,7 +352,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
                               children: [
                                 Text('سعر $_selectedCompetitor:', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                                 Text(
-                                  '${(double.tryParse(_competitorPriceController.text) ?? 0.0).toStringAsFixed(2)} ر.س',
+                                  '${(double.tryParse(_competitorPriceController.text) ?? 0.0).toStringAsFixed(2)} ل.س',
                                   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
                                 ),
                               ],
@@ -369,7 +369,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
                                   ],
                                 ),
                                 Text(
-                                  '${_refundAmount.toStringAsFixed(2)} ر.س',
+                                  '${_refundAmount.toStringAsFixed(2)} ل.س',
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
@@ -448,7 +448,7 @@ class _PriceMatchModalState extends State<PriceMatchModal> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '+${_refundAmount.toStringAsFixed(2)} ر.س رصيد محفظة',
+              '+${_refundAmount.toStringAsFixed(2)} ل.س رصيد محفظة',
               style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 20),
             ),
           ),

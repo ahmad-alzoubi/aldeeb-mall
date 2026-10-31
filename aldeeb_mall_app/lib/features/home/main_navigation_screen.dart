@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/providers/cart_provider.dart';
 import '../../core/utils/responsive.dart';
-import '../catalog/catalog_screen.dart';
+import '../cart/cart_screen.dart';
+import '../category/categories_screen.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../profile/profile_screen.dart';
 import '../recipes/recipes_screen.dart';
@@ -19,7 +22,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    CatalogScreen(),
+    CategoriesScreen(),
     RecipesScreen(),
     LoyaltyScreen(),
     ProfileScreen(),
@@ -27,6 +30,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cart = Provider.of<CartProvider>(context);
     final isDesktop = Responsive.isDesktop(context);
 
     if (isDesktop) {
@@ -82,45 +86,145 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
     }
 
-    // Mobile View: Modern NavigationBar
+    // Mobile View: Modern NavigationBar with Floating Cart Checkout Bar
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
-        },
-        backgroundColor: Colors.white,
-        elevation: 8,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            selectedIcon: Icon(Icons.storefront, color: AppColors.primary),
-            label: 'الرئيسية',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (cart.itemCount > 0)
+            _buildFloatingCartBar(context, cart),
+          NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() => _currentIndex = index);
+            },
+            backgroundColor: Colors.white,
+            elevation: 8,
+            indicatorColor: AppColors.primary.withValues(alpha: 0.15),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.storefront_outlined),
+                selectedIcon: Icon(Icons.storefront, color: AppColors.primary),
+                label: 'الرئيسية',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.grid_view_outlined),
+                selectedIcon: Icon(Icons.grid_view_rounded, color: AppColors.primary),
+                label: 'الأقسام',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.soup_kitchen_outlined),
+                selectedIcon: Icon(Icons.soup_kitchen_rounded, color: AppColors.primary),
+                label: 'الوصفات',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.stars_outlined),
+                selectedIcon: Icon(Icons.stars_rounded, color: AppColors.accent),
+                label: 'نقاطي',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person, color: AppColors.primary),
+                label: 'حسابي',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded, color: AppColors.primary),
-            label: 'الأقسام',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingCartBar(BuildContext context, CartProvider cart) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), AppColors.primaryDark],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.soup_kitchen_outlined),
-            selectedIcon: Icon(Icons.soup_kitchen_rounded, color: AppColors.primary),
-            label: 'الوصفات',
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Badge(
+              label: Text('${cart.itemCount}'),
+              child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.stars_outlined),
-            selectedIcon: Icon(Icons.stars_rounded, color: AppColors.accent),
-            label: 'نقاطي',
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '${cart.totalAmount.toStringAsFixed(2)} ل.س',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.freshGreen.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'توصيل فوري ⚡',
+                      style: TextStyle(color: AppColors.freshGreen, fontSize: 9, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${cart.itemCount} أصناف بالسلة • جاهز لإتمام الطلب',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: AppColors.primary),
-            label: 'حسابي',
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+            icon: const Icon(Icons.arrow_back, size: 16),
+            label: const Text(
+              'إتمام الطلب',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.textPrimary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ],
       ),

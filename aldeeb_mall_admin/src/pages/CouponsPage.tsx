@@ -97,12 +97,12 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                   <span className="font-extrabold text-blue-700">
                     {coupon.discount_type === 'percentage'
                       ? `${coupon.discount_value}% من قيمة السلة`
-                      : `${coupon.discount_value.toFixed(2)} د.إ خصم مباشر`}
+                      : `${coupon.discount_value.toFixed(2)} ل.س خصم مباشر`}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>الحد الأدنى للطلب:</span>
-                  <span className="font-bold text-slate-800">{coupon.min_order_amount.toFixed(2)} د.إ</span>
+                  <span className="font-bold text-slate-800">{coupon.min_order_amount.toFixed(2)} ل.س</span>
                 </div>
                 <div className="flex justify-between">
                   <span>مرات الاستخدام:</span>
@@ -160,7 +160,7 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
                   >
                     <option value="percentage">نسبة مئوية (%)</option>
-                    <option value="fixed">مبلغ مالي ثابت (د.إ)</option>
+                    <option value="fixed">مبلغ مالي ثابت (ل.س)</option>
                   </select>
                 </div>
                 <div>
@@ -177,7 +177,7 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1">الحد الأدنى للطلب (د.إ)</label>
+                  <label className="block mb-1">الحد الأدنى للطلب (ل.س)</label>
                   <input
                     type="number"
                     value={minOrder}

@@ -116,14 +116,14 @@ export const ZonesPage: React.FC<ZonesPageProps> = ({
                     <DollarSign className="w-3.5 h-3.5 text-blue-600" />
                     رسوم التوصيل الأساسية:
                   </span>
-                  <span className="font-mono font-bold text-slate-900">{zone.base_delivery_fee.toFixed(2)} د.إ</span>
+                  <span className="font-mono font-bold text-slate-900">{zone.base_delivery_fee.toFixed(2)} ل.س</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     حد الشحن المجاني:
                   </span>
-                  <span className="font-mono font-bold text-emerald-700">فوق {zone.free_delivery_threshold} د.إ</span>
+                  <span className="font-mono font-bold text-emerald-700">فوق {zone.free_delivery_threshold} ل.س</span>
                 </div>
               </div>
 
@@ -142,12 +142,12 @@ export const ZonesPage: React.FC<ZonesPageProps> = ({
                         : 'bg-slate-200 text-slate-700'
                     }`}
                   >
-                    {zone.is_surge_pricing_active ? 'مفعل (+4 د.إ)' : 'معطل'}
+                    {zone.is_surge_pricing_active ? 'مفعل (+4 ل.س)' : 'معطل'}
                   </button>
                 </div>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
                   {zone.is_surge_pricing_active
-                    ? 'يتم تطبيق رسوم إضافية 4.00 د.إ تلقائياً بسبب ذروة الطلبات الحالية لتحفيز السائقين.'
+                    ? 'يتم تطبيق رسوم إضافية 4.00 ل.س تلقائياً بسبب ذروة الطلبات الحالية لتحفيز السائقين.'
                     : 'التسعير العادي ساري، لا توجد رسوم ذروة في هذا النطاق.'}
                 </p>
               </div>

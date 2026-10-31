@@ -27,6 +27,9 @@ export interface Category {
   image_url?: string;
   sort_order: number;
   is_active: boolean;
+  show_title?: boolean;
+  group_tag?: string;
+  item_count?: number;
 }
 
 export interface OrderItem {
@@ -244,4 +247,106 @@ export interface ReturnRequest {
   photo_evidence_url: string;
   status: 'pending_review' | 'approved_refunded' | 'approved_replacement' | 'rejected';
 }
+
+export interface SubscriptionPlan {
+  id: string;
+  plan_key: string;
+  name_ar: string;
+  name_en: string;
+  badge_tag_ar: string;
+  price_monthly: number;
+  price_annual: number;
+  points_multiplier: number;
+  cashback_percent: number;
+  free_express_delivery: boolean;
+  min_order_free_delivery: number;
+  features_ar: string[];
+  accent_color: string;
+  is_popular: boolean;
+  is_active: boolean;
+  subscribers_count: number;
+}
+
+export interface Subscriber {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  plan_key: string;
+  plan_name_ar: string;
+  billing_cycle: 'monthly' | 'annual';
+  status: 'active' | 'paused' | 'cancelled' | 'expired';
+  auto_renew: boolean;
+  started_at: string;
+  renews_at: string;
+  total_deliveries_saved: number;
+  total_money_saved: number;
+  total_spent: number;
+  loyalty_points: number;
+}
+
+export interface RewardCoupon {
+  id: string;
+  code_prefix: string;
+  title_ar: string;
+  description_ar: string;
+  points_cost: number;
+  discount_amount: number;
+  min_order_amount: number;
+  days_valid: number;
+  total_claimed: number;
+  is_active: boolean;
+}
+
+export interface RewardProduct {
+  id: string;
+  product_id?: string;
+  title_ar: string;
+  title_en: string;
+  image_url: string;
+  category_ar: string;
+  points_cost: number;
+  stock_quota: number;
+  claimed_count: number;
+  is_active: boolean;
+}
+
+export interface SubscriptionActivityLog {
+  id: string;
+  timestamp: string;
+  customer_name: string;
+  activity_type: 'new_subscription' | 'renewed' | 'upgraded' | 'points_redeemed' | 'reward_claimed' | 'paused';
+  description_ar: string;
+  badge_color: string;
+  amount_or_points?: string;
+}
+
+export interface Banner {
+  id: string;
+  title_ar: string;
+  title_en: string;
+  subtitle_ar?: string;
+  subtitle_en?: string;
+  image_url: string;
+  target_type: 'category' | 'product' | 'deal' | 'external';
+  target_id?: string;
+  badge_ar?: string;
+  sort_order: number;
+  is_active: boolean;
+  position: 'hero' | 'middle_secondary';
+}
+
+export interface HomeShelf {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  type: 'search_header' | 'hero_banners' | 'departments' | 'weekly_deals' | 'secondary_banner_1' | 'cant_miss' | 'new_arrivals' | 'secondary_banner_2' | 'mega_savings' | 'category_shelf' | 'full_catalog';
+  categoryId?: string;
+  isEnabled: boolean;
+  order: number;
+  customTitleAr?: string;
+}
+
+
 

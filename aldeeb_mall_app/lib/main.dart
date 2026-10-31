@@ -6,6 +6,7 @@ import 'core/services/auth_service.dart';
 import 'core/providers/mall_provider.dart';
 import 'core/providers/cart_provider.dart';
 import 'core/providers/order_provider.dart';
+import 'core/providers/recipe_provider.dart';
 import 'features/home/main_navigation_screen.dart';
 
 void main() async {
@@ -29,6 +30,7 @@ class AldeebMallApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MallProvider()..loadMallData()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => RecipeProvider()),
       ],
       child: MaterialApp(
         title: 'الديب مول | Aldeeb Mall',

@@ -202,7 +202,7 @@ export const CourierPortalPage: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
                     <span>عدد الأصناف: <strong className="text-gray-800">{run.itemsCount} أصناف</strong></span>
-                    <span>الإجمالي: <strong className="text-gray-900 font-mono">{run.totalAmount.toFixed(2)} ر.س</strong></span>
+                    <span>الإجمالي: <strong className="text-gray-900 font-mono">{run.totalAmount.toFixed(2)} ل.س</strong></span>
                   </div>
                 </div>
 

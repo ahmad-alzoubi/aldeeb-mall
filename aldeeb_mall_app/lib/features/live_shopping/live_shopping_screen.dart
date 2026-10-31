@@ -164,7 +164,7 @@ class _LiveShoppingScreenState extends State<LiveShoppingScreen> with SingleTick
       'روعة العرض، تم الطلب بالسلة الآن!',
       'هل يتوفر دفع عند الاستلام؟',
       'شكراً شيف نورة على النصائح الذهبية',
-      'الكود LIVE30 اشتغل وخصم لي 45 ريال 🥳',
+      'الكود LIVE30 اشتغل وخصم لي 45 ل.س 🥳',
       'اللحم نعيمي بلدي مضمون؟',
       'أفضل تجربة بث حي في تطبيقات التسوق والله',
     ];
@@ -331,7 +331,7 @@ class _LiveShoppingScreenState extends State<LiveShoppingScreen> with SingleTick
                               Row(
                                 children: [
                                   Text(
-                                    '${p.price.toStringAsFixed(2)} ر.س',
+                                    '${p.price.toStringAsFixed(2)} ل.س',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 14,
@@ -341,7 +341,7 @@ class _LiveShoppingScreenState extends State<LiveShoppingScreen> with SingleTick
                                   const SizedBox(width: 8),
                                   if (p.originalPrice != null)
                                     Text(
-                                      '${p.originalPrice!.toStringAsFixed(2)} ر.س',
+                                      '${p.originalPrice!.toStringAsFixed(2)} ل.س',
                                       style: const TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey,
@@ -715,7 +715,7 @@ class _LiveShoppingScreenState extends State<LiveShoppingScreen> with SingleTick
                         Row(
                           children: [
                             Text(
-                              '${activeProduct.price.toStringAsFixed(2)} ر.س',
+                              '${activeProduct.price.toStringAsFixed(2)} ل.س',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 14,
@@ -725,7 +725,7 @@ class _LiveShoppingScreenState extends State<LiveShoppingScreen> with SingleTick
                             const SizedBox(width: 6),
                             if (activeProduct.originalPrice != null)
                               Text(
-                                '${activeProduct.originalPrice!.toStringAsFixed(2)} ر.س',
+                                '${activeProduct.originalPrice!.toStringAsFixed(2)} ل.س',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey,

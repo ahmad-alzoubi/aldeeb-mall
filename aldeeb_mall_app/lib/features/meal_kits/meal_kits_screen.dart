@@ -450,7 +450,7 @@ class _MealKitsScreenState extends State<MealKitsScreen> {
                                 style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
-                                '${currentPrice.toStringAsFixed(2)} ر.س',
+                                '${currentPrice.toStringAsFixed(2)} ل.س',
                                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.freshGreen),
                               ),
                             ],
@@ -714,7 +714,7 @@ class _MealKitsScreenState extends State<MealKitsScreen> {
                                       children: [
                                         const Text('يبدأ من (لشخصين):', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
                                         Text(
-                                          '${kit.basePriceForTwo.toStringAsFixed(2)} ر.س',
+                                          '${kit.basePriceForTwo.toStringAsFixed(2)} ل.س',
                                           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppColors.freshGreen),
                                         ),
                                       ],

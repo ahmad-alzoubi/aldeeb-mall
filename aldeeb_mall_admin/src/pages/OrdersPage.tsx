@@ -128,10 +128,10 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
                       <span className="font-bold text-slate-700">{order.payment_method}</span>
                     </td>
                     <td className="p-4 font-extrabold text-blue-900">
-                      {order.total_amount.toFixed(2)} د.إ
+                      {order.total_amount.toFixed(2)} ل.س
                       {order.loyalty_discount > 0 && (
                         <p className="text-[10px] text-emerald-600 font-bold">
-                          وفر {order.loyalty_discount.toFixed(2)} د.إ بالنقاط
+                          وفر {order.loyalty_discount.toFixed(2)} ل.س بالنقاط
                         </p>
                       )}
                     </td>
@@ -237,11 +237,11 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
                     <div>
                       <p className="text-xs font-bold text-slate-800">{item.product_name_ar}</p>
                       <p className="text-[11px] text-slate-400">
-                        {item.quantity} {item.unit} × {item.unit_price.toFixed(2)} د.إ
+                        {item.quantity} {item.unit} × {item.unit_price.toFixed(2)} ل.س
                       </p>
                     </div>
                     <span className="text-xs font-extrabold text-blue-900">
-                      {item.total_price.toFixed(2)} د.إ
+                      {item.total_price.toFixed(2)} ل.س
                     </span>
                   </div>
                 ))}
@@ -252,27 +252,27 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onUpdateOrderSta
             <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs">
               <div className="flex justify-between text-slate-600">
                 <span>المجموع الفرعي:</span>
-                <span>{selectedOrder.subtotal.toFixed(2)} د.إ</span>
+                <span>{selectedOrder.subtotal.toFixed(2)} ل.س</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>رسوم التوصيل:</span>
-                <span>{selectedOrder.delivery_fee === 0 ? 'مجاناً' : `${selectedOrder.delivery_fee.toFixed(2)} د.إ`}</span>
+                <span>{selectedOrder.delivery_fee === 0 ? 'مجاناً' : `${selectedOrder.delivery_fee.toFixed(2)} ل.س`}</span>
               </div>
               {selectedOrder.discount_amount > 0 && (
                 <div className="flex justify-between text-rose-600 font-bold">
                   <span>خصم الكوبون:</span>
-                  <span>-{selectedOrder.discount_amount.toFixed(2)} د.إ</span>
+                  <span>-{selectedOrder.discount_amount.toFixed(2)} ل.س</span>
                 </div>
               )}
               {selectedOrder.loyalty_discount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-bold">
                   <span>خصم نقاط الولاء:</span>
-                  <span>-{selectedOrder.loyalty_discount.toFixed(2)} د.إ</span>
+                  <span>-{selectedOrder.loyalty_discount.toFixed(2)} ل.س</span>
                 </div>
               )}
               <div className="border-t pt-2 flex justify-between text-sm font-extrabold text-slate-900">
                 <span>المبلغ الإجمالي:</span>
-                <span className="text-blue-700 text-base">{selectedOrder.total_amount.toFixed(2)} د.إ</span>
+                <span className="text-blue-700 text-base">{selectedOrder.total_amount.toFixed(2)} ل.س</span>
               </div>
             </div>
 

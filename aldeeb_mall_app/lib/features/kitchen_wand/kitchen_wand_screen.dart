@@ -613,7 +613,7 @@ class _KitchenWandScreenState extends State<KitchenWandScreen>
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'التصنيف: ${item['category']} • السعر: ${product.price.toStringAsFixed(2)} ر.س',
+                              'التصنيف: ${item['category']} • السعر: ${product.price.toStringAsFixed(2)} ل.س',
                               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                             ),
                           ],

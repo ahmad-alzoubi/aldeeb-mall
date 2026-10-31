@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
+import '../../core/providers/mall_provider.dart';
 import '../../core/providers/order_provider.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/responsive.dart';
@@ -19,6 +22,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int _selectedSlotIndex = 0;
   int _selectedPaymentIndex = 0;
   final TextEditingController _notesController = TextEditingController();
+  Timer? _reservationTimer;
+  int _reservationSecondsRemaining = 15 * 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startReservationTimer();
+  }
+
+  void _startReservationTimer() {
+    _reservationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_reservationSecondsRemaining > 0) {
+        if (mounted) {
+          setState(() => _reservationSecondsRemaining--);
+        }
+      } else {
+        timer.cancel();
+      }
+    });
+  }
 
   final List<Map<String, String>> _addresses = [
     {
@@ -64,7 +87,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final List<Map<String, dynamic>> _paymentMethods = [
     {
       'title': 'محفظة الديب الذكية (Aldeeb Pay)',
-      'subtitle': 'رصيد متاح 150.00 ر.س • خصم فوري بنقرة واحدة بدون OTP',
+      'subtitle': 'رصيد متاح 150.00 ل.س • خصم فوري بنقرة واحدة بدون OTP',
       'icon': Icons.account_balance_wallet_rounded,
       'badge': 'موصى به',
     },
@@ -87,6 +110,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    _reservationTimer?.cancel();
     _notesController.dispose();
     super.dispose();
   }
@@ -155,10 +179,87 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Widget _buildStockReservationBanner() {
+    final minutes = (_reservationSecondsRemaining ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_reservationSecondsRemaining % 60).toString().padLeft(2, '0');
+    final isLowTime = _reservationSecondsRemaining < 180;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isLowTime ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLowTime ? const Color(0xFFFCA5A5) : const Color(0xFFBFDBFE),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isLowTime ? const Color(0xFFEF4444) : AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'حجز المخزون مؤقتاً (Stock Reserved)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isLowTime ? const Color(0xFF991B1B) : AppColors.primaryDark,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isLowTime ? const Color(0xFFDC2626) : AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$minutes:$seconds',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'تم حجز الكميات من أقرب مستودع تلقائياً لمنع نفادها أثناء إتمام الطلب.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isLowTime ? const Color(0xFFB91C1C) : const Color(0xFF1E40AF),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormSections() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildStockReservationBanner(),
         // 1. Delivery Address Section
         _sectionHeader(Icons.location_on_outlined, 'عنوان التوصيل المعتمد'),
         const SizedBox(height: 12),
@@ -292,20 +393,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           const Text('ملخص الطلب النهائي', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 14),
-          _summaryRow('المجموع الفرعي', '${cart.subtotal.toStringAsFixed(2)} د.إ'),
+          _summaryRow('المجموع الفرعي', '${cart.subtotal.toStringAsFixed(2)} ل.س'),
           const SizedBox(height: 8),
           _summaryRow(
             'رسوم التوصيل',
-            cart.isFreeDelivery ? 'مجاناً' : '${cart.deliveryFee.toStringAsFixed(2)} د.إ',
+            cart.isFreeDelivery ? 'مجاناً' : '${cart.deliveryFee.toStringAsFixed(2)} ل.س',
             valueColor: cart.isFreeDelivery ? AppColors.freshGreen : null,
           ),
           if (cart.couponDiscount > 0) ...[
             const SizedBox(height: 8),
-            _summaryRow('خصم الكوبون', '-${cart.couponDiscount.toStringAsFixed(2)} د.إ', valueColor: AppColors.secondary),
+            _summaryRow('خصم الكوبون', '-${cart.couponDiscount.toStringAsFixed(2)} ل.س', valueColor: AppColors.secondary),
           ],
           if (cart.loyaltyDiscount > 0) ...[
             const SizedBox(height: 8),
-            _summaryRow('خصم نقاط الولاء', '-${cart.loyaltyDiscount.toStringAsFixed(2)} د.إ', valueColor: AppColors.accent),
+            _summaryRow('خصم نقاط الولاء', '-${cart.loyaltyDiscount.toStringAsFixed(2)} ل.س', valueColor: AppColors.accent),
           ],
           const Divider(height: 24),
           Row(
@@ -313,7 +414,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               const Text('المبلغ الإجمالي', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               Text(
-                '${cart.totalAmount.toStringAsFixed(2)} د.إ',
+                '${cart.totalAmount.toStringAsFixed(2)} ل.س',
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.primary),
               ),
             ],
@@ -328,6 +429,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       onPressed: orderProv.isPlacingOrder
           ? null
           : () async {
+              if (_reservationSecondsRemaining <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Colors.deepOrange,
+                    content: Text('⚠️ انتهت مهلة حجز المخزون المؤقت (15 دقيقة). يرجى مراجعة الأصناف لتأكيد الحجز مجدداً.'),
+                  ),
+                );
+                return;
+              }
+
+              // Guardrail 6: Overselling Prevention
+              final mall = Provider.of<MallProvider>(context, listen: false);
+              for (final item in cart.items.values) {
+                ProductModel? product;
+                for (final p in mall.products) {
+                  if (p.id == item.product.id) {
+                    product = p;
+                    break;
+                  }
+                }
+                final availableStock = product?.stockQuantity ?? item.product.stockQuantity;
+                if (item.quantity > availableStock) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.red.shade700,
+                      content: Text('⚠️ نظام منع البيع فوق المخزون: الكمية المطلوبة من "${item.productNameAr}" (${item.formattedQuantity}) تتجاوز المخزون المتاح فعلياً ($availableStock).'),
+                    ),
+                  );
+                  return;
+                }
+              }
+
               final slot = _deliverySlots[_selectedSlotIndex]['title'] as String;
               final payment = _paymentMethods[_selectedPaymentIndex]['title'] as String;
 
@@ -344,7 +477,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 notes: _notesController.text.trim(),
               );
 
-              if (!context.mounted) return;
+              if (!mounted) return;
 
               if (order != null) {
                 if (cart.loyaltyPointsUsed > 0) {
@@ -374,7 +507,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const Icon(Icons.check_circle_outline, color: Colors.white),
                 const SizedBox(width: 8),
                 Text(
-                  'تأكيد وإرسال الطلب (${cart.totalAmount.toStringAsFixed(2)} د.إ)',
+                  'تأكيد وإرسال الطلب (${cart.totalAmount.toStringAsFixed(2)} ل.س)',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],

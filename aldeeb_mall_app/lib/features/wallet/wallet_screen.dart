@@ -92,7 +92,7 @@ class _WalletScreenState extends State<WalletScreen> {
           children: [
             const Icon(Icons.check_circle_rounded, color: Colors.white),
             const SizedBox(width: 8),
-            Text('تم شحن $amount ر.س بنجاح إلى محفظة الديب الخاصة بك!'),
+            Text('تم شحن $amount ل.س بنجاح إلى محفظة الديب الخاصة بك!'),
           ],
         ),
       ),
@@ -123,7 +123,7 @@ class _WalletScreenState extends State<WalletScreen> {
         const SnackBar(
           backgroundColor: AppColors.primaryLight,
           behavior: SnackBarBehavior.floating,
-          content: Text('🎉 تهانينا! تمت إضافة 50.00 ر.س رصيد مجاني لمحفظتك بنجاح'),
+          content: Text('🎉 تهانينا! تمت إضافة 50.00 ل.س رصيد مجاني لمحفظتك بنجاح'),
         ),
       );
     } else {
@@ -153,7 +153,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('الرصيد غير كافٍ. الحد الأدنى للإهداء 25 ر.س'),
+          content: Text('الرصيد غير كافٍ. الحد الأدنى للإهداء 25 ل.س'),
         ),
       );
       return;
@@ -181,7 +181,7 @@ class _WalletScreenState extends State<WalletScreen> {
       SnackBar(
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
-        content: Text('🎁 تم إرسال هدية 25 ر.س بنجاح إلى $phone مع رسالة مباركة!'),
+        content: Text('🎁 تم إرسال هدية 25 ل.س بنجاح إلى $phone مع رسالة مباركة!'),
       ),
     );
   }
@@ -332,7 +332,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(width: 8),
               const Text(
-                'ر.س',
+                'ل.س',
                 style: TextStyle(
                   color: AppColors.accent,
                   fontSize: 20,
@@ -356,7 +356,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     const Icon(Icons.auto_awesome, color: AppColors.accent, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      'كاش باك معلق: +${_pendingCashback.toStringAsFixed(2)} ر.س',
+                      'كاش باك معلق: +${_pendingCashback.toStringAsFixed(2)} ل.س',
                       style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -433,7 +433,7 @@ class _WalletScreenState extends State<WalletScreen> {
           child: Column(
             children: [
               Text(
-                '+$amount ر.س',
+                '+$amount ل.س',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 15,
@@ -442,7 +442,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(height: 3),
               Text(
-                'كاش باك ${(amount * 0.05).toStringAsFixed(1)} ر.س',
+                'كاش باك ${(amount * 0.05).toStringAsFixed(1)} ل.س',
                 style: TextStyle(
                   color: Colors.green.shade700,
                   fontSize: 10,
@@ -569,7 +569,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             children: [
                               const Text('إهداء رصيد من محفظتك', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              const Text('أدخل رقم جوال المستلم، وسيتم تحويل 25 ر.س فوراً مع بطاقة تهنئة رقمية.', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                              const Text('أدخل رقم جوال المستلم، وسيتم تحويل 25 ل.س فوراً مع بطاقة تهنئة رقمية.', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                               const SizedBox(height: 14),
                               TextField(
                                 controller: _phoneGiftController,
@@ -591,7 +591,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                     padding: const EdgeInsets.symmetric(vertical: 14),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
-                                  child: const Text('تأكيد إرسال الهدية (25 ر.س)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  child: const Text('تأكيد إرسال الهدية (25 ل.س)', style: TextStyle(fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
@@ -661,7 +661,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
                 trailing: Text(
-                  '${tx.isCredit ? '+' : '-'}${tx.amount.toStringAsFixed(2)} ر.س',
+                  '${tx.isCredit ? '+' : '-'}${tx.amount.toStringAsFixed(2)} ل.س',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 14,

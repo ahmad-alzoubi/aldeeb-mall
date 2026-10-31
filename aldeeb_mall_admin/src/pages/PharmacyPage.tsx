@@ -379,7 +379,7 @@ export const PharmacyPage: React.FC = () => {
                         <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-bold text-[11px]">
                           {rx.insuranceProvider}
                         </span>
-                        <div className="text-[10px] text-slate-500 mt-0.5">تحمل المريض: {rx.copayAmount} ر.س</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">تحمل المريض: {rx.copayAmount} ل.س</div>
                       </td>
                       <td className="p-3.5 max-w-xs">
                         <div className="space-y-1">

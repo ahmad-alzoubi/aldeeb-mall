@@ -235,7 +235,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                                 Row(
                                   children: [
                                     Text(
-                                      '${_scannedProduct!.price.toStringAsFixed(2)} د.إ',
+                                      '${_scannedProduct!.price.toStringAsFixed(2)} ل.س',
                                       style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
                                     ),
                                     const SizedBox(width: 8),

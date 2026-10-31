@@ -408,14 +408,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    '${item.quantity} ${item.unit} × ${item.unitPrice.toStringAsFixed(2)} د.إ',
+                                    '${item.quantity} ${item.unit} × ${item.unitPrice.toStringAsFixed(2)} ل.س',
                                     style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
                                   ),
                                 ],
                               ),
                             ),
                             Text(
-                              '${item.totalPrice.toStringAsFixed(2)} د.إ',
+                              '${item.totalPrice.toStringAsFixed(2)} ل.س',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ],
@@ -428,7 +428,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       children: [
                         const Text('المبلغ الإجمالي المدفوع:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         Text(
-                          '${order.totalAmount.toStringAsFixed(2)} د.إ',
+                          '${order.totalAmount.toStringAsFixed(2)} ل.س',
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
                         ),
                       ],

@@ -41,7 +41,7 @@ export const LoyaltyPage: React.FC<LoyaltyPageProps> = ({ customers, onAddPoints
         </div>
         <div className="bg-white/10 px-4 py-2.5 rounded-xl border border-white/20 text-center">
           <p className="text-[11px] text-blue-200 font-bold">معادلة الاستبدال الحالية</p>
-          <p className="text-sm font-extrabold text-amber-300">100 نقطة = 1.00 د.إ</p>
+          <p className="text-sm font-extrabold text-amber-300">100 نقطة = 1.00 ل.س</p>
         </div>
       </div>
 
@@ -98,10 +98,10 @@ export const LoyaltyPage: React.FC<LoyaltyPageProps> = ({ customers, onAddPoints
                 </td>
                 <td className="p-4 font-black text-amber-600 text-sm">{c.loyalty_points} نقطة</td>
                 <td className="p-4 font-bold text-emerald-700">
-                  {(c.loyalty_points * 0.01).toFixed(2)} د.إ
+                  {(c.loyalty_points * 0.01).toFixed(2)} ل.س
                 </td>
                 <td className="p-4 font-bold text-slate-900">
-                  {c.total_spent.toFixed(2)} د.إ ({c.total_orders} طلبات)
+                  {c.total_spent.toFixed(2)} ل.س ({c.total_orders} طلبات)
                 </td>
                 <td className="p-4 text-center">
                   <button
@@ -142,7 +142,7 @@ export const LoyaltyPage: React.FC<LoyaltyPageProps> = ({ customers, onAddPoints
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
                 />
                 <p className="text-[11px] text-slate-400 mt-1 font-normal">
-                  تعادل خصماً مالياً بقيمة {(pointsToAdd * 0.01).toFixed(2)} د.إ في سلة العميل.
+                  تعادل خصماً مالياً بقيمة {(pointsToAdd * 0.01).toFixed(2)} ل.س في سلة العميل.
                 </p>
               </div>
 

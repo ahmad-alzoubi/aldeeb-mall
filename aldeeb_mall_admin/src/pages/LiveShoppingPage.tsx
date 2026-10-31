@@ -211,7 +211,7 @@ export const LiveShoppingPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">مبيعات البث اللحظية (Live GMV)</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{session.salesGMV.toLocaleString()} ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{session.salesGMV.toLocaleString()} ل.س</h3>
             <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5" />
               {session.ordersCount} طلب مكتمل خلال البث
@@ -300,8 +300,8 @@ export const LiveShoppingPage: React.FC = () => {
                       <div>
                         <h4 className="font-bold text-sm">{activeProd.name}</h4>
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="font-extrabold text-emerald-600 text-base">{activeProd.livePrice.toFixed(2)} ر.س</span>
-                          <span className="text-slate-400 line-through">{activeProd.originalPrice.toFixed(2)} ر.س</span>
+                          <span className="font-extrabold text-emerald-600 text-base">{activeProd.livePrice.toFixed(2)} ل.س</span>
+                          <span className="text-slate-400 line-through">{activeProd.originalPrice.toFixed(2)} ل.س</span>
                           <span className="text-slate-500 font-medium">({activeProd.salesInStream} تم شراؤها)</span>
                         </div>
                       </div>
@@ -347,8 +347,8 @@ export const LiveShoppingPage: React.FC = () => {
                         <div className="font-bold text-xs text-slate-900 max-w-[170px] truncate">{p.name}</div>
                         <div className="text-[11px] text-slate-400 mt-0.5">{p.category}</div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="font-bold text-emerald-600 text-xs">{p.livePrice} ر.س</span>
-                          <span className="text-[10px] text-slate-400 line-through">{p.originalPrice} ر.س</span>
+                          <span className="font-bold text-emerald-600 text-xs">{p.livePrice} ل.س</span>
+                          <span className="text-[10px] text-slate-400 line-through">{p.originalPrice} ل.س</span>
                         </div>
                       </div>
                     </div>

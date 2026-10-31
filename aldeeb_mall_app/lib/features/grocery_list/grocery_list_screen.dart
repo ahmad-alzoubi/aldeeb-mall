@@ -324,7 +324,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                             ),
                             subtitle: item.matchedProduct != null
                                 ? Text(
-                                    'مطابق في الكتالوج: ${item.matchedProduct!.price.toStringAsFixed(2)} ر.س',
+                                    'مطابق في الكتالوج: ${item.matchedProduct!.price.toStringAsFixed(2)} ل.س',
                                     style: const TextStyle(fontSize: 11, color: AppColors.freshGreen, fontWeight: FontWeight.bold),
                                   )
                                 : null,

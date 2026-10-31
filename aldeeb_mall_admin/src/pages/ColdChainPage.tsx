@@ -340,7 +340,7 @@ export const ColdChainPage: React.FC = () => {
                       {item.stock_quantity} حبة
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-gray-500">
-                      {item.original_price.toFixed(2)} ر.س
+                      {item.original_price.toFixed(2)} ل.س
                     </td>
                     <td className="py-3.5 px-4">
                       <select
@@ -358,7 +358,7 @@ export const ColdChainPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="font-black text-rose-600 text-base">
-                        {discountedPrice} ر.س
+                        {discountedPrice} ل.س
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
@@ -399,7 +399,7 @@ export const ColdChainPage: React.FC = () => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-gray-900">4,820 ر.س</div>
+            <div className="text-2xl font-black text-gray-900">4,820 ل.س</div>
             <div className="text-xs text-gray-500">قيمة المبيعات المستردة هذا الأسبوع عبر صفقات التصفية السريعة</div>
           </div>
         </div>

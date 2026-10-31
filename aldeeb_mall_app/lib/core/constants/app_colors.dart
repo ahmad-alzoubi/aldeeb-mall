@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
+  // Currency
+  static const String currency = 'ل.س';
+
   // Brand Colors (Carrefour Hypermarket Style)
   static const Color primary = Color(0xFF0D47A1);        // Deep Royal Carrefour Blue
   static const Color primaryLight = Color(0xFF1976D2);   // Vibrant Blue

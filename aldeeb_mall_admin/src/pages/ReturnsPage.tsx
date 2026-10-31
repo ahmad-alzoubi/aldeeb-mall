@@ -71,7 +71,7 @@ export const ReturnsPage: React.FC = () => {
     setReturnRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: 'approved_refunded' } : r))
     );
-    showToast(`تم استرداد مبلغ ${req.refund_amount} ر.س فمع مكافأة ولاء فوراً إلى محفظة ${req.customer_name}!`);
+    showToast(`تم استرداد مبلغ ${req.refund_amount} ل.س فمع مكافأة ولاء فوراً إلى محفظة ${req.customer_name}!`);
   };
 
   const handleApproveReplacement = (req: ReturnRequest) => {
@@ -224,7 +224,7 @@ export const ReturnsPage: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <span className="text-xs text-gray-500 block">المبلغ المستحق للاسترداد</span>
-                  <span className="text-xl font-black text-rose-600">{req.refund_amount.toFixed(2)} ر.س</span>
+                  <span className="text-xl font-black text-rose-600">{req.refund_amount.toFixed(2)} ل.س</span>
                 </div>
               </div>
             </div>

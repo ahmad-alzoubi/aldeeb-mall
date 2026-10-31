@@ -43,10 +43,10 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ orders, products }
 
   // Category Revenue Share
   const categoryBreakdown = [
-    { name: 'الخضروات والفواكه الطازجة', percent: 34, revenue: '14,280 د.إ', color: 'bg-emerald-500' },
-    { name: 'الألبان والأجبان والبيض', percent: 26, revenue: '10,920 د.إ', color: 'bg-blue-500' },
-    { name: 'اللحوم والدواجن المبردة', percent: 22, revenue: '9,240 د.إ', color: 'bg-rose-500' },
-    { name: 'المؤن والزيوت والمعلبات', percent: 18, revenue: '7,560 د.إ', color: 'bg-amber-500' },
+    { name: 'الخضروات والفواكه الطازجة', percent: 34, revenue: '14,280 ل.س', color: 'bg-emerald-500' },
+    { name: 'الألبان والأجبان والبيض', percent: 26, revenue: '10,920 ل.س', color: 'bg-blue-500' },
+    { name: 'اللحوم والدواجن المبردة', percent: 22, revenue: '9,240 ل.س', color: 'bg-rose-500' },
+    { name: 'المؤن والزيوت والمعلبات', percent: 18, revenue: '7,560 ل.س', color: 'bg-amber-500' },
   ];
 
   // Fulfillment SLA Metrics
@@ -104,7 +104,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ orders, products }
           </div>
           <div>
             <div className="text-2xl font-black text-slate-800">
-              {(totalGMV * 32.5).toFixed(2)} د.إ
+              {(totalGMV * 32.5).toFixed(2)} ل.س
             </div>
             <div className="flex items-center gap-1 text-xs text-emerald-600 font-bold mt-1">
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ orders, products }
           </div>
           <div>
             <div className="text-2xl font-black text-slate-800">
-              {avgOrderValue} د.إ
+              {avgOrderValue} ل.س
             </div>
             <div className="flex items-center gap-1 text-xs text-emerald-600 font-bold mt-1">
               <ArrowUpRight className="w-3.5 h-3.5" />

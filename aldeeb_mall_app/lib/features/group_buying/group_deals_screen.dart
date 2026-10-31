@@ -150,7 +150,7 @@ class _GroupDealsScreenState extends State<GroupDealsScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '🎉 تم انضمامك للمجموعة! تمت إضافة "${deal.product.nameAr}" بسعر الشراء الجماعي (${deal.groupPrice} ر.س) إلى سلتك.',
+                '🎉 تم انضمامك للمجموعة! تمت إضافة "${deal.product.nameAr}" بسعر الشراء الجماعي (${deal.groupPrice} ل.س) إلى سلتك.',
                 style: const TextStyle(fontSize: 12),
               ),
             ),
@@ -180,7 +180,7 @@ class _GroupDealsScreenState extends State<GroupDealsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'شارك رابط صفقة "${deal.product.nameAr}" عبر واتساب. فور انضمام ${deal.requiredMembers - deal.currentMembers} مشتري إضافي سيتم شحن الطلب فوراً بسعر ${deal.groupPrice} ر.س!',
+              'شارك رابط صفقة "${deal.product.nameAr}" عبر واتساب. فور انضمام ${deal.requiredMembers - deal.currentMembers} مشتري إضافي سيتم شحن الطلب فوراً بسعر ${deal.groupPrice} ل.س!',
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
               textAlign: TextAlign.center,
             ),
@@ -416,7 +416,7 @@ class _GroupDealsScreenState extends State<GroupDealsScreen> {
                     Row(
                       children: [
                         Text(
-                          '${deal.groupPrice.toStringAsFixed(2)} ر.س',
+                          '${deal.groupPrice.toStringAsFixed(2)} ل.س',
                           style: const TextStyle(
                             color: Color(0xFFE53935),
                             fontWeight: FontWeight.w900,
@@ -425,7 +425,7 @@ class _GroupDealsScreenState extends State<GroupDealsScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${deal.singlePrice.toStringAsFixed(2)} ر.س فردي',
+                          '${deal.singlePrice.toStringAsFixed(2)} ل.س فردي',
                           style: const TextStyle(
                             color: AppColors.textMuted,
                             decoration: TextDecoration.lineThrough,
@@ -515,7 +515,7 @@ class _GroupDealsScreenState extends State<GroupDealsScreen> {
                   onPressed: () => _joinDeal(deal),
                   icon: const Icon(Icons.group_add_rounded, size: 18),
                   label: Text(
-                    isFull ? 'شراء بسعر المجموعة' : 'انضم للفريق الآن (${deal.groupPrice} ر.س)',
+                    isFull ? 'شراء بسعر المجموعة' : 'انضم للفريق الآن (${deal.groupPrice} ل.س)',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   style: ElevatedButton.styleFrom(

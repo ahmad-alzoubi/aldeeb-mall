@@ -185,7 +185,7 @@ class _SmartCartIoTScreenState extends State<SmartCartIoTScreen> {
                   children: [
                     const Text('إجمالي العربة الذكية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Text(
-                      '${_totalPrice.toStringAsFixed(2)} ر.س',
+                      '${_totalPrice.toStringAsFixed(2)} ل.س',
                       style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: AppColors.freshGreen),
                     ),
                   ],
@@ -494,7 +494,7 @@ class _SmartCartIoTScreenState extends State<SmartCartIoTScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${item.product.price.toStringAsFixed(2)} ر.س',
+                                    '${item.product.price.toStringAsFixed(2)} ل.س',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 15,
@@ -545,7 +545,7 @@ class _SmartCartIoTScreenState extends State<SmartCartIoTScreen> {
                         ],
                       ),
                       Text(
-                        '${_totalPrice.toStringAsFixed(2)} ر.س',
+                        '${_totalPrice.toStringAsFixed(2)} ل.س',
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,

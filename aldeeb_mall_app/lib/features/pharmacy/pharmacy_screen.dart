@@ -730,7 +730,7 @@ class _PharmacyScreenState extends State<PharmacyScreen>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
-                          'تغطية تأمينية 100% (0.00 ر.س)',
+                          'تغطية تأمينية 100% (0.00 ل.س)',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
                         ),
                       ),
@@ -1138,7 +1138,7 @@ class _PharmacyScreenState extends State<PharmacyScreen>
                         Row(
                           children: [
                             Text(
-                              '${product.price.toStringAsFixed(2)} ر.س',
+                              '${product.price.toStringAsFixed(2)} ل.س',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,

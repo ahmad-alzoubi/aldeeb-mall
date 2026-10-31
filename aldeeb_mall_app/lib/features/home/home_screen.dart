@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/banner_model.dart';
 import '../../core/models/product_model.dart';
+import '../../core/utils/banner_navigator.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/services/auth_service.dart';
@@ -34,6 +35,7 @@ import '../drone_delivery/drone_tracking_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../butcher/butcher_customizer_screen.dart';
 import '../category/department_screen.dart';
+import '../category/categories_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -59,39 +61,51 @@ class _HomeScreenState extends State<HomeScreen> {
     'c4': ['الكل', 'كرواسان ومعجنات 🥐', 'خبز طازج 🥖', 'فطائر ومناقيش 🥧', 'حلويات وكيك 🍰', 'توست وشابورة 🍞'],
     'c5': ['الكل', 'عصائر طازجة 🍹', 'مياه معدنية 💧', 'مشروبات غازية 🥤', 'شاي وقهوة ☕', 'مشروبات طاقة ⚡'],
     'c6': ['الكل', 'غسيل الملابس 🧺', 'نظافة الصحون 🧼', 'مطهرات ومعقمات 🧴', 'مناديل وورقيات 🧻', 'معطرات جو 🌸'],
+    'c_ready_meals': ['الكل', 'وجبات ساخنة 🍲', 'سوشي وسلطات 🥗', 'ساندويشات طازجة 🥪', 'مقبلات وسناكس 🥟'],
+    'c_chilled': ['الكل', 'أجبان معتقة 🧀', 'مرتديلا ولحوم باردة 🥓', 'عجائن مبردة 🥟', 'زبدة وقشطة 🧈'],
+    'c_supermarket': ['الكل', 'أرز وحبوب 🌾', 'زيوت وسمن 🫒', 'معلبات وبقوليات 🥫', 'توابل وبهارات 🧂', 'باستا وصوصات 🍝'],
+    'c_frozen': ['الكل', 'آيس كريم ومثلجات 🍦', 'خضار مجمدة 🥦', 'بطاطس مقلية 🍟', 'بيتزا ومعجنات مجمدة 🍕'],
+    'c_organic': ['الكل', 'خالي من الجلوتين 🌾', 'كيتو دايت 🥑', 'عضوي معتمد 🌿', 'بذور وسوبر فود 🌰'],
+    'c_pets': ['الكل', 'طعام قطط 🐱', 'طعام كلاب 🐶', 'رمل ومستلزمات نظافة 🧼', 'ألعاب ومكافآت 🎾'],
+    'c_beauty': ['الكل', 'عناية بالبشرة 🧴', 'عناية بالشعر 💇', 'عطور وبخور 🌸', 'عناية بالفم 🪥'],
+    'c_cars': ['الكل', 'معطرات سيارة 🌲', 'منظفات وتلميع ✨', 'شواحن وحوامل هاتف 🔌', 'مستلزمات حماية 🛡️'],
+    'c_baby': ['الكل', 'حفاضات ومناديل 👶', 'حليب وأغذية رضع 🍼', 'شامبو وعناية رقيقة 🛁', 'ألعاب تعليمية 🧸'],
+    'c_clothing': ['الكل', 'ملابس رجالية 👔', 'ملابس نسائية 👗', 'ملابس أطفال 🎽', 'ملابس قطنية ومنزلية 👕'],
+    'c_accessories': ['الكل', 'ساعات يد ⌚', 'نظارات شمسية 🕶️', 'محافظ وحقائب 👜', 'إكسسوارات ومجوهرات 💍'],
+    'c_home_garden': ['الكل', 'أواني ومطبخ 🍳', 'ديكور وإضاءة 💡', 'نباتات وحدائق 🪴', 'مفارش وأغطية 🛏️'],
+    'c_paper': ['الكل', 'محارم وجه 🧻', 'مناديل مطبخ وحمام 🧻', 'قصدير ونايلون تغليف 🍱', 'أكياس صديقة للبيئة 🛍️'],
+    'c_sports': ['الكل', 'أثقال ودمبلز 🏋️', 'سجاد يوغا ولياقة 🧘', 'حبال ومشدات مقاومة 🪢', 'مطارات رياضية 🥤'],
+    'c_stationery': ['الكل', 'دفاتر ومفكرات 📓', 'أقلام وألوان ✒️', 'ملفات ومنظمات 📁', 'أوراق وحبر طباعة 📄'],
+    'c_toys': ['الكل', 'ليغو وتركيب 🧱', 'ألعاب ذكاء وتحدي ♟️', 'دمى وشخصيات 🧸', 'ألعاب خارجية وسكوتر 🛴'],
+    'c_essentials': ['الكل', 'سماعات وشواحن 🎧', 'بطاريات ومحولات 🔋', 'مستلزمات منزلية ذكية 🔌'],
   };
 
   static final Map<String, Map<String, String>> _categoryMeta = {
-    'c1': {
-      'badge': 'قطاف اليوم 🌿',
-      'tagline': 'طازج من المزارع مباشرة',
-      'color': '0xFF16A34A',
-    },
-    'c2': {
-      'badge': 'يومي وطبيعي 🥛',
-      'tagline': 'ألبان، أجبان وبيض طازج',
-      'color': '0xFF2563EB',
-    },
-    'c3': {
-      'badge': 'ذبح بلدي حلال 🥩',
-      'tagline': 'لحوم، دواجن وبحريات طازجة',
-      'color': '0xFFDC2626',
-    },
-    'c4': {
-      'badge': 'طازج من الفرن 🥐',
-      'tagline': 'مخبوزات ومعجنات ساخنة',
-      'color': '0xFFD97706',
-    },
-    'c5': {
-      'badge': 'انتعاش وبرودة 💧',
-      'tagline': 'مياه، عصائر ومشروبات',
-      'color': '0xFF0284C7',
-    },
-    'c6': {
-      'badge': 'نظافة وتوفير ✨',
-      'tagline': 'منظفات وعناية شاملة للمنزل',
-      'color': '0xFF7C3AED',
-    },
+    'c1': {'badge': 'قطاف اليوم 🌿', 'tagline': 'طازج من المزارع مباشرة', 'color': '0xFF16A34A'},
+    'c2': {'badge': 'يومي وطبيعي 🥛', 'tagline': 'ألبان، أجبان وبيض طازج', 'color': '0xFF2563EB'},
+    'c3': {'badge': 'ذبح بلدي حلال 🥩', 'tagline': 'لحوم، دواجن وبحريات طازجة', 'color': '0xFFDC2626'},
+    'c4': {'badge': 'طازج من الفرن 🥐', 'tagline': 'مخبوزات ومعجنات ساخنة', 'color': '0xFFD97706'},
+    'c5': {'badge': 'انتعاش وبرودة 💧', 'tagline': 'مياه، عصائر ومشروبات', 'color': '0xFF0284C7'},
+    'c6': {'badge': 'نظافة وتوفير ✨', 'tagline': 'منظفات وعناية شاملة للمنزل', 'color': '0xFF7C3AED'},
+    'c_ready_meals': {'badge': 'وجبات شيف 🍲', 'tagline': 'جاهزة للأكل والتسخين الفوري', 'color': '0xFFEA580C'},
+    'c_chilled': {'badge': 'سلسلة تبريد 4°C ❄️', 'tagline': 'أطعمة مبردة ومقطوعات فاخرة', 'color': '0xFF0891B2'},
+    'c_supermarket': {'badge': 'مؤونة التوفير 🛒', 'tagline': 'كل احتياجات البيت الأساسية', 'color': '0xFF4F46E5'},
+    'c_frozen': {'badge': 'تجميد فائق 🧊', 'tagline': 'آيس كريم وأطعمة مجمدة بأمان', 'color': '0xFF0284C7'},
+    'c_organic': {'badge': 'عضوي 100% 🌿', 'tagline': 'صحة ونقاء خالي من المواد الحافظة', 'color': '0xFF059669'},
+    'c_pets': {'badge': 'رعاية أليفك 🐾', 'tagline': 'أفضل أطعمة ومستلزمات الحيوانات', 'color': '0xFFD97706'},
+    'c_beauty': {'badge': 'جمال وعناية 🧴', 'tagline': 'أرقى ماركات العناية الأصلية', 'color': '0xFFDB2777'},
+    'c_cars': {'badge': 'عناية بالمركبة 🚗', 'tagline': 'إكسسوارات وعطور وصيانة فورية', 'color': '0xFF374151'},
+    'c_baby': {'badge': 'عناية فائقة 👶', 'tagline': 'حماية وأمان لأطفالك الصغار', 'color': '0xFFF59E0B'},
+    'c_clothing': {'badge': 'أناقة يومية 👕', 'tagline': 'ملابس قطنية وعصرية للجميع', 'color': '0xFF6366F1'},
+    'c_accessories': {'badge': 'لمسات فاخرة ✨', 'tagline': 'ساعات، نظارات وحقائب أنيقة', 'color': '0xFF8B5CF6'},
+    'c_home_garden': {'badge': 'راحة منزلك 🏡', 'tagline': 'مستلزمات المنزل والحديقة', 'color': '0xFF10B981'},
+    'c_paper': {'badge': 'نعومة وتوفير 🧻', 'tagline': 'منتجات ورقية واستخدام يومي', 'color': '0xFF64748B'},
+    'c_sports': {'badge': 'لياقة ونشاط 🏋️', 'tagline': 'معدات وأدوات التمارين المنزلية', 'color': '0xFFE11D48'},
+    'c_stationery': {'badge': 'إبداع ودراسة 📚', 'tagline': 'أدوات مكتبية ومدرسية متكاملة', 'color': '0xFF3B82F6'},
+    'c_toys': {'badge': 'مرح عائلي 🎮', 'tagline': 'ألعاب تنمية الذكاء والترفيه', 'color': '0xFFF97316'},
+    'c_essentials': {'badge': 'تقنية يومية 🔌', 'tagline': 'إلكترونيات وأساسيات لا غنى عنها', 'color': '0xFF1E293B'},
+    'c_dates': {'badge': 'سكري ومجدول 🌴', 'tagline': 'أجود تمور المملكة وفواكه مجففة', 'color': '0xFF92400E'},
+    'c_appliances': {'badge': 'ضمان معتمد ⚡', 'tagline': 'أجهزة منزلية وقلايات ذكية', 'color': '0xFF0284C7'},
   };
 
   @override
@@ -105,8 +119,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_bannerController.hasClients) {
         final mall = Provider.of<MallProvider>(context, listen: false);
-        if (mall.banners.isNotEmpty) {
-          final next = (_currentBannerIndex + 1) % mall.banners.length;
+        final list = mall.heroBanners;
+        if (list.isNotEmpty) {
+          final next = (_currentBannerIndex + 1) % list.length;
           _bannerController.animateToPage(
             next,
             duration: const Duration(milliseconds: 600),
@@ -208,22 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ] else ...[
                 // Themed Shoppable Shelves for the Hypermarket Experience:
-                // 5. Flash Deals Shelf
-                SliverToBoxAdapter(
-                  child: MaxWidthContainer(
-                    child: _buildFlashDealsShelf(mall, isDesktop),
-                  ),
-                ),
-
-                // 6. Fresh Halal Butcher & Fishery Shelf
-                SliverToBoxAdapter(
-                  child: MaxWidthContainer(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildButcherShelf(mall, isDesktop),
-                  ),
-                ),
-
-                // 7. Farm Fresh Daily Produce Shelf
+                // 5. Farm Fresh Daily Produce Shelf (خضار وفواكه طازجة)
                 SliverToBoxAdapter(
                   child: MaxWidthContainer(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -231,14 +231,64 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // 8. Quick Reorder / Buy Again Essentials
+                // 6. Fresh Halal Butcher & Fishery Shelf (لحوم ودواجن وأسماك)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildButcherShelf(mall, isDesktop),
+                  ),
+                ),
+
+                // 7. Secondary Middle Promotional Banner 1 (إعلان فاصل 1)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildSecondaryBanner(mall, 0, isDesktop),
+                  ),
+                ),
+
+                // 8. Weekly Deals Shelf (عروض الأسبوع التوفيرية الكبرى)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildWeeklyDealsShelf(mall, isDesktop),
+                  ),
+                ),
+
+                // 9. Can't-Miss Flash Deals (صفقات لا تفوت)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildCantMissShelf(mall, isDesktop),
+                  ),
+                ),
+
+                // 10. Secondary Middle Promotional Banner 2 (إعلان فاصل 2)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildSecondaryBanner(mall, 1, isDesktop),
+                  ),
+                ),
+
+                // 11. New Arrivals Shelf (منتجات جديدة وصلت حديثاً للمول)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildNewArrivalsShelf(mall, isDesktop),
+                  ),
+                ),
+
+                // 12. Mega Savings & Discounts Shelf (خصومات كبرى وتوفير)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildMegaSavingsShelf(mall, isDesktop),
+                  ),
+                ),
+
+                // 13. Quick Reorder / Buy Again Essentials
                 SliverToBoxAdapter(
                   child: MaxWidthContainer(
                     child: _buildBuyAgainSection(mall, cart, isDesktop),
                   ),
                 ),
 
-                // 9. All Hypermarket Products Grid with Filter Tabs
+                // 14. All Hypermarket Products Grid with Filter Tabs & Dietary Filter
                 SliverToBoxAdapter(
                   child: MaxWidthContainer(
                     child: _buildAllProductsSection(mall, context, isDesktop),
@@ -392,9 +442,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: TextField(
                             onChanged: (val) => mall.setSearchQuery(val),
-                            decoration: const InputDecoration(
-                              hintText: 'ابحث عن آلاف المنتجات، الخضار، الألبان، والمؤن في الديب مول...',
-                              hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                            decoration: InputDecoration(
+                              hintText: 'ابحث بين أكثر من ${mall.catalogCountText} منتج في الديب مول...',
+                              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -622,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 18),
                         SizedBox(width: 6),
                         Text(
-                          'المحفظة: 150.00 ر.س',
+                          'المحفظة: 150.00 ل.س',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -649,7 +699,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Icon(Icons.shopping_cart_outlined, size: 20),
                   ),
                   label: Text(
-                    cart.itemCount > 0 ? '${cart.totalAmount.toStringAsFixed(2)} د.إ' : 'السلة',
+                    cart.itemCount > 0 ? '${cart.totalAmount.toStringAsFixed(2)} ل.س' : 'السلة',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -779,7 +829,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 15),
                           SizedBox(width: 4),
                           Text(
-                            '150 ر.س',
+                            '150 ل.س',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -815,13 +865,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: TextField(
                     onChanged: (val) => mall.setSearchQuery(val),
-                    decoration: const InputDecoration(
-                      hintText: 'ابحث في آلاف منتجات الديب مول...',
-                      hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    decoration: InputDecoration(
+                      hintText: 'ابحث بين أكثر من ${mall.catalogCountText} منتج في الديب مول...',
+                      hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -1022,6 +1072,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.clear_all_rounded, size: 16, color: AppColors.primary),
                     label: const Text(
                       'عرض كل الأقسام',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.grid_view_rounded, size: 15, color: AppColors.primary),
+                    label: const Text(
+                      'عرض كافة الفئات ←',
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -1356,10 +1424,37 @@ class _HomeScreenState extends State<HomeScreen> {
   // Hero Section (Split on Desktop, Carousel on Mobile)
   // ===========================================================================
   Widget _buildHeroSection(MallProvider mall, bool isDesktop) {
-    if (mall.banners.isEmpty) return const SizedBox();
+    final heroBanners = mall.heroBanners;
+    if (heroBanners.isEmpty) return const SizedBox();
+
+    final sideTop = mall.sideTopBanner ?? const BannerModel(
+      id: 'b_side_top',
+      titleAr: 'صفقة اليوم الطازجة 🍅',
+      titleEn: 'Fresh Daily Deal 🍅',
+      subtitleAr: 'طماطم مزارع محلية قطاف الصباح بخصم 25%',
+      imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
+      targetType: 'product',
+      targetId: 'p3',
+      badgeAr: '3.75 د.أ / كجم',
+      badgeColor: '#EF4444',
+      slot: 'side_top',
+    );
+
+    final sideBottom = mall.sideBottomBanner ?? const BannerModel(
+      id: 'b_side_bottom',
+      titleAr: 'توصيل فوري خلال 60 دقيقة 🛵',
+      titleEn: 'Instant Delivery within 60 Mins 🛵',
+      subtitleAr: 'اطلب طلبات البيت واستلمها على بابك',
+      imageUrl: 'https://images.unsplash.com/photo-1526367790999-0150786686a2?auto=format&fit=crop&w=600&q=80',
+      targetType: 'coupon',
+      targetId: 'FREE100',
+      badgeAr: 'مجاناً للطلبات فوق 100 د.أ',
+      badgeColor: '#0284C7',
+      slot: 'side_bottom',
+    );
 
     if (!isDesktop) {
-      // Mobile Single Carousel
+      // Mobile Single Carousel with Quick Action Cards Below
       return Padding(
         padding: const EdgeInsets.only(top: 14),
         child: Column(
@@ -1369,14 +1464,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: PageView.builder(
                 controller: _bannerController,
                 onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
-                itemCount: mall.banners.length,
-                itemBuilder: (ctx, index) => _buildBannerCard(mall.banners[index]),
+                itemCount: heroBanners.length,
+                itemBuilder: (ctx, index) => _buildBannerCard(heroBanners[index]),
               ),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(mall.banners.length, (idx) {
+              children: List.generate(heroBanners.length, (idx) {
                 final isSel = _currentBannerIndex == idx;
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -1388,6 +1483,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 105,
+                    child: _buildSideDealCard(sideTop),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 105,
+                    child: _buildSideDealCard(sideBottom),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1410,14 +1523,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   PageView.builder(
                     controller: _bannerController,
                     onPageChanged: (idx) => setState(() => _currentBannerIndex = idx),
-                    itemCount: mall.banners.length,
-                    itemBuilder: (ctx, index) => _buildBannerCard(mall.banners[index], height: 320),
+                    itemCount: heroBanners.length,
+                    itemBuilder: (ctx, index) => _buildBannerCard(heroBanners[index], height: 320),
                   ),
                   Positioned(
                     bottom: 16,
                     left: 24,
                     child: Row(
-                      children: List.generate(mall.banners.length, (idx) {
+                      children: List.generate(heroBanners.length, (idx) {
                         final isSel = _currentBannerIndex == idx;
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -1437,7 +1550,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 16),
 
-          // Side 1/3 Promo Deal Cards
+          // Side 1/3 Dynamic Promo Deal Cards
           Expanded(
             flex: 1,
             child: SizedBox(
@@ -1445,23 +1558,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   Expanded(
-                    child: _buildSideDealCard(
-                      'صفقة اليوم الطازجة 🍅',
-                      'طماطم مزارع محلية قطاف الصباح بخصم 25%',
-                      '3.75 د.إ / كجم',
-                      'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
-                      AppColors.secondary,
-                    ),
+                    child: _buildSideDealCard(sideTop),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: _buildSideDealCard(
-                      'توصيل فوري خلال 60 دقيقة 🛵',
-                      'اطلب طلبات البيت واستلمها على بابك',
-                      'مجاناً للطلبات فوق 100 د.إ',
-                      'https://images.unsplash.com/photo-1526367790999-0150786686a2?auto=format&fit=crop&w=400&q=80',
-                      AppColors.primary,
-                    ),
+                    child: _buildSideDealCard(sideBottom),
                   ),
                 ],
               ),
@@ -1473,175 +1574,175 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBannerCard(BannerModel banner, {double height = 165}) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
+    final badgeBg = _parseColor(banner.badgeColor, AppColors.secondary);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => BannerNavigator.handleTap(context, banner),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: banner.imageUrl,
-              fit: BoxFit.cover,
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.75),
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                ),
-              ),
-            ),
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 18,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (banner.badgeAr != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        banner.badgeAr!,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  Text(
-                    banner.titleAr,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: banner.imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.primaryDark,
+                    child: const Icon(Icons.image, color: Colors.white24, size: 48),
                   ),
-                  if (banner.subtitleAr != null)
-                    Text(
-                      banner.subtitleAr!,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.8),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
                     ),
-                ],
-              ),
+                  ),
+                ),
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 18,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (banner.badgeAr != null && banner.badgeAr!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            banner.badgeAr!,
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      Text(
+                        banner.titleAr,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                      ),
+                      if (banner.subtitleAr != null && banner.subtitleAr!.isNotEmpty)
+                        Text(
+                          banner.subtitleAr!,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSideDealCard(
-    String title,
-    String subtitle,
-    String tag,
-    String imageUrl,
-    Color tagColor,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
+  Widget _buildSideDealCard(BannerModel banner) {
+    final badgeBg = _parseColor(banner.badgeColor, AppColors.secondary);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => BannerNavigator.handleTap(context, banner),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.8),
-                    Colors.black.withValues(alpha: 0.2),
-                  ],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: banner.imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.primaryDark,
+                    child: const Icon(Icons.image, color: Colors.white24, size: 36),
+                  ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 14,
-              right: 14,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tagColor,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      tag,
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.85),
+                        Colors.black.withValues(alpha: 0.25),
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (banner.badgeAr != null && banner.badgeAr!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            banner.badgeAr!,
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      Text(
+                        banner.titleAr,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (banner.subtitleAr != null && banner.subtitleAr!.isNotEmpty)
+                        Text(
+                          banner.subtitleAr!,
+                          style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFlashDealsHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.flash_on_rounded, color: AppColors.secondary, size: 24),
-          const SizedBox(width: 8),
-          const Text(
-            'عروض الصفقات الكبرى المؤقتة',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.secondary),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _formatDuration(_remainingTime),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Color _parseColor(String? hexString, Color defaultColor) {
+    if (hexString == null || hexString.isEmpty) return defaultColor;
+    try {
+      String clean = hexString.replaceAll('#', '').trim();
+      if (clean.length == 6) clean = 'FF$clean';
+      return Color(int.parse(clean, radix: 16));
+    } catch (_) {
+      return defaultColor;
+    }
   }
 
   Widget _buildDeliveryModeSwitchBar(MallProvider mall) {
@@ -2045,30 +2146,467 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ===========================================================================
-  // Themed Shoppable Shelves
+  // Themed Shoppable Shelves & Secondary Banners
   // ===========================================================================
 
-  Widget _buildFlashDealsShelf(MallProvider mall, bool isDesktop) {
-    if (mall.dailyDeals.isEmpty) return const SizedBox();
+  Widget _buildSecondaryBanner(MallProvider mall, int index, bool isDesktop) {
+    final banners = mall.secondaryBanners;
+    if (banners.isEmpty) return const SizedBox();
+    final banner = banners[index % banners.length];
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 0 : 16,
+        vertical: isDesktop ? 18 : 12,
+      ),
+      height: isDesktop ? 160 : 120,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: banner.imageUrl,
+              fit: BoxFit.cover,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.85),
+                    Colors.black.withValues(alpha: 0.35),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (banner.badgeAr != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            margin: const EdgeInsets.only(bottom: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              banner.badgeAr!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        Text(
+                          banner.titleAr,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isDesktop ? 18 : 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (banner.subtitleAr != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            banner.subtitleAr!,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: isDesktop ? 12 : 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (banner.targetId != null) {
+                        mall.selectCategory(banner.targetId);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'تصفح الآن',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_back_ios_new_rounded, size: 12),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyDealsShelf(MallProvider mall, bool isDesktop) {
+    final deals = mall.weeklyDeals;
+    if (deals.isEmpty) return const SizedBox();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-          child: _buildFlashDealsHeader(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD97706),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'عروض الأسبوع التوفيرية الكبرى 🌟',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                      Text(
+                        'أفضل أسعار الأسبوع على المواد التموينية والمقاضي العائلية',
+                        style: TextStyle(fontSize: 10.5, color: Color(0xFFB45309)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD97706),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDuration(_remainingTime),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         SizedBox(
           height: 295,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: mall.dailyDeals.length,
+            itemCount: deals.length,
             itemBuilder: (ctx, index) {
               return Container(
                 width: isDesktop ? 220 : 170,
                 margin: const EdgeInsetsDirectional.only(end: 12),
-                child: ProductCard(product: mall.dailyDeals[index]),
+                child: ProductCard(product: deals[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCantMissShelf(MallProvider mall, bool isDesktop) {
+    final deals = mall.cantMissDeals;
+    if (deals.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'عروض لا تفوّت - صفقات خاطفة! 🔥',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'أسعار نارية تنفد سريعاً، أضفها لسلتك فوراً',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                ),
+                child: const Text(
+                  'فرصة اليوم',
+                  style: TextStyle(
+                    color: AppColors.secondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 295,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: deals.length,
+            itemBuilder: (ctx, index) {
+              return Container(
+                width: isDesktop ? 220 : 170,
+                margin: const EdgeInsetsDirectional.only(end: 12),
+                child: ProductCard(product: deals[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNewArrivalsShelf(MallProvider mall, bool isDesktop) {
+    final products = mall.newArrivals;
+    if (products.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.new_releases_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'وصل حديثاً إلى الديب مول ✨',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'أحدث الأصناف والنكهات والمستلزمات في فروعنا',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFBAE6FD)),
+                ),
+                child: const Text(
+                  'جديد اليوم',
+                  style: TextStyle(
+                    color: Color(0xFF0369A1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 295,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: products.length,
+            itemBuilder: (ctx, index) {
+              return Container(
+                width: isDesktop ? 220 : 170,
+                margin: const EdgeInsetsDirectional.only(end: 12),
+                child: ProductCard(product: products[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMegaSavingsShelf(MallProvider mall, bool isDesktop) {
+    final products = mall.megaDiscounts;
+    if (products.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C3AED),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.discount_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'خصومات كبرى وتوفير العائلة 🛍️',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'وفر أكثر مع العبوات الاقتصادية وأكبر نسب خصم',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFDDD6FE)),
+                ),
+                child: const Text(
+                  'وفر حتى 50%',
+                  style: TextStyle(
+                    color: Color(0xFF6D28D9),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 295,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: products.length,
+            itemBuilder: (ctx, index) {
+              return Container(
+                width: isDesktop ? 220 : 170,
+                margin: const EdgeInsetsDirectional.only(end: 12),
+                child: ProductCard(product: products[index]),
               );
             },
           ),
@@ -2521,7 +3059,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${item.price.toStringAsFixed(2)} د.إ',
+                            '${item.price.toStringAsFixed(2)} ل.س',
                             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: AppColors.primary),
                           ),
                         ],
@@ -2579,11 +3117,11 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${cart.totalAmount.toStringAsFixed(2)} د.إ',
+                '${cart.totalAmount.toStringAsFixed(2)} ل.س',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Text(
-                cart.isFreeDelivery ? 'توصيل مجاني 🛵' : 'تبقّى ${cart.remainingForFreeDelivery.toStringAsFixed(2)} د.إ للمجاني',
+                cart.isFreeDelivery ? 'توصيل مجاني 🛵' : 'تبقّى ${cart.remainingForFreeDelivery.toStringAsFixed(2)} ل.س للمجاني',
                 style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],

@@ -949,7 +949,7 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
               ),
               Text(
-                'الإجمالي: ${cart.subtotal.toStringAsFixed(2)} د.إ',
+                'الإجمالي: ${cart.subtotal.toStringAsFixed(2)} ل.س',
                 style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 13),
               ),
             ],

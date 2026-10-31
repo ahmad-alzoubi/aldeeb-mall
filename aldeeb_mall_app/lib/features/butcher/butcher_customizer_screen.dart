@@ -434,7 +434,7 @@ class _ButcherCustomizerScreenState extends State<ButcherCustomizerScreen>
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '${finalPrice.toStringAsFixed(2)} ر.س',
+                              '${finalPrice.toStringAsFixed(2)} ل.س',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
@@ -596,7 +596,7 @@ class _ButcherCustomizerScreenState extends State<ButcherCustomizerScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${(fish['pricePerKg'] as double).toStringAsFixed(2)} ر.س / كجم',
+                          '${(fish['pricePerKg'] as double).toStringAsFixed(2)} ل.س / كجم',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0E7490)),
                         ),
                       ],

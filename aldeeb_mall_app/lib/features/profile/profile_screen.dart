@@ -126,7 +126,7 @@ class ProfileScreen extends StatelessWidget {
                   child: _statCard(
                     Icons.account_balance_wallet_outlined,
                     'الرصيد النقدي',
-                    '${((user?.loyaltyPoints ?? 50) * 0.01).toStringAsFixed(2)} د.إ',
+                    '${((user?.loyaltyPoints ?? 50) * 0.01).toStringAsFixed(2)} ل.س',
                     AppColors.freshGreen,
                   ),
                 ),

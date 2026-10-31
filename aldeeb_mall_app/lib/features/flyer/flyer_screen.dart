@@ -35,7 +35,7 @@ class _FlyerScreenState extends State<FlyerScreen> {
       'title': 'صفحة الدواجن واللحوم المبردة قطاف اليوم',
       'validity': 'سارية حتى 5 نوفمبر 2026',
       'banner': 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=1200&q=80',
-      'featured_deal': 'دجاج التنمية طازج مبرد 1000غ فقط 16.75 د.إ بدلاً من 21.50 د.إ',
+      'featured_deal': 'دجاج التنمية طازج مبرد 1000غ فقط 16.75 ل.س بدلاً من 21.50 ل.س',
     },
   ];
 
@@ -281,7 +281,7 @@ class _FlyerScreenState extends State<FlyerScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    '${product.price.toStringAsFixed(2)} د.إ',
+                                    '${product.price.toStringAsFixed(2)} ل.س',
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: AppColors.primary),
                                   ),
                                   const Spacer(),

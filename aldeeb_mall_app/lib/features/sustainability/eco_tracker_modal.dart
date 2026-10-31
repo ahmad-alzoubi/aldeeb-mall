@@ -325,7 +325,7 @@ class _EcoTrackerModalState extends State<EcoTrackerModal> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'قيمة التأمين المحجوزة: ${(_activeCrates * 10).toStringAsFixed(2)} ر.س (تسترد فوراً إلى محفظة الديب عند تسليم الصندوق للمندوب).',
+                        'قيمة التأمين المحجوزة: ${(_activeCrates * 10).toStringAsFixed(2)} ل.س (تسترد فوراً إلى محفظة الديب عند تسليم الصندوق للمندوب).',
                         style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                       ),
                       const SizedBox(height: 14),

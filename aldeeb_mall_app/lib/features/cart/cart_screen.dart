@@ -181,7 +181,7 @@ class _CartScreenState extends State<CartScreen> {
                 child: Text(
                   cart.isFreeDelivery
                       ? 'تهانينا! حصلت على توصيل مجاني لطلبك 🎉'
-                      : 'أضف منتجات بقيمة ${cart.remainingForFreeDelivery.toStringAsFixed(2)} د.إ لتحصل على توصيل مجاني!',
+                      : 'أضف منتجات بقيمة ${cart.remainingForFreeDelivery.toStringAsFixed(2)} ل.س لتحصل على توصيل مجاني!',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -250,12 +250,12 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.product.price.toStringAsFixed(2)} د.إ / ${item.product.unitLabelAr}',
+                      '${item.product.price.toStringAsFixed(2)} ل.س / ${item.product.unitLabelAr}',
                       style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'الإجمالي: ${item.totalPrice.toStringAsFixed(2)} ر.س',
+                      'الإجمالي: ${item.totalPrice.toStringAsFixed(2)} ل.س',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -505,7 +505,7 @@ class _CartScreenState extends State<CartScreen> {
                     const Icon(Icons.check_circle, color: AppColors.success, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'تم تفعيل: ${cart.appliedCoupon!.code} (-${cart.couponDiscount.toStringAsFixed(2)} د.إ)',
+                      'تم تفعيل: ${cart.appliedCoupon!.code} (-${cart.couponDiscount.toStringAsFixed(2)} ل.س)',
                       style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
                     ),
                   ],
@@ -522,10 +522,13 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildLoyaltySection(CartProvider cart, int userPoints) {
+    final maxAllowedByCart = ((cart.subtotal * 0.5) * 100).toInt();
+    final effectiveMax = userPoints < maxAllowedByCart ? userPoints : maxAllowedByCart;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accentLight.withValues(alpha: 0.5),
+        color: AppColors.accentLight.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
       ),
@@ -533,39 +536,103 @@ class _CartScreenState extends State<CartScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.stars_rounded, color: AppColors.accent, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                'رصيد نقاط الولاء: $userPoints نقطة',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: AppColors.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'رصيد نقاطك: $userPoints نقطة',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  'تساوي ${(userPoints * 0.01).toStringAsFixed(2)} ل.س',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.accent),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'يمكنك استبدال نقاطك بخصم مالي فوري (100 نقطة = 1.00 د.إ)',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            'خصم مباشر من قيمة الفاتورة (كل 100 نقطة = 1.00 ل.س خصم)',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
+            dense: true,
             title: Text(
               cart.loyaltyPointsUsed > 0
-                  ? 'مفعل: خصم ${cart.loyaltyDiscount.toStringAsFixed(2)} د.إ باستبدال ${cart.loyaltyPointsUsed} نقطة'
-                  : 'استبدال نقاط الولاء بهذا الطلب',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ? 'مفعل: خصم ${cart.loyaltyDiscount.toStringAsFixed(2)} ل.س (${cart.loyaltyPointsUsed} نقطة)'
+                  : 'تطبيق خصم النقاط على هذه الفاتورة',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
             value: cart.loyaltyPointsUsed > 0,
             activeThumbColor: AppColors.accent,
             onChanged: (val) {
               if (val) {
-                cart.setLoyaltyPointsUsed(userPoints, userPoints);
+                cart.setLoyaltyPointsUsed(effectiveMax, userPoints);
               } else {
                 cart.setLoyaltyPointsUsed(0, userPoints);
               }
             },
           ),
+          if (cart.loyaltyPointsUsed > 0 && effectiveMax > 50) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('نسبة الخصم:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 6,
+                  children: [0.25, 0.5, 0.75, 1.0].map((pct) {
+                    final targetPts = (effectiveMax * pct).toInt();
+                    final isSelected = (cart.loyaltyPointsUsed - targetPts).abs() < 25;
+                    return InkWell(
+                      onTap: () => cart.setLoyaltyPointsUsed(targetPts, userPoints),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.accent : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.accent.withValues(alpha: 0.6)),
+                        ),
+                        child: Text(
+                          '${(pct * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            Slider(
+              value: cart.loyaltyPointsUsed.toDouble().clamp(0.0, effectiveMax.toDouble()),
+              min: 0,
+              max: effectiveMax.toDouble(),
+              divisions: effectiveMax > 10 ? 10 : 1,
+              activeColor: AppColors.accent,
+              onChanged: (val) {
+                cart.setLoyaltyPointsUsed(val.toInt(), userPoints);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -584,20 +651,20 @@ class _CartScreenState extends State<CartScreen> {
         children: [
           const Text('ملخص الفاتورة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 12),
-          _summaryRow('المجموع الفرعي', '${cart.subtotal.toStringAsFixed(2)} د.إ'),
+          _summaryRow('المجموع الفرعي', '${cart.subtotal.toStringAsFixed(2)} ل.س'),
           const SizedBox(height: 8),
           _summaryRow(
             'رسوم التوصيل',
-            cart.isFreeDelivery ? 'مجاناً' : '${cart.deliveryFee.toStringAsFixed(2)} د.إ',
+            cart.isFreeDelivery ? 'مجاناً' : '${cart.deliveryFee.toStringAsFixed(2)} ل.س',
             valueColor: cart.isFreeDelivery ? AppColors.freshGreen : null,
           ),
           if (cart.couponDiscount > 0) ...[
             const SizedBox(height: 8),
-            _summaryRow('خصم الكوبون', '-${cart.couponDiscount.toStringAsFixed(2)} د.إ', valueColor: AppColors.secondary),
+            _summaryRow('خصم الكوبون', '-${cart.couponDiscount.toStringAsFixed(2)} ل.س', valueColor: AppColors.secondary),
           ],
           if (cart.loyaltyDiscount > 0) ...[
             const SizedBox(height: 8),
-            _summaryRow('خصم نقاط الولاء', '-${cart.loyaltyDiscount.toStringAsFixed(2)} د.إ', valueColor: AppColors.accent),
+            _summaryRow('خصم نقاط الولاء', '-${cart.loyaltyDiscount.toStringAsFixed(2)} ل.س', valueColor: AppColors.accent),
           ],
           const Divider(height: 24),
           Row(
@@ -605,7 +672,7 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               const Text('المبلغ الإجمالي للدفع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                '${cart.totalAmount.toStringAsFixed(2)} د.إ',
+                '${cart.totalAmount.toStringAsFixed(2)} ل.س',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
               ),
             ],
@@ -627,7 +694,7 @@ class _CartScreenState extends State<CartScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'المتابعة لإتمام الطلب (${cart.totalAmount.toStringAsFixed(2)} د.إ)',
+            'المتابعة لإتمام الطلب (${cart.totalAmount.toStringAsFixed(2)} ل.س)',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 8),

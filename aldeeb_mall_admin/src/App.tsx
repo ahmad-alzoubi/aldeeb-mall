@@ -32,6 +32,9 @@ import { SmartLockersPage } from './pages/SmartLockersPage';
 import { DroneFleetPage } from './pages/DroneFleetPage';
 import { CorporateB2BPage } from './pages/CorporateB2BPage';
 import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
+import { SubscriptionsPage } from './pages/SubscriptionsPage';
+import { BannersPage } from './pages/BannersPage';
+import { EnterpriseOperationsTowerPage } from './pages/EnterpriseOperationsTowerPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -46,7 +49,13 @@ import {
   initialPurchaseOrders,
   initialSupportTickets,
   initialCampaigns,
-  initialDeliveryZones
+  initialDeliveryZones,
+  initialSubscriptionPlans,
+  initialSubscribers,
+  initialRewardCoupons,
+  initialRewardProducts,
+  initialSubscriptionActivity,
+  initialBanners
 } from './lib/supabase';
 import { 
   Order, 
@@ -62,7 +71,13 @@ import {
   PurchaseOrder,
   SupportTicket,
   MarketingCampaign,
-  DeliveryZone
+  DeliveryZone,
+  SubscriptionPlan,
+  Subscriber,
+  RewardCoupon,
+  RewardProduct,
+  SubscriptionActivityLog,
+  Banner
 } from './types';
 
 export const App: React.FC = () => {
@@ -86,6 +101,14 @@ export const App: React.FC = () => {
   const [supportTickets] = useState<SupportTicket[]>(initialSupportTickets);
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(initialCampaigns);
   const [deliveryZones] = useState<DeliveryZone[]>(initialDeliveryZones);
+
+  // VIP Subscriptions & Rewards Datasets
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>(initialSubscriptionPlans);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>(initialSubscribers);
+  const [rewardCoupons, setRewardCoupons] = useState<RewardCoupon[]>(initialRewardCoupons);
+  const [rewardProducts, setRewardProducts] = useState<RewardProduct[]>(initialRewardProducts);
+  const [subscriptionActivities, setSubscriptionActivities] = useState<SubscriptionActivityLog[]>(initialSubscriptionActivity);
+  const [banners, setBanners] = useState<Banner[]>(initialBanners);
 
   // Play pleasant synthetic order chime via Web Audio API
   const playOrderChime = () => {
@@ -142,6 +165,39 @@ export const App: React.FC = () => {
     setCategories((prev) => [...prev, newCategory]);
   };
 
+  const handleUpdateCategory = (updatedCat: Category) => {
+    setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+  };
+
+  const handleToggleCategory = (categoryId: string) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.id === categoryId ? { ...c, is_active: !c.is_active } : c))
+    );
+  };
+
+  // Banner Actions (Hero & Middle Secondary)
+  const handleAddBanner = (newBanner: Banner) => {
+    setBanners((prev) => [newBanner, ...prev]);
+  };
+
+  const handleUpdateBanner = (updatedBanner: Banner) => {
+    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+  };
+
+  const handleDeleteBanner = (bannerId: string) => {
+    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+  };
+
+  const handleToggleBanner = (bannerId: string) => {
+    setBanners((prev) =>
+      prev.map((b) => (b.id === bannerId ? { ...b, is_active: !b.is_active } : b))
+    );
+  };
+
   // Coupon Actions
   const handleAddCoupon = (newCoupon: Coupon) => {
     setCoupons((prev) => [newCoupon, ...prev]);
@@ -184,6 +240,86 @@ export const App: React.FC = () => {
         return c;
       })
     );
+
+    // Also update in subscribers if present
+    setSubscribers((prev) =>
+      prev.map((s) => (s.customer_id === customerId ? { ...s, loyalty_points: s.loyalty_points + points } : s))
+    );
+  };
+
+  // VIP Subscription Actions
+  const handleAddPlan = (newPlan: SubscriptionPlan) => {
+    setSubscriptionPlans((prev) => [...prev, newPlan]);
+  };
+
+  const handleUpdatePlan = (updatedPlan: SubscriptionPlan) => {
+    setSubscriptionPlans((prev) => prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p)));
+  };
+
+  const handleTogglePlan = (planId: string) => {
+    setSubscriptionPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, is_active: !p.is_active } : p))
+    );
+  };
+
+  const handleExtendSubscriber = (subscriberId: string, days: number) => {
+    setSubscribers((prev) =>
+      prev.map((s) => {
+        if (s.id === subscriberId) {
+          const currentRenewal = new Date(s.renews_at);
+          currentRenewal.setDate(currentRenewal.getDate() + days);
+          const newDateStr = currentRenewal.toISOString().split('T')[0];
+          return {
+            ...s,
+            renews_at: newDateStr,
+            total_money_saved: s.total_money_saved + 59.00,
+          };
+        }
+        return s;
+      })
+    );
+    setSubscriptionActivities((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        timestamp: 'الآن',
+        customer_name: 'إدارة النظام',
+        activity_type: 'renewed',
+        description_ar: `تم تمديد اشتراك المشترك لمدة ${days} يوماً إضافياً مجاناً كهدية تقدير`,
+        badge_color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        amount_or_points: `+${days} يوم`,
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleToggleSubscriberStatus = (subscriberId: string) => {
+    setSubscribers((prev) =>
+      prev.map((s) =>
+        s.id === subscriberId
+          ? { ...s, status: s.status === 'active' ? 'paused' : 'active' }
+          : s
+      )
+    );
+  };
+
+  const handleAddRewardCoupon = (coupon: RewardCoupon) => {
+    setRewardCoupons((prev) => [coupon, ...prev]);
+  };
+
+  const handleAddRewardProduct = (product: RewardProduct) => {
+    setRewardProducts((prev) => [product, ...prev]);
+  };
+
+  const handleToggleRewardItem = (type: 'coupon' | 'product', id: string) => {
+    if (type === 'coupon') {
+      setRewardCoupons((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, is_active: !c.is_active } : c))
+      );
+    } else {
+      setRewardProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_active: !p.is_active } : p))
+      );
+    }
   };
 
   const pendingCount = orders.filter((o) => o.status === 'pending').length;
@@ -196,6 +332,11 @@ export const App: React.FC = () => {
         return { title: 'ذكاء الأعمال والتحليلات المالية (BI Analytics)', subtitle: 'مؤشرات الإيرادات اللحظية، ساعات الذروة، ونسب التزام التوصيل 15 دقيقة' };
       case 'orders':
         return { title: 'إدارة الطلبات الفورية والفرز', subtitle: 'متابعة الطلبات المباشرة من الاستلام حتى تسليم السائق' };
+      case 'operations_tower':
+        return { 
+          title: 'برج مراقبة العمليات وسلسلة الإمداد الذكية (Enterprise Operations Tower)', 
+          subtitle: '20 نظاماً تشغيلياً لمراقبة الطلبات المتعثرة، المخزون، الشحنات، والتسويات المالية' 
+        };
       case 'fulfillment':
         return { title: 'المستودعات الذكية والجمع الفوري (15-Min)', subtitle: 'محطات الفرز الذكي ومطابقة الأصناف بالباركود الرقمي' };
       case 'flash_deals':
@@ -212,10 +353,14 @@ export const App: React.FC = () => {
         return { title: 'الحملات التسويقية والإشعارات الفورية (Push Notifications)', subtitle: 'إطلاق إشعارات العروض وسلال الشراء المعلقة' };
       case 'zones':
         return { title: 'النطاقات الجغرافية ورسوم الذروة (Geofencing & Surge)', subtitle: 'أقطار خدمة الـ 15 دقيقة والتسعير الديناميكي' };
+      case 'banners':
+        return { title: 'إدارة المنارات والبانرات الإعلانية المتنقلة', subtitle: 'التحكم في سلايدر العروض الترويجية بأعلى الصفحة والإعلانات الفاصلة بين الأقسام' };
       case 'categories':
         return { title: 'أقسام وتصنيفات الهايبرماركت', subtitle: 'ترتيب وإضافة الأقسام المعروضة للعملاء' };
       case 'coupons':
         return { title: 'كوبونات الخصم والعروض الترويجية', subtitle: 'إطلاق ومتابعة فاعلية حملات الأكواد التسويقية' };
+      case 'subscriptions':
+        return { title: 'باقات الاشتراكات ونادي VIP (Prime & Loyalty)', subtitle: 'إدارة الاشتراكات الشهرية، الإيرادات المتكررة MRR، وكتالوج مكافآت النقاط' };
       case 'loyalty':
         return { title: 'نادي العملاء ونقاط الولاء', subtitle: 'سجل العملاء، النقاط التراكمية، ومكافآت التقدير' };
       case 'settings':
@@ -279,6 +424,14 @@ export const App: React.FC = () => {
             <OrdersPage
               orders={orders}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          )}
+
+          {activeTab === 'operations_tower' && (
+            <EnterpriseOperationsTowerPage
+              orders={orders}
+              products={products}
+              darkStores={darkStores}
             />
           )}
 
@@ -391,10 +544,24 @@ export const App: React.FC = () => {
             <ReturnsPage />
           )}
 
+          {activeTab === 'banners' && (
+            <BannersPage
+              banners={banners}
+              categories={categories}
+              onAddBanner={handleAddBanner}
+              onUpdateBanner={handleUpdateBanner}
+              onDeleteBanner={handleDeleteBanner}
+              onToggleBanner={handleToggleBanner}
+            />
+          )}
+
           {activeTab === 'categories' && (
             <CategoriesPage
               categories={categories}
               onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onToggleCategory={handleToggleCategory}
             />
           )}
 
@@ -417,6 +584,25 @@ export const App: React.FC = () => {
 
           {activeTab === 'lockers' && (
             <SmartLockersPage />
+          )}
+
+          {activeTab === 'subscriptions' && (
+            <SubscriptionsPage
+              plans={subscriptionPlans}
+              subscribers={subscribers}
+              rewardCoupons={rewardCoupons}
+              rewardProducts={rewardProducts}
+              activities={subscriptionActivities}
+              onAddPlan={handleAddPlan}
+              onUpdatePlan={handleUpdatePlan}
+              onTogglePlan={handleTogglePlan}
+              onExtendSubscriber={handleExtendSubscriber}
+              onToggleSubscriberStatus={handleToggleSubscriberStatus}
+              onGrantPoints={handleAddPoints}
+              onAddRewardCoupon={handleAddRewardCoupon}
+              onAddRewardProduct={handleAddRewardProduct}
+              onToggleRewardItem={handleToggleRewardItem}
+            />
           )}
 
           {activeTab === 'loyalty' && (

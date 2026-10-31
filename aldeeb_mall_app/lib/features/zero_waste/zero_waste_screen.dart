@@ -447,7 +447,7 @@ class _ZeroWasteScreenState extends State<ZeroWasteScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${item.clearancePrice.toStringAsFixed(2)} ر.س',
+                                        '${item.clearancePrice.toStringAsFixed(2)} ل.س',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w900,
                                           fontSize: 15,
@@ -455,7 +455,7 @@ class _ZeroWasteScreenState extends State<ZeroWasteScreen> {
                                         ),
                                       ),
                                       Text(
-                                        '${item.product.price.toStringAsFixed(2)} ر.س',
+                                        '${item.product.price.toStringAsFixed(2)} ل.س',
                                         style: const TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey,

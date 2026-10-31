@@ -254,7 +254,7 @@ export const FleetPage: React.FC<FleetPageProps> = ({
                       <div className="text-slate-400 truncate max-w-xs">{ord.customer_address}</div>
                     </div>
                     <span className="font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">
-                      {ord.total_amount.toFixed(2)} د.إ
+                      {ord.total_amount.toFixed(2)} ل.س
                     </span>
                   </div>
                 ))

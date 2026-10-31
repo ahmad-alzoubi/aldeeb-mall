@@ -168,11 +168,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                       <span className="text-[10px] text-blue-600 font-bold">{p.brand}</span>
                     </td>
                     <td className="p-4 font-extrabold text-blue-900 text-sm">
-                      {p.price.toFixed(2)} د.إ
+                      {p.price.toFixed(2)} ل.س
                       <span className="text-[10px] text-slate-400 font-normal mr-1">/ {p.unit}</span>
                     </td>
                     <td className="p-4 text-slate-400 line-through">
-                      {p.original_price ? `${p.original_price.toFixed(2)} د.إ` : '-'}
+                      {p.original_price ? `${p.original_price.toFixed(2)} ل.س` : '-'}
                     </td>
                     <td className="p-4">
                       {p.discount_percent > 0 ? (
@@ -301,7 +301,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
 
               <div className="grid grid-cols-4 gap-3">
                 <div>
-                  <label className="block mb-1">سعر العرض (د.إ) *</label>
+                  <label className="block mb-1">سعر العرض (ل.س) *</label>
                   <input
                     type="number"
                     step="0.05"
@@ -312,7 +312,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1">السعر الأصلي (د.إ)</label>
+                  <label className="block mb-1">السعر الأصلي (ل.س)</label>
                   <input
                     type="number"
                     step="0.05"

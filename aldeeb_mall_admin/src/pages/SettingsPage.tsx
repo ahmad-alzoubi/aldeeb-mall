@@ -4,7 +4,7 @@ import { Save, CheckCircle2, ShieldCheck, Database } from 'lucide-react';
 export const SettingsPage: React.FC = () => {
   const [storeNameAr, setStoreNameAr] = useState('الديب مول');
   const [storeNameEn, setStoreNameEn] = useState('Aldeeb Mall');
-  const [currency, setCurrency] = useState('د.إ');
+  const [currency, setCurrency] = useState('ل.س');
   const [deliveryFee, setDeliveryFee] = useState<number>(10.0);
   const [freeThreshold, setFreeThreshold] = useState<number>(100.0);
   const [phone, setPhone] = useState('+971 50 123 4567');
@@ -60,7 +60,7 @@ export const SettingsPage: React.FC = () => {
             <h4 className="text-xs font-extrabold text-slate-900">سياسة ورسوم التوصيل للعملاء</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1.5">رسوم التوصيل الافتراضية (د.إ)</label>
+                <label className="block mb-1.5">رسوم التوصيل الافتراضية (ل.س)</label>
                 <input
                   type="number"
                   step="0.5"
@@ -70,7 +70,7 @@ export const SettingsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block mb-1.5">الحد الأدنى للتوصيل المجاني (د.إ)</label>
+                <label className="block mb-1.5">الحد الأدنى للتوصيل المجاني (ل.س)</label>
                 <input
                   type="number"
                   step="5"

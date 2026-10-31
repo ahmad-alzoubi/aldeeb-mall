@@ -173,7 +173,7 @@ export const PriceMatchPage: React.FC = () => {
     if (!claim) return;
 
     setClaims(claims.map(c => c.id === claimId ? { ...c, status: 'APPROVED' } : c));
-    alert(`تمت الموافقة على طلب المطابقة وإيداع تعويض ${claim.refundAmount} ر.س كاش في محفظة العميل (${claim.customerName}) بنجاح!`);
+    alert(`تمت الموافقة على طلب المطابقة وإيداع تعويض ${claim.refundAmount} ل.س كاش في محفظة العميل (${claim.customerName}) بنجاح!`);
   };
 
   const handleRejectClaim = (claimId: string) => {
@@ -191,7 +191,7 @@ export const PriceMatchPage: React.FC = () => {
       }
       return it;
     }));
-    alert(`تم تعديل ومطابقة سعر المنتج في الكتالوج والتطبيق وفروع الكاشير فورياً إلى ${newPrice} ر.س!`);
+    alert(`تم تعديل ومطابقة سعر المنتج في الكتالوج والتطبيق وفروع الكاشير فورياً إلى ${newPrice} ل.س!`);
   };
 
   const pendingClaimsCount = claims.filter(c => c.status === 'PENDING').length;
@@ -265,7 +265,7 @@ export const PriceMatchPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">إجمالي التعويضات المصروفة</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">3,420 ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">3,420 ل.س</h3>
             <p className="text-xs text-blue-600 font-medium mt-1">
               تعويض كاش في محافظ العملاء
             </p>
@@ -358,17 +358,17 @@ export const PriceMatchPage: React.FC = () => {
                         {c.productName}
                       </td>
                       <td className="p-3.5 font-bold text-slate-900">
-                        {c.aldeebPrice.toFixed(2)} ر.س
+                        {c.aldeebPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5">
                         <div className="font-bold text-slate-800">{c.competitorName}</div>
-                        <div className="text-xs font-bold text-red-600">{c.competitorPrice.toFixed(2)} ر.س</div>
+                        <div className="text-xs font-bold text-red-600">{c.competitorPrice.toFixed(2)} ل.س</div>
                       </td>
                       <td className="p-3.5 text-red-600 font-bold">
-                        -{c.difference.toFixed(2)} ر.س
+                        -{c.difference.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 font-extrabold text-emerald-600 text-base">
-                        +{c.refundAmount.toFixed(2)} ر.س
+                        +{c.refundAmount.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5">
                         <a
@@ -452,19 +452,19 @@ export const PriceMatchPage: React.FC = () => {
                         <div className="text-xs text-slate-400 font-mono">{it.barcode} | {it.category}</div>
                       </td>
                       <td className="p-3.5 font-extrabold text-emerald-600 text-base">
-                        {it.aldeebPrice.toFixed(2)} ر.س
+                        {it.aldeebPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 text-slate-600 font-mono text-xs">
-                        {it.pandaPrice.toFixed(2)} ر.س
+                        {it.pandaPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 text-slate-600 font-mono text-xs">
-                        {it.othaimPrice.toFixed(2)} ر.س
+                        {it.othaimPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 text-slate-600 font-mono text-xs">
-                        {it.carrefourPrice.toFixed(2)} ر.س
+                        {it.carrefourPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 text-slate-600 font-mono text-xs">
-                        {it.luluPrice.toFixed(2)} ر.س
+                        {it.luluPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5">
                         {it.status === 'ALDEEB_CHEAPEST' && (
@@ -520,7 +520,7 @@ export const PriceMatchPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40">
               <span className="text-xs font-bold text-blue-800 bg-blue-200 px-2 py-0.5 rounded">الموافقة التلقائية</span>
-              <h4 className="text-base font-bold text-slate-900 mt-2">التعويضات أقل من 25 ر.س</h4>
+              <h4 className="text-base font-bold text-slate-900 mt-2">التعويضات أقل من 25 ل.س</h4>
               <p className="text-xs text-slate-600 mt-1">
                 تعتمد فورياً بواسطة خوارزمية الذكاء الاصطناعي وتودع في محفظة العميل خلال 60 ثانية لتعزيز الثقة.
               </p>
@@ -528,7 +528,7 @@ export const PriceMatchPage: React.FC = () => {
 
             <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40">
               <span className="text-xs font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded">التحقق اليدوي</span>
-              <h4 className="text-base font-bold text-slate-900 mt-2">التعويضات فوق 25 ر.س</h4>
+              <h4 className="text-base font-bold text-slate-900 mt-2">التعويضات فوق 25 ل.س</h4>
               <p className="text-xs text-slate-600 mt-1">
                 تحال لمشرف قسم الأسعار لفحص رابط المنافس أو صورة المجلة الإعلانية للتأكد من تطابق الحجم والوزن.
               </p>

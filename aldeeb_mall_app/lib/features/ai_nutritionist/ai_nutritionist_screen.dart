@@ -572,7 +572,7 @@ class _AiNutritionistScreenState extends State<AiNutritionistScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      'وفرت 45.00 ر.س (15%)',
+                      'وفرت 45.00 ل.س (15%)',
                       style: TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold, fontSize: 11),
                     ),
                   ),
@@ -662,7 +662,7 @@ class _AiNutritionistScreenState extends State<AiNutritionistScreen>
                     ),
                   ),
                   Text(
-                    '${product.price.toStringAsFixed(2)} ر.س',
+                    '${product.price.toStringAsFixed(2)} ل.س',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
                   ),
                 ],

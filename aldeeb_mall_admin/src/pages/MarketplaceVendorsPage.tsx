@@ -229,7 +229,7 @@ const initialApplications: VendorApplication[] = [
     category: 'زيوت طبيعية وعضوية',
     proposedModel: 'FBA',
     crNumber: '3400192837',
-    annualTurnoverEst: '1.2M - 2M ر.س',
+    annualTurnoverEst: '1.2M - 2M ل.س',
     submittedAt: 'منذ ساعتين',
     status: 'PENDING',
   },
@@ -242,7 +242,7 @@ const initialApplications: VendorApplication[] = [
     category: 'ألبان وأجبان طازجة',
     proposedModel: 'FARM_DIRECT',
     crNumber: '3350182746',
-    annualTurnoverEst: '3M - 5M ر.س',
+    annualTurnoverEst: '3M - 5M ل.س',
     submittedAt: 'منذ يوم',
     status: 'PENDING',
   },
@@ -437,7 +437,7 @@ export const MarketplaceVendorsPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">مبيعات التجار الشهرية (3P GMV)</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalGMV.toLocaleString()} ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalGMV.toLocaleString()} ل.س</h3>
             <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
               <ArrowUpRight className="w-3.5 h-3.5" />
               +24% نمو الماركت بليس
@@ -451,7 +451,7 @@ export const MarketplaceVendorsPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">صافي عمولات المول المحصلة</p>
-            <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{totalCommissionEarned.toLocaleString()} ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{totalCommissionEarned.toLocaleString()} ل.س</h3>
             <p className="text-xs text-slate-700 font-medium mt-1">
               متوسط عمولة المنصة 8.4%
             </p>
@@ -464,7 +464,7 @@ export const MarketplaceVendorsPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">أرصدة التسوية البنكية المعلقة</p>
-            <h3 className="text-2xl font-extrabold text-amber-600 mt-1">{totalPendingPayouts.toLocaleString()} ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-amber-600 mt-1">{totalPendingPayouts.toLocaleString()} ل.س</h3>
             <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
               جاهزة لدورة تحويل الأربعاء
@@ -615,10 +615,10 @@ export const MarketplaceVendorsPage: React.FC = () => {
                         {v.commissionRate}%
                       </td>
                       <td className="p-3.5 font-bold text-slate-900">
-                        {v.monthlyGMV.toLocaleString()} ر.س
+                        {v.monthlyGMV.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 font-bold text-amber-600">
-                        {v.pendingBalance.toLocaleString()} ر.س
+                        {v.pendingBalance.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5">
                         <div className="text-xs font-bold text-emerald-600">{v.slaOnTimeRate}% في الوقت</div>
@@ -712,16 +712,16 @@ export const MarketplaceVendorsPage: React.FC = () => {
                         {p.period}
                       </td>
                       <td className="p-3.5 font-bold text-slate-900">
-                        {p.grossSales.toLocaleString()} ر.س
+                        {p.grossSales.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 text-rose-600 font-medium">
-                        -{p.commissionDeducted.toLocaleString()} ر.س
+                        -{p.commissionDeducted.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 text-slate-500">
-                        -{(p.storageFees + p.disputeDeduction).toLocaleString()} ر.س
+                        -{(p.storageFees + p.disputeDeduction).toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 font-extrabold text-emerald-600 text-base">
-                        {p.netPayout.toLocaleString()} ر.س
+                        {p.netPayout.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 text-xs font-mono text-slate-600">
                         {p.bankIban}
@@ -1064,7 +1064,7 @@ export const MarketplaceVendorsPage: React.FC = () => {
                 <div className="border-t pt-2 flex justify-between items-center">
                   <span className="font-bold text-slate-900">صافي المبلغ المحول:</span>
                   <span className="font-extrabold text-emerald-600 text-lg">
-                    {selectedPayout.netPayout.toLocaleString()} ر.س
+                    {selectedPayout.netPayout.toLocaleString()} ل.س
                   </span>
                 </div>
               </div>

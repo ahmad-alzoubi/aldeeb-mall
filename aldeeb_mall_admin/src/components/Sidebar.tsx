@@ -31,7 +31,10 @@ import {
   DoorClosed,
   Plane,
   Briefcase,
-  Beef
+  Beef,
+  TowerControl,
+  Crown,
+  Megaphone
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -62,6 +65,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'إدارة الطلبات الفورية', 
       icon: ShoppingBag, 
       badge: pendingOrdersCount > 0 ? pendingOrdersCount : null 
+    },
+    { 
+      id: 'operations_tower', 
+      label: 'برج مراقبة العمليات الـ 20', 
+      icon: TowerControl, 
+      badge: '20-Ops' 
     },
     { 
       id: 'fulfillment', 
@@ -108,6 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'meal_kits', label: 'بوكسات الوجبات وتجهيز الطبخ', icon: UtensilsCrossed, badge: 'Kits' },
     { id: 'butcher', label: 'المسلخ والملحمة الذكية', icon: Beef, badge: 'MEWA' },
     { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
+    { id: 'banners', label: 'المنارات والبانرات الإعلانية', icon: Megaphone, badge: 'Hero' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
     { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },
     { id: 'corporate_b2b', label: 'توريد الشركات ومبيعات B2B', icon: Briefcase, badge: 'Corp' },
@@ -122,7 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },
     { id: 'zero_waste', label: 'إنقاذ الغذاء والتخفيض الذكي', icon: HeartHandshake, badge: '-70%' },
     { id: 'returns', label: 'المرتجعات والنزاعات', icon: RotateCcw },
-    { id: 'loyalty', label: 'العملاء ونقاط الولاء', icon: Award },
+    { id: 'subscriptions', label: 'باقات الاشتراكات ونادي VIP', icon: Crown, badge: 'MRR' },
+    { id: 'loyalty', label: 'العملاء ومكافآت النقاط', icon: Award },
     { id: 'settings', label: 'إعدادات المول والتوصيل', icon: Settings },
   ];
 

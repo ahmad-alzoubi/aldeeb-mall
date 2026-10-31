@@ -131,10 +131,10 @@ export const FlashDealsPage: React.FC<FlashDealsPageProps> = ({
                   </h4>
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-lg font-black text-rose-600">
-                      {deal.deal_price.toFixed(2)} د.إ
+                      {deal.deal_price.toFixed(2)} ل.س
                     </span>
                     <span className="text-xs text-slate-400 line-through">
-                      {deal.original_price.toFixed(2)} د.إ
+                      {deal.original_price.toFixed(2)} ل.س
                     </span>
                     <span className="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold">
                       وفر {deal.discount_percent}%
@@ -201,7 +201,7 @@ export const FlashDealsPage: React.FC<FlashDealsPageProps> = ({
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name_ar} (السعر الأصلي: {p.price.toFixed(2)} د.إ)
+                      {p.name_ar} (السعر الأصلي: {p.price.toFixed(2)} ل.س)
                     </option>
                   ))}
                 </select>
@@ -222,7 +222,7 @@ export const FlashDealsPage: React.FC<FlashDealsPageProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">السعر المخفض المحسوب</label>
                   <div className="w-full px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-bold text-emerald-800 font-mono">
-                    {calculatedDealPrice} د.إ
+                    {calculatedDealPrice} ل.س
                   </div>
                 </div>
               </div>

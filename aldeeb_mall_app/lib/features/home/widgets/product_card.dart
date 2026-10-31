@@ -226,7 +226,7 @@ class _ProductCardState extends State<ProductCard> {
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  '${widget.product.price.toStringAsFixed(2)} د.إ',
+                                  '${widget.product.price.toStringAsFixed(2)} ل.س',
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -248,7 +248,7 @@ class _ProductCardState extends State<ProductCard> {
                             if (widget.product.originalPrice != null &&
                                 widget.product.originalPrice! > widget.product.price)
                               Text(
-                                '${widget.product.originalPrice!.toStringAsFixed(2)} د.إ',
+                                '${widget.product.originalPrice!.toStringAsFixed(2)} ل.س',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textMuted,

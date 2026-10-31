@@ -381,10 +381,10 @@ export const MealKitsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-3.5 font-extrabold text-slate-900 text-sm">
-                        {kit.basePrice2P.toFixed(2)} ر.س
+                        {kit.basePrice2P.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 text-slate-500 font-mono text-xs">
-                        {kit.foodCost.toFixed(2)} ر.س
+                        {kit.foodCost.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 font-bold text-emerald-600">
                         {kit.grossMarginPercent}%
@@ -472,7 +472,7 @@ export const MealKitsPage: React.FC = () => {
               <h4 className="text-base font-bold text-slate-900 mt-2">3 وجبات أسبوعياً (6 حصص)</h4>
               <p className="text-xs text-slate-600 mt-1">توفير 15% مع توصيل مجاني مبرد أسبوعياً</p>
               <div className="mt-4 pt-3 border-t border-amber-200 font-extrabold text-amber-800 text-lg">
-                135.00 ر.س / أسبوع
+                135.00 ل.س / أسبوع
               </div>
             </div>
 
@@ -481,7 +481,7 @@ export const MealKitsPage: React.FC = () => {
               <h4 className="text-base font-bold text-slate-900 mt-2">4 وجبات أسبوعياً (16 حصة)</h4>
               <p className="text-xs text-slate-600 mt-1">توفير 22% مع تشكيلة لحوم طازجة وسالمون وباستا</p>
               <div className="mt-4 pt-3 border-t border-indigo-200 font-extrabold text-indigo-800 text-lg">
-                298.00 ر.س / أسبوع
+                298.00 ل.س / أسبوع
               </div>
             </div>
 
@@ -490,7 +490,7 @@ export const MealKitsPage: React.FC = () => {
               <h4 className="text-base font-bold text-slate-900 mt-2">5 وجبات كيتو عالية البروتين</h4>
               <p className="text-xs text-slate-600 mt-1">خالية من السكر والغلوتين ومحسوبة الماكروز بالجرام</p>
               <div className="mt-4 pt-3 border-t border-emerald-200 font-extrabold text-emerald-800 text-lg">
-                320.00 ر.س / أسبوع
+                320.00 ل.س / أسبوع
               </div>
             </div>
           </div>

@@ -115,7 +115,7 @@ class NutritionFactsModal extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${product.price.toStringAsFixed(2)} ر.س / ${product.unitLabelAr}',
+                      '${product.price.toStringAsFixed(2)} ل.س / ${product.unitLabelAr}',
                       style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary, fontSize: 13),
                     ),
                   ],
@@ -211,7 +211,7 @@ class NutritionFactsModal extends StatelessWidget {
               },
               icon: const Icon(Icons.add_shopping_cart_rounded, color: Colors.white, size: 18),
               label: Text(
-                'إضافة إلى السلة (${product.price.toStringAsFixed(2)} ر.س)',
+                'إضافة إلى السلة (${product.price.toStringAsFixed(2)} ل.س)',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               style: ElevatedButton.styleFrom(

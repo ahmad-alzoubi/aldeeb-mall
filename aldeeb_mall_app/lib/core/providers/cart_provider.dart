@@ -127,12 +127,47 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
+  void applyCouponDirectly(CouponModel coupon) {
+    _appliedCoupon = coupon;
+    notifyListeners();
+  }
+
   void removeCoupon() {
     _appliedCoupon = null;
     notifyListeners();
   }
 
-  // 6. Redeem Loyalty Points
+  // 6. Add Free Reward Item (Redeemed via Loyalty Points)
+  void addFreeRewardProduct({
+    required String id,
+    required String nameAr,
+    required String nameEn,
+    required String imageUrl,
+  }) {
+    final rewardProduct = ProductModel(
+      id: id,
+      nameAr: '$nameAr (هدية نقاط)',
+      nameEn: nameEn,
+      barcode: 'REWARD-$id',
+      brand: 'نادي مكافآت الديب VIP',
+      price: 0.0,
+      originalPrice: 0.0,
+      discountPercent: 100,
+      unit: 'piece',
+      weightStep: 1.0,
+      images: [imageUrl],
+      isFeatured: false,
+      isDailyDeal: false,
+      rating: 5.0,
+      salesCount: 100,
+      stockQuantity: 50,
+    );
+    _items[rewardProduct.id] = CartItemModel(product: rewardProduct, quantity: 1.0);
+    _revalidateDiscounts();
+    notifyListeners();
+  }
+
+  // 7. Redeem Loyalty Points
   void setLoyaltyPointsUsed(int points, int userMaxPoints) {
     final allowedMax = userMaxPoints;
     // Don't allow points discount to exceed 50% of subtotal

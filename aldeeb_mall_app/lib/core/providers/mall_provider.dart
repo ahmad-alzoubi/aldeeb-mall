@@ -12,6 +12,11 @@ enum ProductSortOption {
   topRated,
 }
 
+enum CategoryDisplayMode {
+  withTitle, // صورة مع عنوان تحتيها
+  imageOnly, // صورة بس لحالها
+}
+
 class MallProvider extends ChangeNotifier {
   final SupabaseService _service = SupabaseService();
 
@@ -24,16 +29,76 @@ class MallProvider extends ChangeNotifier {
   String? _selectedDietaryFilter; // 'organic', 'gluten_free', 'keto', 'high_protein'
   String _searchQuery = '';
   ProductSortOption _currentSort = ProductSortOption.featured;
+  CategoryDisplayMode _categoryDisplayMode = CategoryDisplayMode.withTitle;
   bool _isExpress15Min = false;
   bool _isLoading = false;
 
   List<CategoryModel> get categories => _categories;
   List<ProductModel> get products => _products;
   List<BannerModel> get banners => _banners;
+
+  List<BannerModel> get heroBanners {
+    final list = _banners.where((b) => b.slot == 'hero' && b.isActive).toList();
+    if (list.isEmpty) {
+      // Fallback: if no banners explicitly marked as 'hero', return all active banners except side cards
+      final filtered = _banners.where((b) => b.slot != 'side_top' && b.slot != 'side_bottom' && b.isActive).toList();
+      return filtered.isNotEmpty ? filtered : _banners;
+    }
+    return list;
+  }
+
+  BannerModel? get sideTopBanner {
+    try {
+      return _banners.firstWhere((b) => b.slot == 'side_top' && b.isActive);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  BannerModel? get sideBottomBanner {
+    try {
+      return _banners.firstWhere((b) => b.slot == 'side_bottom' && b.isActive);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<BannerModel> get secondaryBanners {
+    final list = _banners.where((b) => b.slot == 'middle_secondary' && b.isActive).toList();
+    if (list.isNotEmpty) return list;
+    return _banners.where((b) => b.id.startsWith('b_sec')).toList();
+  }
+
+  String get catalogCountText {
+    final count = _products.length;
+    if (count >= 100) return '$count';
+    return '10,000';
+  }
+
+  List<ProductModel> get weeklyDeals {
+    final list = _products.where((p) => p.isDailyDeal || p.discountPercent >= 20).toList();
+    return list.isNotEmpty ? list : _products.take(6).toList();
+  }
+
+  List<ProductModel> get cantMissDeals {
+    final list = _products.where((p) => p.stockQuantity < 100 && p.discountPercent >= 15).toList();
+    return list.isNotEmpty ? list : _products.reversed.take(6).toList();
+  }
+
+  List<ProductModel> get newArrivals {
+    return _products.reversed.take(8).toList();
+  }
+
+  List<ProductModel> get megaDiscounts {
+    final list = List<ProductModel>.from(_products);
+    list.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+    return list.take(8).toList();
+  }
   String? get selectedCategoryId => _selectedCategoryId;
   String? get selectedDietaryFilter => _selectedDietaryFilter;
   String get searchQuery => _searchQuery;
   ProductSortOption get currentSort => _currentSort;
+  CategoryDisplayMode get categoryDisplayMode => _categoryDisplayMode;
   bool get isLoading => _isLoading;
   bool get isExpress15Min => _isExpress15Min;
   Set<String> get favoriteProductIds => _favoriteProductIds;
@@ -164,4 +229,41 @@ class MallProvider extends ChangeNotifier {
   }
 
   bool isFavorite(String productId) => _favoriteProductIds.contains(productId);
+
+  // Category Management & Display Options
+  void setCategoryDisplayMode(CategoryDisplayMode mode) {
+    _categoryDisplayMode = mode;
+    notifyListeners();
+  }
+
+  void addCategory(CategoryModel category) {
+    // Insert at beginning or end
+    _categories.insert(0, category);
+    notifyListeners();
+  }
+
+  void updateCategory(CategoryModel updated) {
+    final index = _categories.indexWhere((c) => c.id == updated.id);
+    if (index != -1) {
+      _categories[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  void deleteCategory(String id) {
+    _categories.removeWhere((c) => c.id == id);
+    if (_selectedCategoryId == id) {
+      _selectedCategoryId = null;
+    }
+    notifyListeners();
+  }
+
+  void toggleCategoryTitleDisplay(String categoryId) {
+    final index = _categories.indexWhere((c) => c.id == categoryId);
+    if (index != -1) {
+      final current = _categories[index];
+      _categories[index] = current.copyWith(showTitle: !current.showTitle);
+      notifyListeners();
+    }
+  }
 }

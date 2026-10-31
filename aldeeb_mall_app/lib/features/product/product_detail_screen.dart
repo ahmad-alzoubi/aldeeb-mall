@@ -259,7 +259,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          '${widget.product.price.toStringAsFixed(2)} د.إ',
+                          '${widget.product.price.toStringAsFixed(2)} ل.س',
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
@@ -278,7 +278,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         const Spacer(),
                         if (widget.product.originalPrice != null) ...[
                           Text(
-                            '${widget.product.originalPrice!.toStringAsFixed(2)} د.إ',
+                            '${widget.product.originalPrice!.toStringAsFixed(2)} ل.س',
                             style: const TextStyle(
                               fontSize: 16,
                               color: AppColors.textMuted,
@@ -573,68 +573,289 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 100),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(16),
+      bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: AppColors.floatingShadow,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              offset: const Offset(0, -3),
+              blurRadius: 12,
+            ),
+          ],
+          border: const Border(
+            top: BorderSide(color: AppColors.border, width: 0.8),
+          ),
         ),
-        child: MaxWidthContainer(
-          child: Row(
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('المبلغ الإجمالي:', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                  Text(
-                    '${(widget.product.price * (widget.product.unit == 'kg' ? _selectedWeight : 1.0)).toStringAsFixed(2)} د.إ',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
+        child: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1.0,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 32 : 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    _buildBottomPriceSection(),
+                    if (isDesktop) const Spacer() else const SizedBox(width: 16),
+                    _buildBottomActionButton(context, cart, currentQty, isDesktop),
+                  ],
+                ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    cart.addToCart(
-                      widget.product,
-                      quantity: widget.product.unit == 'kg' ? _selectedWeight : 1.0,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تمت إضافة ${widget.product.nameAr} إلى السلة!'),
-                        backgroundColor: AppColors.primary,
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: Text(
-                    currentQty > 0 ? 'إضافة المزيد إلى السلة' : 'أضف إلى السلة الآن',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomPriceSection() {
+    final totalPrice = widget.product.price *
+        (widget.product.unit == 'kg' ? _selectedWeight : 1.0);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'المبلغ الإجمالي',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (widget.product.unit == 'kg') ...[
+              const SizedBox(width: 4),
+              Text(
+                '($_selectedWeight كجم)',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
-          ),
+          ],
         ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              totalPrice.toStringAsFixed(2),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              'ل.س',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryDark,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomActionButton(
+    BuildContext context,
+    CartProvider cart,
+    double currentQty,
+    bool isDesktop,
+  ) {
+    final actionWidget = currentQty > 0
+        ? _buildQuantityStepper(cart, currentQty)
+        : _buildAddToCartButton(context, cart);
+
+    if (isDesktop) {
+      return SizedBox(
+        width: 280,
+        height: 48,
+        child: actionWidget,
+      );
+    }
+
+    return Expanded(
+      child: SizedBox(
+        height: 48,
+        child: actionWidget,
+      ),
+    );
+  }
+
+  Widget _buildAddToCartButton(BuildContext context, CartProvider cart) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        final qtyToAdd = widget.product.unit == 'kg' ? _selectedWeight : 1.0;
+        cart.addToCart(widget.product, quantity: qtyToAdd);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'تمت إضافة ${widget.product.nameAr} إلى السلة!',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      icon: const Icon(Icons.add_shopping_cart_rounded, size: 20),
+      label: const Text(
+        'أضف إلى السلة',
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 1,
+        shadowColor: AppColors.primary.withValues(alpha: 0.3),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildQuantityStepper(CartProvider cart, double currentQty) {
+    final step = widget.product.unit == 'kg' ? _selectedWeight : 1.0;
+    final isRemove = currentQty <= (widget.product.unit == 'kg' ? widget.product.weightStep : 1.0);
+    final displayQty = widget.product.unit == 'kg'
+        ? (currentQty % 1 == 0 ? '${currentQty.toInt()}' : currentQty.toStringAsFixed(1))
+        : '${currentQty.toInt()}';
+    final unitLabel = widget.product.unit == 'kg' ? ' كجم' : '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Decrement / Remove button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                cart.decrementQuantity(widget.product);
+              },
+              child: Container(
+                width: 42,
+                height: 42,
+                margin: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isRemove ? Icons.delete_outline_rounded : Icons.remove_rounded,
+                  color: isRemove ? AppColors.error : AppColors.primary,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+
+          // Quantity text in cart
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$displayQty$unitLabel',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const Text(
+                  'في السلة',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textMuted,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Increment button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                cart.addToCart(widget.product, quantity: step);
+              },
+              child: Container(
+                width: 42,
+                height: 42,
+                margin: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

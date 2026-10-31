@@ -171,7 +171,7 @@ export const CorporateB2BPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500">مبيعات B2B هذا الشهر</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">420,500 ر.س</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">420,500 ل.س</p>
             <p className="text-xs text-slate-500 font-medium mt-1">تم تحصيل 78% عبر التحويل البنكي</p>
           </div>
           <div className="p-3 bg-emerald-50 rounded-xl">
@@ -193,7 +193,7 @@ export const CorporateB2BPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500">متوسط سلة طلب الشركة</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">9,480 ر.س</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">9,480 ل.س</p>
             <p className="text-xs text-emerald-600 font-medium mt-1">خصومات جملة تصل إلى 30%</p>
           </div>
           <div className="p-3 bg-slate-100 rounded-xl">
@@ -251,7 +251,7 @@ export const CorporateB2BPage: React.FC = () => {
                   </td>
                   <td className="p-3.5">
                     <div className="font-bold font-mono text-slate-900">
-                      {account.currentBalance.toLocaleString()} / {account.monthlyCreditLimit.toLocaleString()} ر.س
+                      {account.currentBalance.toLocaleString()} / {account.monthlyCreditLimit.toLocaleString()} ل.س
                     </div>
                     <span className="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold mt-0.5">
                       آجل {account.paymentTerms}
@@ -262,7 +262,7 @@ export const CorporateB2BPage: React.FC = () => {
                     <div className="text-[10px] text-slate-400 truncate max-w-xs">{account.itemsSummary}</div>
                   </td>
                   <td className="p-3.5 font-bold font-mono text-emerald-700">
-                    {account.lastOrderAmount.toLocaleString()} ر.س
+                    {account.lastOrderAmount.toLocaleString()} ل.س
                   </td>
                   <td className="p-3.5">
                     {account.status === 'active' && (
@@ -332,11 +332,11 @@ export const CorporateB2BPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">الحد الائتماني الشهري:</span>
-                <span className="font-mono font-bold text-blue-700">{selectedAccount.monthlyCreditLimit.toLocaleString()} ر.س</span>
+                <span className="font-mono font-bold text-blue-700">{selectedAccount.monthlyCreditLimit.toLocaleString()} ل.س</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">الرصيد المستحق الحالي:</span>
-                <span className="font-mono font-bold text-slate-900">{selectedAccount.currentBalance.toLocaleString()} ر.س</span>
+                <span className="font-mono font-bold text-slate-900">{selectedAccount.currentBalance.toLocaleString()} ل.س</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">جدولة التوريد الآلية:</span>

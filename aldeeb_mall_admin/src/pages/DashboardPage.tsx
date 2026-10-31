@@ -43,7 +43,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <h3 className="text-2xl font-extrabold text-slate-900">{totalRevenue.toFixed(2)} د.إ</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900">{totalRevenue.toFixed(2)} ل.س</h3>
             <span className="text-xs font-bold text-emerald-600 flex items-center">
               +18.4%
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -101,7 +101,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <h3 className="text-2xl font-extrabold text-slate-900">{totalPointsRedeemed.toFixed(2)} د.إ</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900">{totalPointsRedeemed.toFixed(2)} ل.س</h3>
             <span className="text-xs font-bold text-emerald-600">نادي الديب</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">استبدال فوري للنقاط في السلة</p>
@@ -153,7 +153,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
                   <div className="flex items-center gap-4">
                     <div className="text-left">
-                      <p className="text-sm font-extrabold text-blue-900">{order.total_amount.toFixed(2)} د.إ</p>
+                      <p className="text-sm font-extrabold text-blue-900">{order.total_amount.toFixed(2)} ل.س</p>
                       <p className="text-[11px] text-slate-400">{order.payment_method}</p>
                     </div>
 

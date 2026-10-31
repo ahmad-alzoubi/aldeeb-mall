@@ -91,7 +91,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
                   </td>
                   <td className="py-2 text-center font-bold">{item.quantity} {item.unit}</td>
                   <td className="py-2 text-center font-mono">{item.unit_price.toFixed(2)}</td>
-                  <td className="py-2 text-start font-bold font-mono">{item.total_price.toFixed(2)} د.إ</td>
+                  <td className="py-2 text-start font-bold font-mono">{item.total_price.toFixed(2)} ل.س</td>
                 </tr>
               ))}
             </tbody>
@@ -101,33 +101,33 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
           <div className="border-t-2 border-slate-200 pt-3 text-xs space-y-1">
             <div className="flex justify-between text-slate-600">
               <span>المجموع الفرعي:</span>
-              <span className="font-mono">{order.subtotal.toFixed(2)} د.إ</span>
+              <span className="font-mono">{order.subtotal.toFixed(2)} ل.س</span>
             </div>
             {order.discount_amount > 0 && (
               <div className="flex justify-between text-rose-600">
                 <span>خصم الكوبون الترويجي:</span>
-                <span className="font-mono">-{order.discount_amount.toFixed(2)} د.إ</span>
+                <span className="font-mono">-{order.discount_amount.toFixed(2)} ل.س</span>
               </div>
             )}
             {order.loyalty_discount > 0 && (
               <div className="flex justify-between text-amber-600">
                 <span>خصم نقاط ولاء الديب:</span>
-                <span className="font-mono">-{order.loyalty_discount.toFixed(2)} د.إ</span>
+                <span className="font-mono">-{order.loyalty_discount.toFixed(2)} ل.س</span>
               </div>
             )}
             <div className="flex justify-between text-slate-600">
               <span>رسوم التوصيل المبرد:</span>
               <span className="font-mono">
-                {order.delivery_fee === 0 ? 'مجاني (0.00)' : `${order.delivery_fee.toFixed(2)} د.إ`}
+                {order.delivery_fee === 0 ? 'مجاني (0.00)' : `${order.delivery_fee.toFixed(2)} ل.س`}
               </span>
             </div>
             <div className="flex justify-between text-slate-400 text-[11px]">
               <span>شامل ضريبة القيمة المضافة (5%):</span>
-              <span className="font-mono">{vatAmount} د.إ</span>
+              <span className="font-mono">{vatAmount} ل.س</span>
             </div>
             <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-300 pt-2 mt-2">
               <span>المبلغ الإجمالي النهائي:</span>
-              <span className="text-blue-900 font-mono text-base">{order.total_amount.toFixed(2)} د.إ</span>
+              <span className="text-blue-900 font-mono text-base">{order.total_amount.toFixed(2)} ل.س</span>
             </div>
           </div>
 

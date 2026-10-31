@@ -146,7 +146,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                     <td className="p-4 font-mono font-bold text-blue-600">{po.po_number}</td>
                     <td className="p-4 font-bold text-slate-800">{po.supplier_name}</td>
                     <td className="p-4 font-bold">{po.total_items} قطعة</td>
-                    <td className="p-4 font-mono font-bold text-blue-900">{po.total_cost.toFixed(2)} د.إ</td>
+                    <td className="p-4 font-mono font-bold text-blue-900">{po.total_cost.toFixed(2)} ل.س</td>
                     <td className="p-4 text-slate-500">{po.order_date}</td>
                     <td className="p-4 text-slate-600 font-semibold">{po.expected_arrival}</td>
                     <td className="p-4">
@@ -280,7 +280,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">التكلفة التقديرية (د.إ)</label>
+                  <label className="block font-bold text-slate-700 mb-1">التكلفة التقديرية (ل.س)</label>
                   <input
                     type="number"
                     min="100"

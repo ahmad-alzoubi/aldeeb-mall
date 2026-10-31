@@ -279,7 +279,7 @@ export const ZeroWastePage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-700">قيمة المبيعات المنقذة (Revenue)</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalSalvagedValue.toLocaleString()} ر.س</h3>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalSalvagedValue.toLocaleString()} ل.س</h3>
             <p className="text-xs text-blue-600 font-medium mt-1">
               مبيعات محققة بدلاً من الإتلاف
             </p>
@@ -438,10 +438,10 @@ export const ZeroWastePage: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-3.5 text-slate-400 line-through text-xs">
-                        {it.originalPrice.toFixed(2)} ر.س
+                        {it.originalPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5 font-extrabold text-emerald-600 text-base">
-                        {it.markdownPrice.toFixed(2)} ر.س
+                        {it.markdownPrice.toFixed(2)} ل.س
                       </td>
                       <td className="p-3.5">
                         <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-xs">
@@ -512,7 +512,7 @@ export const ZeroWastePage: React.FC = () => {
                         {d.itemCount} صنف
                       </td>
                       <td className="p-3.5 text-slate-600">
-                        {d.totalValue.toLocaleString()} ر.س
+                        {d.totalValue.toLocaleString()} ل.س
                       </td>
                       <td className="p-3.5 font-bold text-emerald-600">
                         {d.mealsCount} وجبة طازجة
@@ -612,7 +612,7 @@ export const ZeroWastePage: React.FC = () => {
               <div>
                 <p className="text-xs text-slate-500">المنتج المختار:</p>
                 <p className="text-sm font-bold text-slate-900">{selectedItem.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">السعر الأصلي: {selectedItem.originalPrice.toFixed(2)} ر.س</p>
+                <p className="text-xs text-slate-400 mt-0.5">السعر الأصلي: {selectedItem.originalPrice.toFixed(2)} ل.س</p>
               </div>
 
               <div>
@@ -638,7 +638,7 @@ export const ZeroWastePage: React.FC = () => {
               <div className="p-3 bg-emerald-50 rounded-xl flex justify-between items-center text-sm">
                 <span className="text-slate-600 font-medium">السعر الجديد بعد الخصم:</span>
                 <span className="font-extrabold text-emerald-700 text-base">
-                  {(selectedItem.originalPrice * (1 - newDiscount / 100)).toFixed(2)} ر.س
+                  {(selectedItem.originalPrice * (1 - newDiscount / 100)).toFixed(2)} ل.س
                 </span>
               </div>
 
