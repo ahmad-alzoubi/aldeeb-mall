@@ -30,7 +30,8 @@ import {
   Pill,
   DoorClosed,
   Plane,
-  Briefcase
+  Briefcase,
+  Beef
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -105,6 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
     { id: 'meal_kits', label: 'بوكسات الوجبات وتجهيز الطبخ', icon: UtensilsCrossed, badge: 'Kits' },
+    { id: 'butcher', label: 'المسلخ والملحمة الذكية', icon: Beef, badge: 'MEWA' },
     { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
     { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },

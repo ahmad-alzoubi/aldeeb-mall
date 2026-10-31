@@ -31,6 +31,7 @@ import '../kitchen_wand/kitchen_wand_screen.dart';
 import '../lockers/smart_locker_pickup_screen.dart';
 import '../drone_delivery/drone_tracking_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
+import '../butcher/butcher_customizer_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -160,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildLockerBanner(context),
                       _buildDroneDeliveryBanner(context),
                       _buildNutritionistBanner(context),
+                      _buildButcherBanner(context),
                     ],
                   ),
                 ),
@@ -533,6 +535,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFDA4AF), size: 22),
+                          tooltip: 'ملحمة وبحريات الديب الفاخرة (Smart Butcher & Fishery)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
                             );
                           },
                         ),
@@ -936,6 +948,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFDA4AF), size: 20),
+                  tooltip: 'ملحمة وبحريات الديب',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
                     );
                   },
                 ),
@@ -2488,6 +2510,71 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text(
                 'صمم جدولك',
                 style: TextStyle(color: Color(0xFF064E3B), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButcherBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF881337), Color(0xFF4C0519)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFECDD3), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ملحمة وبحريات الديب الفاخرة: ذبائح وتفصيل مخصص 🥩',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'نعيمي، عوارض، واغيو A5 وهامور طازج مع سحب هواء مفرغ وإشراف بيطري MEWA',
+                    style: TextStyle(color: Color(0xFFFECDD3), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'فصّل ذبيحتك',
+                style: TextStyle(color: Color(0xFF881337), fontWeight: FontWeight.bold, fontSize: 11),
               ),
             ),
           ],

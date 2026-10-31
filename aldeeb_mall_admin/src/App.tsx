@@ -31,6 +31,7 @@ import { PharmacyPage } from './pages/PharmacyPage';
 import { SmartLockersPage } from './pages/SmartLockersPage';
 import { DroneFleetPage } from './pages/DroneFleetPage';
 import { CorporateB2BPage } from './pages/CorporateB2BPage';
+import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -327,6 +328,10 @@ export const App: React.FC = () => {
 
           {activeTab === 'meal_kits' && (
             <MealKitsPage />
+          )}
+
+          {activeTab === 'butcher' && (
+            <ButcherOperationsPage />
           )}
 
           {activeTab === 'products' && (
