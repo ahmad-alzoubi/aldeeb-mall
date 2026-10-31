@@ -16,6 +16,8 @@ import '../voice/voice_assistant_modal.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../group_buying/group_deals_screen.dart';
+import '../address/address_book_screen.dart';
+import '../navigation/in_store_navigator_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -318,30 +320,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 32),
 
                 // Delivery Location Dropdown Chip
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.white, size: 18),
-                      SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                          Text(
-                            'وسط دبي، برج فيوز B',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
-                    ],
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddressBookScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                            Text(
+                              'برج فيوز B، وسط دبي ▼',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 24),
@@ -386,6 +397,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.map_outlined, color: AppColors.primary, size: 22),
+                          tooltip: 'مرشد ممرات الفرع (In-Store Navigator)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const InStoreNavigatorScreen()),
                             );
                           },
                         ),
@@ -549,27 +570,41 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.location_on, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                        Text(
-                          'وسط دبي، برج فيوز B',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AddressBookScreen()),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.location_on, color: Colors.white, size: 18),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                                Text(
+                                  'برج فيوز B، دبي ▼',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   InkWell(

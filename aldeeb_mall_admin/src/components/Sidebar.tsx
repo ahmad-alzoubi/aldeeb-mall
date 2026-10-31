@@ -20,7 +20,8 @@ import {
   ThermometerSnowflake,
   RotateCcw,
   Navigation,
-  Split
+  Split,
+  ArrowLeftRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -56,6 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'المستودعات الذكية والفرز', 
       icon: Boxes,
       badge: '15-Min'
+    },
+    { 
+      id: 'inventory_transfer', 
+      label: 'مناقلات الفروع والمستودعات', 
+      icon: ArrowLeftRight,
+      badge: 'Hub'
     },
     { 
       id: 'flash_deals', 

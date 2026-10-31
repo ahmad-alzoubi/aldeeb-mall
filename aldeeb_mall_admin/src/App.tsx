@@ -20,6 +20,7 @@ import { ColdChainPage } from './pages/ColdChainPage';
 import { ReturnsPage } from './pages/ReturnsPage';
 import { CourierPortalPage } from './pages/CourierPortalPage';
 import { MerchandisingPage } from './pages/MerchandisingPage';
+import { InventoryTransferPage } from './pages/InventoryTransferPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -271,6 +272,10 @@ export const App: React.FC = () => {
               darkStores={darkStores}
               pickerTasks={pickerTasks}
             />
+          )}
+
+          {activeTab === 'inventory_transfer' && (
+            <InventoryTransferPage />
           )}
 
           {activeTab === 'flash_deals' && (
