@@ -24,6 +24,7 @@ import { InventoryTransferPage } from './pages/InventoryTransferPage';
 import { ForecastingPage } from './pages/ForecastingPage';
 import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
 import { ZeroWastePage } from './pages/ZeroWastePage';
+import { LiveShoppingPage } from './pages/LiveShoppingPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -293,6 +294,10 @@ export const App: React.FC = () => {
               onDeleteDeal={handleDeleteFlashDeal}
               onToggleDeal={handleToggleFlashDeal}
             />
+          )}
+
+          {activeTab === 'live_shopping' && (
+            <LiveShoppingPage />
           )}
 
           {activeTab === 'fleet' && (

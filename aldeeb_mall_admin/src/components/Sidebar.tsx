@@ -23,7 +23,8 @@ import {
   Split,
   ArrowLeftRight,
   BrainCircuit,
-  HeartHandshake
+  HeartHandshake,
+  Radio
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -72,6 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'عروض الفلاش الخاطفة', 
       icon: Zap,
       badge: 'Noon'
+    },
+    { 
+      id: 'live_shopping', 
+      label: 'الديب لايف والتسوق الحي', 
+      icon: Radio, 
+      badge: 'Live' 
     },
     { 
       id: 'fleet', 

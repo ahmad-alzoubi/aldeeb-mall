@@ -22,6 +22,8 @@ import '../pickup/curbside_pickup_screen.dart';
 import '../grocery_list/grocery_list_screen.dart';
 import '../sustainability/eco_tracker_modal.dart';
 import '../zero_waste/zero_waste_screen.dart';
+import '../live_shopping/live_shopping_screen.dart';
+import '../smart_cart_iot/smart_cart_iot_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -135,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     children: [
                       _buildHeroSection(mall, isDesktop),
+                      _buildLiveShoppingBanner(context),
                       _buildFlyerBanner(context),
                       _buildSubscribeAndSaveBanner(context),
                       _buildGroupDealsBanner(context),
@@ -142,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildGroceryListBanner(context),
                       _buildEcoBanner(context),
                       _buildZeroWasteBanner(context),
+                      _buildSmartCartBanner(context),
                     ],
                   ),
                 ),
@@ -432,6 +436,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 22),
                           tooltip: 'مبادرة الأثر البيئي والخضراء (Eco Tracker)',
                           onPressed: () => EcoTrackerModal.show(context),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.live_tv_rounded, color: Colors.redAccent, size: 22),
+                          tooltip: 'الديب لايف (Live Video Shopping)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.shopping_cart_checkout_rounded, color: Colors.teal, size: 22),
+                          tooltip: 'عربة الديب الذكية (Smart Dash Cart)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+                            );
+                          },
                         ),
                         IconButton(
                           icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
@@ -750,6 +774,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 20),
                   tooltip: 'مبادرة الديب الخضراء',
                   onPressed: () => EcoTrackerModal.show(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.live_tv_rounded, color: Colors.redAccent, size: 20),
+                  tooltip: 'الديب لايف',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.shopping_cart_checkout_rounded, color: Colors.teal, size: 20),
+                  tooltip: 'عربة الديب الذكية',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+                    );
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
@@ -1344,6 +1388,105 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildLiveShoppingBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF881337), Color(0xFFE11D48), Color(0xFFBE123C)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.shade900.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const CircleAvatar(
+                    radius: 20,
+                    backgroundImage: CachedNetworkImageProvider(
+                      'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=120&q=80',
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade600,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                  child: const Text(
+                    'مباشر',
+                    style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🔴 الديب لايف: الشيف نورة تطبخ على الهواء',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'شاهد وصفة الكبسة واطلب المقادير بنقرة واحدة + خصم 30% كود LIVE30',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.play_arrow_rounded, color: AppColors.textPrimary, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'مشاهدة',
+                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFlyerBanner(BuildContext context) {
     return InkWell(
       onTap: () {
@@ -1712,6 +1855,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'خصومات تصل 70% على مخبوزات وألبان وخضار طازجة ومفحوصة صالحة للاستهلاك الفوري',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmartCartBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.shopping_cart_checkout_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'عربة الديب الذكية داخل الفرع (Smart Dash Cart) 🛒',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'امسح باركود العربة وضع مشترياتك: وزن آلي، كاشير ذاتي، ومغادرة فورية بدون طابور',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
