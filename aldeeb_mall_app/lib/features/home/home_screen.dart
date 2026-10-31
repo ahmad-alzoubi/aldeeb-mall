@@ -24,6 +24,7 @@ import '../sustainability/eco_tracker_modal.dart';
 import '../zero_waste/zero_waste_screen.dart';
 import '../live_shopping/live_shopping_screen.dart';
 import '../smart_cart_iot/smart_cart_iot_screen.dart';
+import '../meal_kits/meal_kits_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -146,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildEcoBanner(context),
                       _buildZeroWasteBanner(context),
                       _buildSmartCartBanner(context),
+                      _buildMealKitsBanner(context),
                     ],
                   ),
                 ),
@@ -454,6 +456,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.restaurant_menu_rounded, color: Colors.amber, size: 22),
+                          tooltip: 'بوكسات وجبات الطهي السريع (Chef Meal Kits)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MealKitsScreen()),
                             );
                           },
                         ),
@@ -792,6 +804,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.restaurant_menu_rounded, color: Colors.amber, size: 20),
+                  tooltip: 'بوكسات الوجبات',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MealKitsScreen()),
                     );
                   },
                 ),
@@ -1910,6 +1932,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'امسح باركود العربة وضع مشترياتك: وزن آلي، كاشير ذاتي، ومغادرة فورية بدون طابور',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMealKitsBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MealKitsScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF9A3412), Color(0xFFC2410C), Color(0xFFEA580C)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'بوكسات وجبات الديب مسبقة التجهيز (Chef Meal Kits) 🧑‍🍳',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'مقادير طازجة وموزونة لطبخة منزلية فاخرة في 20 دقيقة بدون هدر وبدون تقطيع',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
