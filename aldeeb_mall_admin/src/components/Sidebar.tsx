@@ -25,7 +25,8 @@ import {
   BrainCircuit,
   HeartHandshake,
   Radio,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Scale
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -100,6 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
+    { id: 'price_match', label: 'رادار مطابقة الأسعار وضمانها', icon: Scale, badge: '200%' },
     { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
     { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
     { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },

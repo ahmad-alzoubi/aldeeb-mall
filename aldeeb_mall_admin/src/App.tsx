@@ -26,6 +26,7 @@ import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
 import { ZeroWastePage } from './pages/ZeroWastePage';
 import { LiveShoppingPage } from './pages/LiveShoppingPage';
 import { MealKitsPage } from './pages/MealKitsPage';
+import { PriceMatchPage } from './pages/PriceMatchPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -387,6 +388,10 @@ export const App: React.FC = () => {
               onToggleCoupon={handleToggleCoupon}
               onDeleteCoupon={handleDeleteCoupon}
             />
+          )}
+
+          {activeTab === 'price_match' && (
+            <PriceMatchPage />
           )}
 
           {activeTab === 'loyalty' && (

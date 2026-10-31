@@ -25,6 +25,7 @@ import '../zero_waste/zero_waste_screen.dart';
 import '../live_shopping/live_shopping_screen.dart';
 import '../smart_cart_iot/smart_cart_iot_screen.dart';
 import '../meal_kits/meal_kits_screen.dart';
+import '../price_match/price_match_modal.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -148,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildZeroWasteBanner(context),
                       _buildSmartCartBanner(context),
                       _buildMealKitsBanner(context),
+                      _buildPriceMatchBanner(context),
                     ],
                   ),
                 ),
@@ -468,6 +470,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               MaterialPageRoute(builder: (_) => const MealKitsScreen()),
                             );
                           },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 22),
+                          tooltip: 'ضمان أرخص سعر ومطابقة الأسعار (Price Match)',
+                          onPressed: () => PriceMatchModal.show(context),
                         ),
                         IconButton(
                           icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
@@ -816,6 +823,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       MaterialPageRoute(builder: (_) => const MealKitsScreen()),
                     );
                   },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 20),
+                  tooltip: 'ضمان أرخص سعر',
+                  onPressed: () => PriceMatchModal.show(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
@@ -1987,6 +1999,56 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'مقادير طازجة وموزونة لطبخة منزلية فاخرة في 20 دقيقة بدون هدر وبدون تقطيع',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceMatchBanner(BuildContext context) {
+    return InkWell(
+      onTap: () => PriceMatchModal.show(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1E3A8A), Color(0xFF1D4ED8)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_user_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'درع حماية الأسعار: ضمان أرخص سعر بالمملكة 🇸🇦',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'وجدت سعراً أقل في بندة أو العثيم أو كارفور؟ نعوضك بضعف الفرق كاش بمحفظتك فورياً!',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
