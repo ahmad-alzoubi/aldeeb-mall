@@ -255,11 +255,37 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'الإجمالي: ${item.totalPrice.toStringAsFixed(2)} د.إ',
+                      'الإجمالي: ${item.totalPrice.toStringAsFixed(2)} ر.س',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () => _showSubstitutionSelector(context, item),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.sync_alt_rounded, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'البديل: ${item.substitutionLabelAr}',
+                              style: const TextStyle(fontSize: 10, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: AppColors.textMuted),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -297,6 +323,117 @@ class _CartScreenState extends State<CartScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showSubstitutionSelector(BuildContext context, dynamic item) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'خيار البديل الذكي لـ "${item.product.nameAr}"',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'ماذا نفعل في حال نفاد هذا الصنف الطازج أثناء تجهيز طلبك في المستودع المظلم؟',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 14),
+              _buildSubOption(
+                ctx,
+                setSheetState,
+                item,
+                'best_match',
+                'استبدال بأفضل جودة مماثلة (Best Match)',
+                'سيختار عامل الفرز أفضل ماركة بديلة بنفس السعر أو أعلى بدون تكلفة إضافية.',
+                Icons.verified_rounded,
+              ),
+              _buildSubOption(
+                ctx,
+                setSheetState,
+                item,
+                'contact_me',
+                'اتصل بي للاستشارة أولاً (Call Me First)',
+                'سيتواصل معك فريق التحضير هاتفياً قبل استبدال المنتج.',
+                Icons.phone_in_talk_rounded,
+              ),
+              _buildSubOption(
+                ctx,
+                setSheetState,
+                item,
+                'do_not_replace',
+                'عدم الاستبدال واسترداد المبلغ فوراً (Refund Only)',
+                'إلغاء الصنف وإعادة قيمته فوراً إلى محفظة الديب الخاصة بك.',
+                Icons.cancel_rounded,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubOption(
+    BuildContext ctx,
+    StateSetter setSheetState,
+    dynamic item,
+    String value,
+    String title,
+    String desc,
+    IconData icon,
+  ) {
+    final isSelected = item.substitutionPreference == value;
+    return InkWell(
+      onTap: () {
+        setSheetState(() => item.substitutionPreference = value);
+        setState(() {});
+        Navigator.pop(ctx);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryLight.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? AppColors.primary : AppColors.textMuted, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(desc, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+          ],
+        ),
+      ),
     );
   }
 

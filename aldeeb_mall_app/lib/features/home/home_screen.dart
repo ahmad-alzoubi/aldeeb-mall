@@ -779,7 +779,72 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildDietaryPill(mall, null, 'كافة المنتجات 🛒'),
+                  const SizedBox(width: 8),
+                  _buildDietaryPill(mall, 'organic', 'عضوي معتمد 🌱'),
+                  const SizedBox(width: 8),
+                  _buildDietaryPill(mall, 'gluten_free', 'خالي من الغلوتين 🌾'),
+                  const SizedBox(width: 8),
+                  _buildDietaryPill(mall, 'keto', 'دايت وكيتو 🥑'),
+                  const SizedBox(width: 8),
+                  _buildDietaryPill(mall, 'high_protein', 'غني بالبروتين 💪'),
+                ],
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDietaryPill(MallProvider mall, String? tag, String label) {
+    final isSelected = mall.selectedDietaryFilter == tag;
+    return InkWell(
+      onTap: () => mall.setDietaryFilter(tag),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.freshGreen : AppColors.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.freshGreen : AppColors.border,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.freshGreen.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

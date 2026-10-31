@@ -72,6 +72,62 @@ class ProductModel {
     }
   }
 
+  int get caloriesPer100g {
+    if (nameAr.contains('موز')) return 89;
+    if (nameAr.contains('حليب')) return 64;
+    if (nameAr.contains('بيض')) return 143;
+    if (nameAr.contains('طماطم')) return 18;
+    if (nameAr.contains('دجاج')) return 165;
+    if (nameAr.contains('تفاح')) return 52;
+    if (nameAr.contains('زيت')) return 884;
+    if (nameAr.contains('سكر')) return 387;
+    return 112;
+  }
+
+  double get proteinPer100g {
+    if (nameAr.contains('دجاج')) return 31.0;
+    if (nameAr.contains('بيض')) return 12.6;
+    if (nameAr.contains('حليب')) return 3.4;
+    if (nameAr.contains('زبادي')) return 10.0;
+    if (nameAr.contains('جبن')) return 14.2;
+    return 2.4;
+  }
+
+  double get carbsPer100g {
+    if (nameAr.contains('موز')) return 22.8;
+    if (nameAr.contains('طماطم')) return 3.9;
+    if (nameAr.contains('حليب')) return 4.8;
+    if (nameAr.contains('تفاح')) return 13.8;
+    if (nameAr.contains('سكر')) return 99.8;
+    return 7.5;
+  }
+
+  double get fatPer100g {
+    if (nameAr.contains('زيت')) return 100.0;
+    if (nameAr.contains('بيض')) return 9.5;
+    if (nameAr.contains('دجاج')) return 3.6;
+    if (nameAr.contains('حليب')) return 3.2;
+    return 1.1;
+  }
+
+  String get allergenNotice {
+    if (nameAr.contains('حليب') || nameAr.contains('زبادي') || nameAr.contains('جبن')) {
+      return 'يحتوي على الحليب ومشتقات الألبان (لاكتوز)';
+    }
+    if (nameAr.contains('بيض')) {
+      return 'يحتوي على البيض ومشتقاته';
+    }
+    if (nameAr.contains('خبز') || nameAr.contains('كرواسون')) {
+      return 'يحتوي على الغلوتين والقمح';
+    }
+    return 'خالي من مسببات الحساسية الشائعة';
+  }
+
+  bool get isOrganic => nameAr.contains('عضوي') || nameEn.toLowerCase().contains('organic');
+  bool get isGlutenFree => nameAr.contains('خالي من الغلوتين') || !nameAr.contains('خبز');
+  bool get isKeto => caloriesPer100g > 0 && carbsPer100g < 5.0;
+  bool get isHighProtein => proteinPer100g >= 10.0;
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     List<String> parsedImages = [];
     if (json['images'] != null) {

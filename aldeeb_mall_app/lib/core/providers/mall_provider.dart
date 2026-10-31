@@ -21,6 +21,7 @@ class MallProvider extends ChangeNotifier {
   final Set<String> _favoriteProductIds = {};
 
   String? _selectedCategoryId;
+  String? _selectedDietaryFilter; // 'organic', 'gluten_free', 'keto', 'high_protein'
   String _searchQuery = '';
   ProductSortOption _currentSort = ProductSortOption.featured;
   bool _isExpress15Min = false;
@@ -30,6 +31,7 @@ class MallProvider extends ChangeNotifier {
   List<ProductModel> get products => _products;
   List<BannerModel> get banners => _banners;
   String? get selectedCategoryId => _selectedCategoryId;
+  String? get selectedDietaryFilter => _selectedDietaryFilter;
   String get searchQuery => _searchQuery;
   ProductSortOption get currentSort => _currentSort;
   bool get isLoading => _isLoading;
@@ -41,12 +43,38 @@ class MallProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDietaryFilter(String? filter) {
+    if (_selectedDietaryFilter == filter) {
+      _selectedDietaryFilter = null;
+    } else {
+      _selectedDietaryFilter = filter;
+    }
+    notifyListeners();
+  }
+
   // Filtered Products
   List<ProductModel> get filteredProducts {
     var list = List<ProductModel>.from(_products);
 
     if (_selectedCategoryId != null) {
       list = list.where((p) => p.categoryId == _selectedCategoryId).toList();
+    }
+
+    if (_selectedDietaryFilter != null) {
+      switch (_selectedDietaryFilter) {
+        case 'organic':
+          list = list.where((p) => p.isOrganic).toList();
+          break;
+        case 'gluten_free':
+          list = list.where((p) => p.isGlutenFree).toList();
+          break;
+        case 'keto':
+          list = list.where((p) => p.isKeto).toList();
+          break;
+        case 'high_protein':
+          list = list.where((p) => p.isHighProtein).toList();
+          break;
+      }
     }
 
     if (_searchQuery.trim().isNotEmpty) {

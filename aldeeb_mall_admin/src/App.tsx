@@ -18,6 +18,8 @@ import { CampaignsPage } from './pages/CampaignsPage';
 import { ZonesPage } from './pages/ZonesPage';
 import { ColdChainPage } from './pages/ColdChainPage';
 import { ReturnsPage } from './pages/ReturnsPage';
+import { CourierPortalPage } from './pages/CourierPortalPage';
+import { MerchandisingPage } from './pages/MerchandisingPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -286,6 +288,14 @@ export const App: React.FC = () => {
               couriers={couriers}
               orders={orders}
             />
+          )}
+
+          {activeTab === 'courier_portal' && (
+            <CourierPortalPage />
+          )}
+
+          {activeTab === 'merchandising' && (
+            <MerchandisingPage />
           )}
 
           {activeTab === 'products' && (

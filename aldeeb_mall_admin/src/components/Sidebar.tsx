@@ -18,7 +18,9 @@ import {
   Bell,
   Compass,
   ThermometerSnowflake,
-  RotateCcw
+  RotateCcw,
+  Navigation,
+  Split
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -66,7 +68,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'أسطول التوصيل والكوريير', 
       icon: Bike 
     },
+    { 
+      id: 'courier_portal', 
+      label: 'بوابة الكابتن والتسليم', 
+      icon: Navigation, 
+      badge: 'PIN' 
+    },
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
+    { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
     { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },

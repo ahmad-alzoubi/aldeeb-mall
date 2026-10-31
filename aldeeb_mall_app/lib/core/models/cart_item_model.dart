@@ -4,11 +4,13 @@ class CartItemModel {
   final ProductModel product;
   double quantity;
   String? notes;
+  String substitutionPreference; // 'best_match', 'contact_me', 'do_not_replace'
 
   CartItemModel({
     required this.product,
     this.quantity = 1.0,
     this.notes,
+    this.substitutionPreference = 'best_match',
   });
 
   double get totalPrice => product.price * quantity;
@@ -17,6 +19,18 @@ class CartItemModel {
   String get productImage => product.firstImage;
   String get unit => product.unitLabelAr;
   double get unitPrice => product.price;
+
+  String get substitutionLabelAr {
+    switch (substitutionPreference) {
+      case 'contact_me':
+        return 'اتصل بي للاستشارة';
+      case 'do_not_replace':
+        return 'لا تستبدل، استرد المبلغ';
+      case 'best_match':
+      default:
+        return 'استبدال بأفضل جودة';
+    }
+  }
 
   String get formattedQuantity {
     if (quantity == quantity.roundToDouble()) {

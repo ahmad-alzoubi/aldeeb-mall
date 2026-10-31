@@ -6,6 +6,7 @@ import '../../../core/models/product_model.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/mall_provider.dart';
 import '../../product/product_detail_screen.dart';
+import '../../nutrition/nutrition_facts_modal.dart';
 
 class ProductCard extends StatefulWidget {
   final ProductModel product;
@@ -116,6 +117,40 @@ class _ProductCardState extends State<ProductCard> {
                           ),
                         ),
                       ),
+
+                    // Nutrition & Calorie Info Pill
+                    PositionedDirectional(
+                      top: 8,
+                      start: widget.product.hasDiscount ? 72 : 8,
+                      child: InkWell(
+                        onTap: () => NutritionFactsModal.show(context, widget.product),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.eco_rounded, size: 11, color: AppColors.freshGreen),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${widget.product.caloriesPer100g} ك.ك',
+                                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
 
                     // Favorite Button
                     PositionedDirectional(
