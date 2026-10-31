@@ -19,6 +19,9 @@ import '../group_buying/group_deals_screen.dart';
 import '../address/address_book_screen.dart';
 import '../navigation/in_store_navigator_screen.dart';
 import '../pickup/curbside_pickup_screen.dart';
+import '../grocery_list/grocery_list_screen.dart';
+import '../sustainability/eco_tracker_modal.dart';
+import '../zero_waste/zero_waste_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -136,6 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildSubscribeAndSaveBanner(context),
                       _buildGroupDealsBanner(context),
                       _buildCurbsideBanner(context),
+                      _buildGroceryListBanner(context),
+                      _buildEcoBanner(context),
+                      _buildZeroWasteBanner(context),
                     ],
                   ),
                 ),
@@ -411,6 +417,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               MaterialPageRoute(builder: (_) => const InStoreNavigatorScreen()),
                             );
                           },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 22),
+                          tooltip: 'مخطط المقاضي الذكي (Smart Grocery Planner)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 22),
+                          tooltip: 'مبادرة الأثر البيئي والخضراء (Eco Tracker)',
+                          onPressed: () => EcoTrackerModal.show(context),
                         ),
                         IconButton(
                           icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
@@ -714,6 +735,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
                     );
                   },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 20),
+                  tooltip: 'قائمتي الذكية للمقاضي',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 20),
+                  tooltip: 'مبادرة الديب الخضراء',
+                  onPressed: () => EcoTrackerModal.show(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
@@ -1516,6 +1552,166 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'استلم مقاضيك وأكياسك الطازجة مباشرة في صندوق سيارتك بدون النزول في المواقف',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroceryListBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'مخطط المقاضي العائلي الذكي (Smart Grocery Planner) 📝',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'اكتب أو املِ نواقص المنزل صوتياً وحولها لسلة تسوق جاهزة بضغطة واحدة',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEcoBanner(BuildContext context) {
+    return InkWell(
+      onTap: () => EcoTrackerModal.show(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF064E3B), Color(0xFF059669)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.eco_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'مبادرة الديب الخضراء: بصمتك البيئية والتوصيل صفر نفايات 🌱',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'تتبع وفر الأكياس البلاستيكية، وانبعاثات CO2 المحايدة، وصناديق التوصيل المستدامة',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZeroWasteBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ZeroWasteScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF991B1B), Color(0xFFDC2626)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.access_time_filled_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ركن التخفيض الذكي وإنقاذ الغذاء (Zero Food Waste) ⏳',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'خصومات تصل 70% على مخبوزات وألبان وخضار طازجة ومفحوصة صالحة للاستهلاك الفوري',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],

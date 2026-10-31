@@ -22,7 +22,8 @@ import {
   Navigation,
   Split,
   ArrowLeftRight,
-  BrainCircuit
+  BrainCircuit,
+  HeartHandshake
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -86,12 +87,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
     { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
+    { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },
     { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
     { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
     { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
     { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },
+    { id: 'zero_waste', label: 'إنقاذ الغذاء والتخفيض الذكي', icon: HeartHandshake, badge: '-70%' },
     { id: 'returns', label: 'المرتجعات والنزاعات', icon: RotateCcw },
     { id: 'loyalty', label: 'العملاء ونقاط الولاء', icon: Award },
     { id: 'settings', label: 'إعدادات المول والتوصيل', icon: Settings },

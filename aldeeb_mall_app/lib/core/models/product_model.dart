@@ -161,6 +161,54 @@ class ProductModel {
     );
   }
 
+  ProductModel copyWith({
+    String? id,
+    String? categoryId,
+    String? subcategoryId,
+    String? barcode,
+    String? nameAr,
+    String? nameEn,
+    String? descriptionAr,
+    String? descriptionEn,
+    String? brand,
+    double? price,
+    double? originalPrice,
+    int? discountPercent,
+    String? unit,
+    double? weightStep,
+    int? stockQuantity,
+    List<String>? images,
+    bool? isFeatured,
+    bool? isDailyDeal,
+    double? rating,
+    int? reviewsCount,
+    int? salesCount,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
+      subcategoryId: subcategoryId ?? this.subcategoryId,
+      barcode: barcode ?? this.barcode,
+      nameAr: nameAr ?? this.nameAr,
+      nameEn: nameEn ?? this.nameEn,
+      descriptionAr: descriptionAr ?? this.descriptionAr,
+      descriptionEn: descriptionEn ?? this.descriptionEn,
+      brand: brand ?? this.brand,
+      price: price ?? this.price,
+      originalPrice: originalPrice ?? this.originalPrice,
+      discountPercent: discountPercent ?? this.discountPercent,
+      unit: unit ?? this.unit,
+      weightStep: weightStep ?? this.weightStep,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
+      images: images ?? this.images,
+      isFeatured: isFeatured ?? this.isFeatured,
+      isDailyDeal: isDailyDeal ?? this.isDailyDeal,
+      rating: rating ?? this.rating,
+      reviewsCount: reviewsCount ?? this.reviewsCount,
+      salesCount: salesCount ?? this.salesCount,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

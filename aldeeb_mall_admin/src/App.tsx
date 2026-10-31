@@ -22,6 +22,8 @@ import { CourierPortalPage } from './pages/CourierPortalPage';
 import { MerchandisingPage } from './pages/MerchandisingPage';
 import { InventoryTransferPage } from './pages/InventoryTransferPage';
 import { ForecastingPage } from './pages/ForecastingPage';
+import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
+import { ZeroWastePage } from './pages/ZeroWastePage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -326,6 +328,10 @@ export const App: React.FC = () => {
             />
           )}
 
+          {activeTab === 'marketplace_vendors' && (
+            <MarketplaceVendorsPage />
+          )}
+
           {activeTab === 'support' && (
             <SupportPage
               tickets={supportTickets}
@@ -347,6 +353,10 @@ export const App: React.FC = () => {
 
           {activeTab === 'cold_chain' && (
             <ColdChainPage />
+          )}
+
+          {activeTab === 'zero_waste' && (
+            <ZeroWastePage />
           )}
 
           {activeTab === 'returns' && (
