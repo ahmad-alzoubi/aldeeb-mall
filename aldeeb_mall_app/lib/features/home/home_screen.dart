@@ -26,6 +26,9 @@ import '../live_shopping/live_shopping_screen.dart';
 import '../smart_cart_iot/smart_cart_iot_screen.dart';
 import '../meal_kits/meal_kits_screen.dart';
 import '../price_match/price_match_modal.dart';
+import '../pharmacy/pharmacy_screen.dart';
+import '../kitchen_wand/kitchen_wand_screen.dart';
+import '../lockers/smart_locker_pickup_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -150,6 +153,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildSmartCartBanner(context),
                       _buildMealKitsBanner(context),
                       _buildPriceMatchBanner(context),
+                      _buildPharmacyBanner(context),
+                      _buildKitchenWandBanner(context),
+                      _buildLockerBanner(context),
                     ],
                   ),
                 ),
@@ -475,6 +481,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 22),
                           tooltip: 'ضمان أرخص سعر ومطابقة الأسعار (Price Match)',
                           onPressed: () => PriceMatchModal.show(context),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFF34D399), size: 22),
+                          tooltip: 'صيدلية الديب وفاحص SFDA',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PharmacyScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 22),
+                          tooltip: 'عصا المطبخ الذكية والمؤونة (Kitchen Wand)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 22),
+                          tooltip: 'خزائن الاستلام الذكية 24/7 (Smart Lockers)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+                            );
+                          },
                         ),
                         IconButton(
                           icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
@@ -828,6 +864,36 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 20),
                   tooltip: 'ضمان أرخص سعر',
                   onPressed: () => PriceMatchModal.show(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFF34D399), size: 20),
+                  tooltip: 'صيدلية الديب وفاحص SFDA',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PharmacyScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 20),
+                  tooltip: 'عصا المطبخ والمؤونة',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 20),
+                  tooltip: 'خزائن الاستلام الذكية',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+                    );
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
@@ -2055,6 +2121,201 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPharmacyBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PharmacyScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF065F46), Color(0xFF047857)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFFA7F3D0), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'صيدلية الديب المرخصة (SFDA) 💊',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'فاحص التداخلات الدوائية والغذائية السريري • صرف وصفات وصفتي وتوصيل مبرد 15 دقيقة',
+                    style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'افحص أدويتك',
+                style: TextStyle(color: Color(0xFF065F46), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKitchenWandBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'عصا المطبخ الذكية وإدارة المؤونة (Kitchen Wand) 🪄',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'امسح المنتجات المنتهية بمغناطيس الثلاجة لإعادة تعبئتها فورياً بضغطة واحدة إلى السلة',
+                    style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'فتح المؤونة',
+                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLockerBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF164E63)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.cyan.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'خزائن الديب الذكية ذاتية الخدمة 24/7 🚪',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'استلم مقاضيك بأي وقت بدون انتظار من أقرب خزانة ذكية مبردة ومجمدة بالرياض وجدة',
+                    style: TextStyle(color: Color(0xFFCFFAFE), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'استلام طلبي',
+                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
           ],
         ),
       ),

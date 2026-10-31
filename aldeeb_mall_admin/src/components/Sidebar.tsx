@@ -26,7 +26,9 @@ import {
   HeartHandshake,
   Radio,
   UtensilsCrossed,
-  Scale
+  Scale,
+  Pill,
+  DoorClosed
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -102,6 +104,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
     { id: 'price_match', label: 'رادار مطابقة الأسعار وضمانها', icon: Scale, badge: '200%' },
+    { id: 'pharmacy', label: 'صيدلية الديب ورقابة SFDA', icon: Pill, badge: 'Rx' },
+    { id: 'lockers', label: 'خزائن الاستلام الذكية 24/7', icon: DoorClosed, badge: 'Hub' },
     { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
     { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
     { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },

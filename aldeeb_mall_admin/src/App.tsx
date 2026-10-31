@@ -27,6 +27,8 @@ import { ZeroWastePage } from './pages/ZeroWastePage';
 import { LiveShoppingPage } from './pages/LiveShoppingPage';
 import { MealKitsPage } from './pages/MealKitsPage';
 import { PriceMatchPage } from './pages/PriceMatchPage';
+import { PharmacyPage } from './pages/PharmacyPage';
+import { SmartLockersPage } from './pages/SmartLockersPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -392,6 +394,14 @@ export const App: React.FC = () => {
 
           {activeTab === 'price_match' && (
             <PriceMatchPage />
+          )}
+
+          {activeTab === 'pharmacy' && (
+            <PharmacyPage />
+          )}
+
+          {activeTab === 'lockers' && (
+            <SmartLockersPage />
           )}
 
           {activeTab === 'loyalty' && (
