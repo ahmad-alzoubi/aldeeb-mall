@@ -28,7 +28,9 @@ import {
   UtensilsCrossed,
   Scale,
   Pill,
-  DoorClosed
+  DoorClosed,
+  Plane,
+  Briefcase
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -95,11 +97,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Navigation, 
       badge: 'PIN' 
     },
+    { 
+      id: 'drone_fleet', 
+      label: 'أسطول الدرونز والشحن الجوي', 
+      icon: Plane, 
+      badge: '10-Min' 
+    },
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
     { id: 'meal_kits', label: 'بوكسات الوجبات وتجهيز الطبخ', icon: UtensilsCrossed, badge: 'Kits' },
     { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
     { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },
+    { id: 'corporate_b2b', label: 'توريد الشركات ومبيعات B2B', icon: Briefcase, badge: 'Corp' },
     { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
     { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },

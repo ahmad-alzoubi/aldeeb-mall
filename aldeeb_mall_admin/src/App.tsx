@@ -29,6 +29,8 @@ import { MealKitsPage } from './pages/MealKitsPage';
 import { PriceMatchPage } from './pages/PriceMatchPage';
 import { PharmacyPage } from './pages/PharmacyPage';
 import { SmartLockersPage } from './pages/SmartLockersPage';
+import { DroneFleetPage } from './pages/DroneFleetPage';
+import { CorporateB2BPage } from './pages/CorporateB2BPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -315,6 +317,10 @@ export const App: React.FC = () => {
             <CourierPortalPage />
           )}
 
+          {activeTab === 'drone_fleet' && (
+            <DroneFleetPage />
+          )}
+
           {activeTab === 'merchandising' && (
             <MerchandisingPage />
           )}
@@ -343,6 +349,10 @@ export const App: React.FC = () => {
 
           {activeTab === 'marketplace_vendors' && (
             <MarketplaceVendorsPage />
+          )}
+
+          {activeTab === 'corporate_b2b' && (
+            <CorporateB2BPage />
           )}
 
           {activeTab === 'support' && (

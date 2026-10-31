@@ -29,6 +29,8 @@ import '../price_match/price_match_modal.dart';
 import '../pharmacy/pharmacy_screen.dart';
 import '../kitchen_wand/kitchen_wand_screen.dart';
 import '../lockers/smart_locker_pickup_screen.dart';
+import '../drone_delivery/drone_tracking_screen.dart';
+import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -156,6 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildPharmacyBanner(context),
                       _buildKitchenWandBanner(context),
                       _buildLockerBanner(context),
+                      _buildDroneDeliveryBanner(context),
+                      _buildNutritionistBanner(context),
                     ],
                   ),
                 ),
@@ -509,6 +513,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 22),
+                          tooltip: 'التوصيل الجوي بدرونز الديب 10 دقائق (Drone Delivery)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 22),
+                          tooltip: 'أخصائي التغذية الذكي بالـ AI (Smart Nutritionist)',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
                             );
                           },
                         ),
@@ -892,6 +916,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 20),
+                  tooltip: 'توصيل بالدرونز 10 دقائق',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 20),
+                  tooltip: 'أخصائي التغذية الذكي',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
                     );
                   },
                 ),
@@ -2314,6 +2358,136 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text(
                 'استلام طلبي',
                 style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDroneDeliveryBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF083344)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.cyan.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الشحن الجوي فائق السرعة بدرونز الديب 10 دقائق 🛸',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'توصيل جوي آلي ومباشر لسطح فيلتك أو مهبط حديقتك بإنزال ذكي عبر كابل الرافعة',
+                    style: TextStyle(color: Color(0xFFCFFAFE), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'تتبع الرحلة',
+                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNutritionistBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF064E3B), Color(0xFF0F766E)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.psychology_rounded, color: Color(0xFFA7F3D0), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'أخصائي التغذية الذكي وتوليد مقاضي الأسبوع بالـ AI 🥗',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'خطط وجبات موزونة الماكروز حسب هدفك الصحي مع تحويل المقاضي كاملة للسلة بدون هدر',
+                    style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'صمم جدولك',
+                style: TextStyle(color: Color(0xFF064E3B), fontWeight: FontWeight.bold, fontSize: 11),
               ),
             ),
           ],
