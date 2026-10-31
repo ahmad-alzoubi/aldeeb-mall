@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/banner_model.dart';
+import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/services/auth_service.dart';
@@ -47,6 +48,50 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _bannerTimer;
   late Duration _remainingTime;
   Timer? _countdownTimer;
+  String? _selectedSubcategory;
+  String _activeSortFilter = 'all';
+
+  static final Map<String, List<String>> _categorySubcategories = {
+    'c1': ['الكل', 'ورقيات خضراء 🌱', 'فواكه موسمية 🍎', 'حمضيات وتفاح 🍊', 'طماطم وخيار 🍅', 'عضوي معتمد 🌿'],
+    'c2': ['الكل', 'حليب طازج 🥛', 'أجبان بيضاء 🧀', 'أجبان صفراء 🧀', 'زبادي ولبنة 🥣', 'بيض مزارع 🥚'],
+    'c3': ['الكل', 'عجل بلدي طازج 🥩', 'خروف ونعيمي 🐑', 'دواجن مبردة 🍗', 'أسماك وبحريات 🐟', 'تتبيل وشواء 🍢'],
+    'c4': ['الكل', 'كرواسان ومعجنات 🥐', 'خبز طازج 🥖', 'فطائر ومناقيش 🥧', 'حلويات وكيك 🍰', 'توست وشابورة 🍞'],
+    'c5': ['الكل', 'عصائر طازجة 🍹', 'مياه معدنية 💧', 'مشروبات غازية 🥤', 'شاي وقهوة ☕', 'مشروبات طاقة ⚡'],
+    'c6': ['الكل', 'غسيل الملابس 🧺', 'نظافة الصحون 🧼', 'مطهرات ومعقمات 🧴', 'مناديل وورقيات 🧻', 'معطرات جو 🌸'],
+  };
+
+  static final Map<String, Map<String, String>> _categoryMeta = {
+    'c1': {
+      'badge': 'قطاف اليوم 🌿',
+      'tagline': 'طازج من المزارع مباشرة',
+      'color': '0xFF16A34A',
+    },
+    'c2': {
+      'badge': 'يومي وطبيعي 🥛',
+      'tagline': 'ألبان، أجبان وبيض طازج',
+      'color': '0xFF2563EB',
+    },
+    'c3': {
+      'badge': 'ذبح بلدي حلال 🥩',
+      'tagline': 'لحوم، دواجن وبحريات طازجة',
+      'color': '0xFFDC2626',
+    },
+    'c4': {
+      'badge': 'طازج من الفرن 🥐',
+      'tagline': 'مخبوزات ومعجنات ساخنة',
+      'color': '0xFFD97706',
+    },
+    'c5': {
+      'badge': 'انتعاش وبرودة 💧',
+      'tagline': 'مياه، عصائر ومشروبات',
+      'color': '0xFF0284C7',
+    },
+    'c6': {
+      'badge': 'نظافة وتوفير ✨',
+      'tagline': 'منظفات وعناية شاملة للمنزل',
+      'color': '0xFF7C3AED',
+    },
+  };
 
   @override
   void initState() {
@@ -131,136 +176,74 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // 2. Department Category Strip
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  child: _buildCategoriesStrip(mall, isDesktop),
-                ),
-              ),
-
-              // 3. Hero Promo Section (Split grid on desktop, carousel on mobile)
+              // 2. Hero Promotional Carousel Section
               SliverToBoxAdapter(
                 child: MaxWidthContainer(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _buildHeroSection(mall, isDesktop),
-                      _buildLiveShoppingBanner(context),
-                      _buildFlyerBanner(context),
-                      _buildSubscribeAndSaveBanner(context),
-                      _buildGroupDealsBanner(context),
-                      _buildCurbsideBanner(context),
-                      _buildGroceryListBanner(context),
-                      _buildEcoBanner(context),
-                      _buildZeroWasteBanner(context),
-                      _buildSmartCartBanner(context),
-                      _buildMealKitsBanner(context),
-                      _buildPriceMatchBanner(context),
-                      _buildPharmacyBanner(context),
-                      _buildKitchenWandBanner(context),
-                      _buildLockerBanner(context),
-                      _buildDroneDeliveryBanner(context),
-                      _buildNutritionistBanner(context),
-                      _buildButcherBanner(context),
-                    ],
+                  child: _buildHeroSection(mall, isDesktop),
+                ),
+              ),
+
+              // 3. Quick Services & Feature Hub (Single horizontal luxury row)
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  child: _buildQuickServicesHub(context),
+                ),
+              ),
+
+              // 4. Major Visual Departments Showcase & Interactive Category Explorer
+              SliverToBoxAdapter(
+                child: MaxWidthContainer(
+                  child: _buildDepartmentsShowcase(mall, isDesktop),
+                ),
+              ),
+
+              // If a category is selected, focus on its products
+              if (mall.selectedCategoryId != null) ...[
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildAllProductsSection(mall, context, isDesktop),
                   ),
                 ),
-              ),
-
-              // 3.5. Quick Reorder / Buy Again Essentials
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  child: _buildBuyAgainSection(mall, cart, isDesktop),
-                ),
-              ),
-
-              // 4. Flash Deals Header & Horizontal Scroller
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                  child: _buildFlashDealsHeader(),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  child: SizedBox(
-                    height: 295,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: mall.dailyDeals.length,
-                      itemBuilder: (ctx, index) {
-                        return Container(
-                          width: isDesktop ? 220 : 170,
-                          margin: const EdgeInsetsDirectional.only(end: 12),
-                          child: ProductCard(product: mall.dailyDeals[index]),
-                        );
-                      },
-                    ),
+              ] else ...[
+                // Themed Shoppable Shelves for the Hypermarket Experience:
+                // 5. Flash Deals Shelf
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildFlashDealsShelf(mall, isDesktop),
                   ),
                 ),
-              ),
 
-              // 5. Section Header for All Products
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            mall.selectedCategoryId != null ? 'المنتجات المختارة' : 'كافة منتجات الهايبرماركت',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '${mall.filteredProducts.length} صنف متاح',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                // 6. Fresh Halal Butcher & Fishery Shelf
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildButcherShelf(mall, isDesktop),
                   ),
                 ),
-              ),
 
-              // 6. Responsive Products Grid
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: Responsive.gridColumns(context),
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: Responsive.productCardAspectRatio(context),
-                    ),
-                    itemCount: mall.filteredProducts.length,
-                    itemBuilder: (ctx, index) => ProductCard(product: mall.filteredProducts[index]),
+                // 7. Farm Fresh Daily Produce Shelf
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildFarmFreshShelf(mall, isDesktop),
                   ),
                 ),
-              ),
+
+                // 8. Quick Reorder / Buy Again Essentials
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildBuyAgainSection(mall, cart, isDesktop),
+                  ),
+                ),
+
+                // 9. All Hypermarket Products Grid with Filter Tabs
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildAllProductsSection(mall, context, isDesktop),
+                  ),
+                ),
+              ],
             ],
           ),
 
@@ -976,112 +959,344 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ===========================================================================
-  // Categories Strip
+  // Major Visual Departments Showcase & Interactive Category Explorer
   // ===========================================================================
-  Widget _buildCategoriesStrip(MallProvider mall, bool isDesktop) {
+  Widget _buildDepartmentsShowcase(MallProvider mall, bool isDesktop) {
+    final categories = mall.categories;
+    final selId = mall.selectedCategoryId;
+
     return Container(
       color: Colors.white,
-      padding: EdgeInsets.symmetric(vertical: isDesktop ? 16 : 10),
+      padding: EdgeInsets.symmetric(vertical: isDesktop ? 16 : 12),
+      margin: const EdgeInsets.only(top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Department Header with Count and Reset
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'أقسام الهايبرماركت',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                TextButton(
-                  onPressed: () => mall.selectCategory(null),
-                  child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: isDesktop ? 100 : 90,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: mall.categories.length,
-              itemBuilder: (ctx, index) {
-                final cat = mall.categories[index];
-                final isSel = mall.selectedCategoryId == cat.id;
-                final size = isDesktop ? 64.0 : 54.0;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: InkWell(
-                    onTap: () => mall.selectCategory(isSel ? null : cat.id),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Column(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
                         Container(
-                          width: size,
-                          height: size,
+                          width: 4,
+                          height: 20,
                           decoration: BoxDecoration(
-                            color: isSel ? AppColors.primary : Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSel ? AppColors.primary : AppColors.border,
-                              width: 2,
-                            ),
-                            boxShadow: AppColors.cardShadow,
-                          ),
-                          child: ClipOval(
-                            child: cat.imageUrl != null
-                                ? CachedNetworkImage(
-                                    imageUrl: cat.imageUrl!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : const Icon(Icons.shopping_basket, color: AppColors.primary),
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: 80,
-                          child: Text(
-                            cat.nameAr,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                              color: isSel ? AppColors.primary : AppColors.textPrimary,
-                            ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'أقسام الهايبرماركت الكبرى',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'اختر القسم لتصفح آلاف الأصناف الطازجة والموثوقة بأفضل الأسعار',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                if (selId != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      mall.selectCategory(null);
+                      setState(() => _selectedSubcategory = null);
+                    },
+                    icon: const Icon(Icons.clear_all_rounded, size: 16, color: AppColors.primary),
+                    label: const Text(
+                      'عرض كل الأقسام',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // 2. Visual Department Cards Scroller
+          SizedBox(
+            height: isDesktop ? 165 : 145,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: categories.length,
+              separatorBuilder: (ctx, i) => const SizedBox(width: 12),
+              itemBuilder: (ctx, index) {
+                final cat = categories[index];
+                final isSel = selId == cat.id;
+                final meta = _categoryMeta[cat.id] ?? {
+                  'badge': 'أصلي 100%',
+                  'tagline': 'أفضل جودة وسعر',
+                  'color': '0xFF16A34A',
+                };
+
+                return InkWell(
+                  onTap: () {
+                    mall.selectCategory(isSel ? null : cat.id);
+                    setState(() => _selectedSubcategory = null);
+                  },
+                  borderRadius: BorderRadius.circular(18),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: isDesktop ? 175 : 138,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isSel ? AppColors.primary : AppColors.border,
+                        width: isSel ? 2.5 : 1.0,
+                      ),
+                      boxShadow: isSel
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Category Photographic Background
+                          if (cat.imageUrl != null)
+                            CachedNetworkImage(
+                              imageUrl: cat.imageUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (ctx, url) => Container(color: Colors.grey.shade100),
+                            )
+                          else
+                            Container(
+                              color: Color(int.parse(meta['color']!)).withValues(alpha: 0.1),
+                              child: const Center(
+                                child: Icon(Icons.shopping_basket, size: 40, color: AppColors.primary),
+                              ),
+                            ),
+
+                          // Dark Gradient Overlay for readability
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.15),
+                                  Colors.black.withValues(alpha: 0.45),
+                                  Colors.black.withValues(alpha: 0.88),
+                                ],
+                                stops: const [0.0, 0.45, 1.0],
+                              ),
+                            ),
+                          ),
+
+                          // Active Indicator Glow Check
+                          if (isSel)
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.check, color: Colors.white, size: 14),
+                              ),
+                            ),
+
+                          // Top Department Badge
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isSel
+                                    ? AppColors.primary
+                                    : Colors.black.withValues(alpha: 0.65),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                meta['badge']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Bottom Title & Info
+                          Positioned(
+                            left: 10,
+                            right: 10,
+                            bottom: 10,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  cat.nameAr,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  meta['tagline']!,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    fontSize: 10,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+
+          // 3. Dynamic Subcategories & Dietary Filters
+          if (selId != null && _categorySubcategories.containsKey(selId)) ...[
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  _buildDietaryPill(mall, null, 'كافة المنتجات 🛒'),
-                  const SizedBox(width: 8),
-                  _buildDietaryPill(mall, 'organic', 'عضوي معتمد 🌱'),
-                  const SizedBox(width: 8),
-                  _buildDietaryPill(mall, 'gluten_free', 'خالي من الغلوتين 🌾'),
-                  const SizedBox(width: 8),
-                  _buildDietaryPill(mall, 'keto', 'دايت وكيتو 🥑'),
-                  const SizedBox(width: 8),
-                  _buildDietaryPill(mall, 'high_protein', 'غني بالبروتين 💪'),
+                  const Icon(Icons.tune_rounded, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'تصفية سريعة لقسم "${categories.firstWhere((c) => c.id == selId, orElse: () => categories.first).nameAr}":',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _categorySubcategories[selId]!.length,
+                separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                itemBuilder: (ctx, i) {
+                  final sub = _categorySubcategories[selId]![i];
+                  final isSubSel = (_selectedSubcategory == null && i == 0) || (_selectedSubcategory == sub);
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedSubcategory = (i == 0) ? null : sub;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(18),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSubSel ? AppColors.primary : AppColors.background,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isSubSel ? AppColors.primary : AppColors.border,
+                        ),
+                        boxShadow: isSubSel
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          sub,
+                          style: TextStyle(
+                            color: isSubSel ? Colors.white : AppColors.textPrimary,
+                            fontSize: 11,
+                            fontWeight: isSubSel ? FontWeight.bold : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            // Dietary Quick Filters
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildDietaryPill(mall, null, 'كافة المنتجات 🛒'),
+                    const SizedBox(width: 8),
+                    _buildDietaryPill(mall, 'organic', 'عضوي معتمد 🌱'),
+                    const SizedBox(width: 8),
+                    _buildDietaryPill(mall, 'gluten_free', 'خالي من الغلوتين 🌾'),
+                    const SizedBox(width: 8),
+                    _buildDietaryPill(mall, 'keto', 'دايت وكيتو 🥑'),
+                    const SizedBox(width: 8),
+                    _buildDietaryPill(mall, 'high_protein', 'غني بالبروتين 💪'),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1554,1033 +1769,672 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLiveShoppingBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
-        );
+  // ===========================================================================
+  // Quick Services & Feature Hub (Single Luxury Horizontal Row)
+  // ===========================================================================
+  Widget _buildQuickServicesHub(BuildContext context) {
+    final services = [
+      {
+        'title': 'ملحمة وبحريات',
+        'subtitle': 'تفصيل وتتبيل',
+        'icon': Icons.kebab_dining_rounded,
+        'gradient': const [Color(0xFFE11D48), Color(0xFF9F1239)],
+        'badge': 'طازج بلدي',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen())),
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF881337), Color(0xFFE11D48), Color(0xFFBE123C)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.red.shade900.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Stack(
-              alignment: Alignment.bottomRight,
+      {
+        'title': 'صيدلية الديب',
+        'subtitle': 'أدوية وفيتامينات',
+        'icon': Icons.medical_services_rounded,
+        'gradient': const [Color(0xFF0D9488), Color(0xFF0F766E)],
+        'badge': 'صيدلي 24/7',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmacyScreen())),
+      },
+      {
+        'title': 'درونز الديب',
+        'subtitle': 'توصيل 10 دقائق',
+        'icon': Icons.flight_takeoff_rounded,
+        'gradient': const [Color(0xFF0284C7), Color(0xFF0369A1)],
+        'badge': 'جوي فوري ⚡',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DroneTrackingScreen())),
+      },
+      {
+        'title': 'أخصائي AI',
+        'subtitle': 'تغذية وحميات',
+        'icon': Icons.psychology_rounded,
+        'gradient': const [Color(0xFF059669), Color(0xFF047857)],
+        'badge': 'ذكاء اصطناعي',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiNutritionistScreen())),
+      },
+      {
+        'title': 'مجلة العروض',
+        'subtitle': 'تصفح تفاعلي',
+        'icon': Icons.menu_book_rounded,
+        'gradient': const [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+        'badge': 'حسم 50%',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FlyerScreen())),
+      },
+      {
+        'title': 'الديب لايف',
+        'subtitle': 'تسوق مباشر',
+        'icon': Icons.videocam_rounded,
+        'gradient': const [Color(0xFFDC2626), Color(0xFFB91C1C)],
+        'badge': 'مباشر الآن 🔴',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveShoppingScreen())),
+      },
+      {
+        'title': 'خزائن 24/7',
+        'subtitle': 'استلام آمن',
+        'icon': Icons.meeting_room_rounded,
+        'gradient': const [Color(0xFF4F46E5), Color(0xFF4338CA)],
+        'badge': 'بدون انتظار',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen())),
+      },
+      {
+        'title': 'استلام السيارة',
+        'subtitle': 'خلال دقيقتين',
+        'icon': Icons.directions_car_rounded,
+        'gradient': const [Color(0xFFD97706), Color(0xFFB45309)],
+        'badge': 'كيرب سايد',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CurbsidePickupScreen())),
+      },
+      {
+        'title': 'وفر دورياً',
+        'subtitle': 'اشتراك مؤن',
+        'icon': Icons.autorenew_rounded,
+        'gradient': const [Color(0xFF10B981), Color(0xFF059669)],
+        'badge': 'وفر 15%',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionsScreen())),
+      },
+      {
+        'title': 'شراء جماعي',
+        'subtitle': 'مع الجيران',
+        'icon': Icons.groups_rounded,
+        'gradient': const [Color(0xFFBE123C), Color(0xFF9F1239)],
+        'badge': 'وفر 40%',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupDealsScreen())),
+      },
+      {
+        'title': 'عصا المطبخ',
+        'subtitle': 'مسح المؤونة',
+        'icon': Icons.microwave_rounded,
+        'gradient': const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+        'badge': 'إنترنت الأشياء',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KitchenWandScreen())),
+      },
+      {
+        'title': 'صفر نفايات',
+        'subtitle': 'ركن التخفيض',
+        'icon': Icons.hourglass_top_rounded,
+        'gradient': const [Color(0xFFEA580C), Color(0xFFC2410C)],
+        'badge': 'حتى 70%',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ZeroWasteScreen())),
+      },
+      {
+        'title': 'عربة المتجر',
+        'subtitle': 'كاشير ذاتي',
+        'icon': Icons.shopping_cart_checkout_rounded,
+        'gradient': const [Color(0xFF0891B2), Color(0xFF0E7490)],
+        'badge': 'بلا طوابير',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartCartIoTScreen())),
+      },
+      {
+        'title': 'بوكسات الشيف',
+        'subtitle': 'وجبات جاهزة',
+        'icon': Icons.restaurant_menu_rounded,
+        'gradient': const [Color(0xFFB45309), Color(0xFF92400E)],
+        'badge': 'مقادير مسبقة',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MealKitsScreen())),
+      },
+      {
+        'title': 'ضمان السعر',
+        'subtitle': 'الأرخص دائماً',
+        'icon': Icons.verified_user_rounded,
+        'gradient': const [Color(0xFF059669), Color(0xFF047857)],
+        'badge': 'نعوضك الفرق',
+        'onTap': () => PriceMatchModal.show(context),
+      },
+      {
+        'title': 'قائمة البيت',
+        'subtitle': 'مخطط المقاضي',
+        'icon': Icons.checklist_rounded,
+        'gradient': const [Color(0xFF4F46E5), Color(0xFF3730A3)],
+        'badge': 'مزامنة عائلية',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroceryListScreen())),
+      },
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: CachedNetworkImageProvider(
-                      'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=120&q=80',
-                    ),
+                  width: 3,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade600,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white, width: 1),
+                const SizedBox(width: 8),
+                const Text(
+                  'خدمات وتجارب الديب الذكية',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
-                  child: const Text(
-                    'مباشر',
-                    style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                const Text(
+                  'اسحب للمزيد ←',
+                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 106,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: services.length,
+              separatorBuilder: (ctx, i) => const SizedBox(width: 14),
+              itemBuilder: (ctx, i) {
+                final s = services[i];
+                return InkWell(
+                  onTap: s['onTap'] as VoidCallback,
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: 76,
+                    child: Column(
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.topCenter,
+                          children: [
+                            Container(
+                              width: 54,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: s['gradient'] as List<Color>,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (s['gradient'] as List<Color>).first.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                s['icon'] as IconData,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
+                            if (s['badge'] != null)
+                              Positioned(
+                                top: -6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.88),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.white24, width: 0.5),
+                                  ),
+                                  child: Text(
+                                    s['badge'] as String,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          s['title'] as String,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          s['subtitle'] as String,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Themed Shoppable Shelves
+  // ===========================================================================
+
+  Widget _buildFlashDealsShelf(MallProvider mall, bool isDesktop) {
+    if (mall.dailyDeals.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: _buildFlashDealsHeader(),
+        ),
+        SizedBox(
+          height: 295,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: mall.dailyDeals.length,
+            itemBuilder: (ctx, index) {
+              return Container(
+                width: isDesktop ? 220 : 170,
+                margin: const EdgeInsetsDirectional.only(end: 12),
+                child: ProductCard(product: mall.dailyDeals[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildButcherShelf(MallProvider mall, bool isDesktop) {
+    final meatProducts = mall.products.where((p) => p.categoryId == 'c3').toList();
+    if (meatProducts.isEmpty) return const SizedBox();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFECDD3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE11D48),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.kebab_dining_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'ملحمة وبحريات الديب الفاخرة 🥩🐟',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF881337),
+                          ),
+                        ),
+                        Text(
+                          'ذبح بلدي طازج يومياً، أسماك طازجة، وخيارات تقطيع وتتبيل خاصة',
+                          style: TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.content_cut_rounded, size: 14, color: Colors.white),
+                  label: const Text(
+                    'فصّل ذبيحتك 🔪',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE11D48),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '🔴 الديب لايف: الشيف نورة تطبخ على الهواء',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 295,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: meatProducts.length,
+              itemBuilder: (ctx, index) {
+                return Container(
+                  width: isDesktop ? 220 : 170,
+                  margin: const EdgeInsetsDirectional.only(end: 12),
+                  child: ProductCard(product: meatProducts[index]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFarmFreshShelf(MallProvider mall, bool isDesktop) {
+    final produceProducts = mall.products.where((p) => p.categoryId == 'c1').toList();
+    if (produceProducts.isEmpty) return const SizedBox();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'طازج من مزارعنا المحلية 🥦🍅',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF14532D),
+                          ),
+                        ),
+                        Text(
+                          'قطاف الصباح اليومي، نضارة مضمونة وتوصيل فوري مبرد',
+                          style: TextStyle(fontSize: 10.5, color: Color(0xFF166534)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () {
+                    mall.selectCategory('c1');
+                    setState(() => _selectedSubcategory = null);
+                  },
+                  child: const Text(
+                    'عرض كل الخضار والفواكه ←',
+                    style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 11.5),
                   ),
-                  SizedBox(height: 2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 295,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: produceProducts.length,
+              itemBuilder: (ctx, index) {
+                return Container(
+                  width: isDesktop ? 220 : 170,
+                  margin: const EdgeInsetsDirectional.only(end: 12),
+                  child: ProductCard(product: produceProducts[index]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllProductsSection(MallProvider mall, BuildContext context, bool isDesktop) {
+    final list = _getFilteredProducts(mall);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'شاهد وصفة الكبسة واطلب المقادير بنقرة واحدة + خصم 30% كود LIVE30',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                    mall.selectedCategoryId != null
+                        ? 'منتجات ${mall.categories.firstWhere((c) => c.id == mall.selectedCategoryId, orElse: () => mall.categories.first).nameAr}'
+                        : 'كافة منتجات الهايبرماركت',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ],
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.play_arrow_rounded, color: AppColors.textPrimary, size: 16),
-                  SizedBox(width: 4),
-                  Text(
-                    'مشاهدة',
-                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 11),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${list.length} صنف متاح',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
+                ),
               ),
+            ],
+          ),
+        ),
+        // Sort & Filter Tabs
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildSortChip('all', 'الكل ✨'),
+                const SizedBox(width: 8),
+                _buildSortChip('top_saving', 'الأعلى توفيراً % 🔥'),
+                const SizedBox(width: 8),
+                _buildSortChip('best_seller', 'الأكثر طلباً 🏆'),
+                const SizedBox(width: 8),
+                _buildSortChip('low_price', 'الأقل سعراً 💰'),
+              ],
             ),
-          ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Responsive Product Grid
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+          child: list.isEmpty
+              ? Container(
+                  height: 200,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.search_off_rounded, size: 44, color: AppColors.textMuted),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'لا توجد منتجات مطابقة لخيارات التصفية',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TextButton(
+                        onPressed: () {
+                          mall.selectCategory(null);
+                          mall.setDietaryFilter(null);
+                          setState(() {
+                            _selectedSubcategory = null;
+                            _activeSortFilter = 'all';
+                          });
+                        },
+                        child: const Text('إعادة تعيين كافة الفلاتر'),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: Responsive.gridColumns(context),
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: Responsive.productCardAspectRatio(context),
+                  ),
+                  itemCount: list.length,
+                  itemBuilder: (ctx, index) => ProductCard(product: list[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSortChip(String id, String label) {
+    final isSel = _activeSortFilter == id;
+    return InkWell(
+      onTap: () => setState(() => _activeSortFilter = id),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSel ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSel ? AppColors.primary : AppColors.border,
+          ),
+          boxShadow: isSel
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSel ? Colors.white : AppColors.textPrimary,
+            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+            fontSize: 11,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFlyerBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FlyerScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'مجلة عروض وتخفيضات الديب الأسبوعية 📰',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'تصفح صفحات المجلة التفاعلية واشترِ الصفقات مباشرة بخصم 45%',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
+  List<ProductModel> _getFilteredProducts(MallProvider mall) {
+    var list = List<ProductModel>.from(mall.filteredProducts);
 
-  Widget _buildSubscribeAndSaveBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SubscriptionsScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF065F46), Color(0xFF059669)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.autorenew_rounded, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'اشتراكات المؤن الدورية (Subscribe & Save) 🔄',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'توصيل دوري للحليب والخبز والخضار مع خصم دائم 10% وتوصيل مجاني',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
+    if (_selectedSubcategory != null && _selectedSubcategory != 'الكل') {
+      final cleanSub = _selectedSubcategory!.replaceAll(RegExp(r'[^\w\s\u0600-\u06FF]'), '').trim();
+      final tokens = cleanSub.split(' ').where((w) => w.length > 2).toList();
+      if (tokens.isNotEmpty) {
+        final filtered = list.where((p) {
+          final text = '${p.nameAr} ${p.descriptionAr ?? ""} ${p.brand ?? ""}';
+          return tokens.any((t) => text.contains(t));
+        }).toList();
+        if (filtered.isNotEmpty) {
+          list = filtered;
+        }
+      }
+    }
 
-  Widget _buildGroupDealsBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const GroupDealsScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFB91C1C), Color(0xFFDC2626)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.groups_rounded, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'صفقات الشراء الجماعي مع الجيران والأصدقاء 👥',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'وفر حتى 40% فور اكتمال المجموعة في حيك وتوصيل مجاني فوري لكل منزل',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
+    switch (_activeSortFilter) {
+      case 'top_saving':
+        list.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+        break;
+      case 'best_seller':
+        list.sort((a, b) => b.salesCount.compareTo(a.salesCount));
+        break;
+      case 'low_price':
+        list.sort((a, b) => a.price.compareTo(b.price));
+        break;
+      default:
+        break;
+    }
 
-  Widget _buildCurbsideBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CurbsidePickupScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'خدمة الاستلام من السيارة خلال دقيقتين (Curbside Pickup) 🚗',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'استلم مقاضيك وأكياسك الطازجة مباشرة في صندوق سيارتك بدون النزول في المواقف',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGroceryListBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'مخطط المقاضي العائلي الذكي (Smart Grocery Planner) 📝',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'اكتب أو املِ نواقص المنزل صوتياً وحولها لسلة تسوق جاهزة بضغطة واحدة',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEcoBanner(BuildContext context) {
-    return InkWell(
-      onTap: () => EcoTrackerModal.show(context),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF064E3B), Color(0xFF059669)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.eco_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'مبادرة الديب الخضراء: بصمتك البيئية والتوصيل صفر نفايات 🌱',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'تتبع وفر الأكياس البلاستيكية، وانبعاثات CO2 المحايدة، وصناديق التوصيل المستدامة',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildZeroWasteBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ZeroWasteScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF991B1B), Color(0xFFDC2626)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.access_time_filled_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ركن التخفيض الذكي وإنقاذ الغذاء (Zero Food Waste) ⏳',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'خصومات تصل 70% على مخبوزات وألبان وخضار طازجة ومفحوصة صالحة للاستهلاك الفوري',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmartCartBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.shopping_cart_checkout_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'عربة الديب الذكية داخل الفرع (Smart Dash Cart) 🛒',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'امسح باركود العربة وضع مشترياتك: وزن آلي، كاشير ذاتي، ومغادرة فورية بدون طابور',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMealKitsBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MealKitsScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF9A3412), Color(0xFFC2410C), Color(0xFFEA580C)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'بوكسات وجبات الديب مسبقة التجهيز (Chef Meal Kits) 🧑‍🍳',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'مقادير طازجة وموزونة لطبخة منزلية فاخرة في 20 دقيقة بدون هدر وبدون تقطيع',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceMatchBanner(BuildContext context) {
-    return InkWell(
-      onTap: () => PriceMatchModal.show(context),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1E3A8A), Color(0xFF1D4ED8)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.verified_user_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'درع حماية الأسعار: ضمان أرخص سعر بالمملكة 🇸🇦',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'وجدت سعراً أقل في بندة أو العثيم أو كارفور؟ نعوضك بضعف الفرق كاش بمحفظتك فورياً!',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPharmacyBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PharmacyScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF065F46), Color(0xFF047857)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFFA7F3D0), size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'صيدلية الديب المرخصة (SFDA) 💊',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'فاحص التداخلات الدوائية والغذائية السريري • صرف وصفات وصفتي وتوصيل مبرد 15 دقيقة',
-                    style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'افحص أدويتك',
-                style: TextStyle(color: Color(0xFF065F46), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKitchenWandBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'عصا المطبخ الذكية وإدارة المؤونة (Kitchen Wand) 🪄',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'امسح المنتجات المنتهية بمغناطيس الثلاجة لإعادة تعبئتها فورياً بضغطة واحدة إلى السلة',
-                    style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.amber,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'فتح المؤونة',
-                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLockerBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF164E63)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.cyan.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'خزائن الديب الذكية ذاتية الخدمة 24/7 🚪',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'استلم مقاضيك بأي وقت بدون انتظار من أقرب خزانة ذكية مبردة ومجمدة بالرياض وجدة',
-                    style: TextStyle(color: Color(0xFFCFFAFE), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.cyanAccent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'استلام طلبي',
-                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDroneDeliveryBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF083344)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.cyan.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'الشحن الجوي فائق السرعة بدرونز الديب 10 دقائق 🛸',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'توصيل جوي آلي ومباشر لسطح فيلتك أو مهبط حديقتك بإنزال ذكي عبر كابل الرافعة',
-                    style: TextStyle(color: Color(0xFFCFFAFE), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.cyanAccent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'تتبع الرحلة',
-                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNutritionistBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF064E3B), Color(0xFF0F766E)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.psychology_rounded, color: Color(0xFFA7F3D0), size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'أخصائي التغذية الذكي وتوليد مقاضي الأسبوع بالـ AI 🥗',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'خطط وجبات موزونة الماكروز حسب هدفك الصحي مع تحويل المقاضي كاملة للسلة بدون هدر',
-                    style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'صمم جدولك',
-                style: TextStyle(color: Color(0xFF064E3B), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButcherBanner(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF881337), Color(0xFF4C0519)],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFECDD3), size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ملحمة وبحريات الديب الفاخرة: ذبائح وتفصيل مخصص 🥩',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'نعيمي، عوارض، واغيو A5 وهامور طازج مع سحب هواء مفرغ وإشراف بيطري MEWA',
-                    style: TextStyle(color: Color(0xFFFECDD3), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'فصّل ذبيحتك',
-                style: TextStyle(color: Color(0xFF881337), fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return list;
   }
 
   Widget _buildBuyAgainSection(MallProvider mall, CartProvider cart, bool isDesktop) {
