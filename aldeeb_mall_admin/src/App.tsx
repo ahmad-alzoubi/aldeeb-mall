@@ -21,6 +21,7 @@ import { ReturnsPage } from './pages/ReturnsPage';
 import { CourierPortalPage } from './pages/CourierPortalPage';
 import { MerchandisingPage } from './pages/MerchandisingPage';
 import { InventoryTransferPage } from './pages/InventoryTransferPage';
+import { ForecastingPage } from './pages/ForecastingPage';
 import { 
   initialOrders, 
   initialProducts, 
@@ -258,6 +259,10 @@ export const App: React.FC = () => {
               orders={orders}
               products={products}
             />
+          )}
+
+          {activeTab === 'forecasting' && (
+            <ForecastingPage />
           )}
 
           {activeTab === 'orders' && (

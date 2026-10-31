@@ -18,6 +18,7 @@ import '../wallet/wallet_screen.dart';
 import '../group_buying/group_deals_screen.dart';
 import '../address/address_book_screen.dart';
 import '../navigation/in_store_navigator_screen.dart';
+import '../pickup/curbside_pickup_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -134,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildFlyerBanner(context),
                       _buildSubscribeAndSaveBanner(context),
                       _buildGroupDealsBanner(context),
+                      _buildCurbsideBanner(context),
                     ],
                   ),
                 ),
@@ -1459,6 +1461,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 2),
                   Text(
                     'وفر حتى 40% فور اكتمال المجموعة في حيك وتوصيل مجاني فوري لكل منزل',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurbsideBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CurbsidePickupScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'خدمة الاستلام من السيارة خلال دقيقتين (Curbside Pickup) 🚗',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'استلم مقاضيك وأكياسك الطازجة مباشرة في صندوق سيارتك بدون النزول في المواقف',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],

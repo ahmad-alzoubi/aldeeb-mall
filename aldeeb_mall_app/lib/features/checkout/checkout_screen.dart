@@ -54,9 +54,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'subtitle': 'فرع الديب مول الرئيسي - جاهز بعد 30 دقيقة',
       'badge': 'بدون رسوم',
     },
+    {
+      'title': 'استلام من السيارة (Curbside Pickup 🚗)',
+      'subtitle': 'استلام مباشر عند المواقف المخصصة خلال دقيقتين بدون نزول من سيارتك',
+      'badge': 'سريع ومجاني',
+    },
   ];
 
   final List<Map<String, dynamic>> _paymentMethods = [
+    {
+      'title': 'محفظة الديب الذكية (Aldeeb Pay)',
+      'subtitle': 'رصيد متاح 150.00 ر.س • خصم فوري بنقرة واحدة بدون OTP',
+      'icon': Icons.account_balance_wallet_rounded,
+      'badge': 'موصى به',
+    },
     {
       'title': 'الدفع نقداً عند الاستلام (COD)',
       'subtitle': 'ادفع لمندوب التوصيل عند استلام طلبك',

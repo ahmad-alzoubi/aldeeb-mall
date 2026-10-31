@@ -21,7 +21,8 @@ import {
   RotateCcw,
   Navigation,
   Split,
-  ArrowLeftRight
+  ArrowLeftRight,
+  BrainCircuit
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم والعمليات', icon: LayoutDashboard },
     { id: 'analytics', label: 'ذكاء الأعمال والتحليلات', icon: BarChart3, badge: 'BI' },
+    { id: 'forecasting', label: 'التنبؤ بالطلب بالـ AI', icon: BrainCircuit, badge: 'AI' },
     { 
       id: 'orders', 
       label: 'إدارة الطلبات الفورية', 
