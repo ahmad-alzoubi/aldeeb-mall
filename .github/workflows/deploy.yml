@@ -27,12 +27,31 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Build Flutter Web
+      - name: Build Flutter Web (Customer App)
         run: |
           cd aldeeb_mall_app
           flutter pub get
           flutter build web --release --base-href "/aldeeb-mall/"
           cp build/web/index.html build/web/404.html
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'aldeeb_mall_admin/package-lock.json'
+
+      - name: Build React Admin Dashboard & POS
+        env:
+          VITE_SUPABASE_URL: "https://ffqjtixxzgmvoxzzmxdy.supabase.co"
+          VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmcWp0aXh4emdtdm94enpteGR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0NzIyNzUsImV4cCI6MjEwOTA0ODI3NX0.3yzwxb6sSLF779aNqmS2f3JVsMbdx9krx38Z8nBcavE"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_wQYYssBGVb6dl1uasSFr1g_1ZzLXx85"
+        run: |
+          cd aldeeb_mall_admin
+          npm ci
+          npm run build -- --base=/aldeeb-mall/admin/
+          mkdir -p ../aldeeb_mall_app/build/web/admin
+          cp -r dist/* ../aldeeb_mall_app/build/web/admin/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
