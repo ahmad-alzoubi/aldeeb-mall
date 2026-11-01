@@ -2177,43 +2177,52 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                InkWell(
-                  onTap: () {
-                    final cat = mall.categories.firstWhere((c) => c.id == 'c3', orElse: () => mall.categories.first);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentScreen(category: cat)));
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE11D48),
-                          borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      final cat = mall.categories.firstWhere((c) => c.id == 'c3', orElse: () => mall.categories.first);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentScreen(category: cat)));
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE11D48),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.kebab_dining_rounded, color: Colors.white, size: 20),
                         ),
-                        child: const Icon(Icons.kebab_dining_rounded, color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'ملحمة وبحريات الديب الفاخرة 🥩🐟',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF881337),
-                            ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ملحمة وبحريات الديب الفاخرة 🥩🐟',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF881337),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'ذبح بلدي طازج يومياً، أسماك طازجة • اضغط لعرض القسم ←',
+                                style: TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          Text(
-                            'ذبح بلدي طازج يومياً، أسماك طازجة • اضغط لعرض القسم ←',
-                            style: TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () {
                     final cat = mall.categories.firstWhere((c) => c.id == 'c3', orElse: () => mall.categories.first);
@@ -2279,36 +2288,45 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
                       ),
-                      child: const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'طازج من مزارعنا المحلية 🥦🍅',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF14532D),
-                          ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'طازج من مزارعنا المحلية 🥦🍅',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF14532D),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'قطاف الصباح اليومي، نضارة مضمونة وتوصيل فوري مبرد',
+                              style: TextStyle(fontSize: 10.5, color: Color(0xFF166534)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Text(
-                          'قطاف الصباح اليومي، نضارة مضمونة وتوصيل فوري مبرد',
-                          style: TextStyle(fontSize: 10.5, color: Color(0xFF166534)),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
                     final cat = mall.categories.firstWhere((c) => c.id == 'c1', orElse: () => mall.categories.first);

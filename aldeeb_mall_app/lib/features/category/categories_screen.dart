@@ -74,19 +74,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           // Add Category Button in AppBar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: ElevatedButton.icon(
-              onPressed: () => _showAddCategoryDialog(context, mall),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.primaryDark,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
-              label: const Text(
-                'إضافة قسم',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            child: SizedBox(
+              height: 38,
+              child: ElevatedButton.icon(
+                onPressed: () => _showAddCategoryDialog(context, mall),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.primaryDark,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+                label: const Text(
+                  'إضافة قسم',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ),
