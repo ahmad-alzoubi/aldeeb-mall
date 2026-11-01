@@ -20,6 +20,10 @@ class ProductModel {
   final double rating;
   final int reviewsCount;
   final int salesCount;
+  final bool bundleEnabled;
+  final int bundleDiscountPercent;
+  final String? bundleTitle;
+  final List<String> bundleProductIds;
 
   const ProductModel({
     required this.id,
@@ -43,6 +47,10 @@ class ProductModel {
     this.rating = 4.8,
     this.reviewsCount = 0,
     this.salesCount = 0,
+    this.bundleEnabled = false,
+    this.bundleDiscountPercent = 15,
+    this.bundleTitle,
+    this.bundleProductIds = const [],
   });
 
   bool get hasDiscount => discountPercent > 0 || (originalPrice != null && originalPrice! > price);
@@ -158,6 +166,12 @@ class ProductModel {
       rating: (json['rating'] as num?)?.toDouble() ?? 4.8,
       reviewsCount: (json['reviews_count'] as num?)?.toInt() ?? 0,
       salesCount: (json['sales_count'] as num?)?.toInt() ?? 0,
+      bundleEnabled: json['bundle_enabled'] as bool? ?? false,
+      bundleDiscountPercent: (json['bundle_discount_percent'] as num?)?.toInt() ?? 15,
+      bundleTitle: json['bundle_title'] as String?,
+      bundleProductIds: json['bundle_product_ids'] != null
+          ? (json['bundle_product_ids'] as List).map((e) => e.toString()).toList()
+          : const [],
     );
   }
 
@@ -183,6 +197,10 @@ class ProductModel {
     double? rating,
     int? reviewsCount,
     int? salesCount,
+    bool? bundleEnabled,
+    int? bundleDiscountPercent,
+    String? bundleTitle,
+    List<String>? bundleProductIds,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -206,6 +224,10 @@ class ProductModel {
       rating: rating ?? this.rating,
       reviewsCount: reviewsCount ?? this.reviewsCount,
       salesCount: salesCount ?? this.salesCount,
+      bundleEnabled: bundleEnabled ?? this.bundleEnabled,
+      bundleDiscountPercent: bundleDiscountPercent ?? this.bundleDiscountPercent,
+      bundleTitle: bundleTitle ?? this.bundleTitle,
+      bundleProductIds: bundleProductIds ?? this.bundleProductIds,
     );
   }
 
@@ -232,6 +254,10 @@ class ProductModel {
       'rating': rating,
       'reviews_count': reviewsCount,
       'sales_count': salesCount,
+      'bundle_enabled': bundleEnabled,
+      'bundle_discount_percent': bundleDiscountPercent,
+      'bundle_title': bundleTitle,
+      'bundle_product_ids': bundleProductIds,
     };
   }
 }

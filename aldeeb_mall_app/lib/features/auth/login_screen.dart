@@ -186,7 +186,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Skip / Guest Mode
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                await auth.signInAsGuest();
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
               child: const Text(
                 'التسوق كزائر (المتابعة دون حساب)',
                 style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold),

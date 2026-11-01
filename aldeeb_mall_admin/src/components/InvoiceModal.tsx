@@ -1,26 +1,65 @@
-import React from 'react';
-import { Printer, X, CheckCircle, MapPin, Phone, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Printer, X, CheckCircle, MapPin, Phone, ShieldCheck, QrCode, ExternalLink } from 'lucide-react';
 import { Order } from '../types';
+import { 
+  useInvoiceSettings, 
+  generateQrCodeDataUrl, 
+  generateElectronicInvoiceUrl 
+} from '../lib/invoiceSettings';
 
 interface InvoiceModalProps {
   order: Order | null;
   onClose: () => void;
+  onOpenElectronicInvoice?: (order: Order) => void;
 }
 
-export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) => {
+export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose, onOpenElectronicInvoice }) => {
+  const [settings] = useInvoiceSettings();
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [eInvoiceUrl, setEInvoiceUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!order) return;
+    const invoiceUrl = generateElectronicInvoiceUrl(order.order_number, {
+      branch_name: settings.branchName,
+      cashier_name: 'منظومة الطلبات الإلكترونية',
+      terminal_code: 'WEB-APP',
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      created_at: order.created_at,
+      items: order.items.map((it) => ({
+        name_ar: it.product_name_ar,
+        name_en: it.product_name_en,
+        quantity: it.quantity,
+        unit: it.unit,
+        price: it.unit_price,
+        total: it.total_price,
+      })),
+      subtotal: order.subtotal,
+      tax_amount: order.total_amount * (settings.taxRatePercent / 100),
+      grand_total: order.total_amount,
+      payment_method: order.payment_method,
+    });
+    setEInvoiceUrl(invoiceUrl);
+
+    generateQrCodeDataUrl(invoiceUrl, 200).then((url) => {
+      setQrCodeUrl(url);
+    });
+  }, [order, settings]);
+
   if (!order) return null;
 
   const handlePrint = () => {
     window.print();
   };
 
-  const vatAmount = (order.total_amount * 0.05).toFixed(2);
+  const vatAmount = (order.total_amount * (settings.taxRatePercent / 100)).toFixed(2);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Modal Top Bar */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-blue-400" />
             <span className="font-bold text-sm">فاتورة ضريبية رسمية وبطاقة تجهيز الطلب</span>
@@ -34,22 +73,40 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
         </div>
 
         {/* Printable Area */}
-        <div id="printable-invoice" className="p-6 overflow-y-auto flex-1 font-sans text-slate-800 space-y-4">
+        <div id="aldeeb-thermal-receipt" className="p-6 overflow-y-auto flex-1 font-sans text-slate-800 space-y-4 select-text">
           {/* Header */}
-          <div className="text-center border-b pb-4 border-slate-200">
-            <div className="text-2xl font-black text-blue-900 tracking-tight mb-1">
-              الديب مول | ALDEEB MALL
+          <div className="text-center border-b pb-4 border-slate-200 space-y-1">
+            {settings.showLogo && settings.logoUrl && (
+              <div className="flex justify-center mb-1">
+                <img
+                  src={settings.logoUrl}
+                  alt="Logo"
+                  style={{ maxHeight: `${settings.logoHeight}px` }}
+                  className="object-contain rounded"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div className="text-xl font-black text-slate-950 tracking-tight">
+              {settings.storeNameAr}
             </div>
             <div className="text-xs text-slate-500 font-medium">
-              هايبرماركت متكامل • توصيل فائق السرعة • الرقم الضريبي: TRN-100482910300003
+              {settings.branchName} • الرقم الضريبي: {settings.taxNumber}
             </div>
-            <div className="mt-2 inline-block bg-slate-100 font-mono font-bold text-xs px-3 py-1 rounded">
+            {settings.showCommercialRegister && (
+              <div className="text-[10px] text-slate-400 font-mono">
+                السجل التجاري: {settings.commercialRegister}
+              </div>
+            )}
+            <div className="mt-2 inline-block bg-slate-100 font-mono font-bold text-xs px-3 py-1 rounded-lg border border-slate-200">
               رقم الفاتورة: {order.order_number}
             </div>
           </div>
 
           {/* Customer & Slot Info */}
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1.5">
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs space-y-1.5">
             <div className="flex justify-between">
               <span className="text-slate-500">اسم العميل:</span>
               <span className="font-bold text-slate-800">{order.customer_name}</span>
@@ -116,13 +173,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
               </div>
             )}
             <div className="flex justify-between text-slate-600">
-              <span>رسوم التوصيل المبرد:</span>
+              <span>رسوم التوصيل:</span>
               <span className="font-mono">
                 {order.delivery_fee === 0 ? 'مجاني (0.00)' : `${order.delivery_fee.toFixed(2)} ل.س`}
               </span>
             </div>
-            <div className="flex justify-between text-slate-400 text-[11px]">
-              <span>شامل ضريبة القيمة المضافة (5%):</span>
+            <div className="flex justify-between text-slate-500 text-[11px]">
+              <span>ضريبة القيمة المضافة ({settings.taxRatePercent}%):</span>
               <span className="font-mono">{vatAmount} ل.س</span>
             </div>
             <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-300 pt-2 mt-2">
@@ -131,28 +188,47 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
             </div>
           </div>
 
-          {/* Barcode & Security stamp */}
-          <div className="pt-3 border-t border-dashed border-slate-300 text-center space-y-1">
-            <div className="font-mono tracking-widest text-lg font-bold text-slate-700">
-              *{order.order_number}*
+          {/* Authentic Scannable QR Code */}
+          {settings.showQrCode && (
+            <div className="pt-3 border-t border-dashed border-slate-300 text-center space-y-2">
+              {qrCodeUrl ? (
+                <div className="inline-block p-1.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+                  <img src={qrCodeUrl} alt="QR Code" className="w-24 h-24 mx-auto" />
+                </div>
+              ) : (
+                <div className="w-24 h-24 mx-auto bg-slate-100 rounded-lg flex items-center justify-center">
+                  <QrCode className="w-8 h-8 text-slate-400 animate-pulse" />
+                </div>
+              )}
+              <div className="print:hidden">
+                <a
+                  href={eInvoiceUrl || `#invoice?id=${order.order_number}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  <span>عرض الفاتورة الإلكترونية المعتمدة</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                {settings.returnPolicyText} • خدمة العملاء: {settings.phone}
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400">
-              شكراً لتسوقكم من الديب مول • سياسة الاستبدال خلال 48 ساعة • خدمة العملاء: 800-ALDEEB
-            </p>
-          </div>
+          )}
         </div>
 
         {/* Modal Actions */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 print:hidden">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-100 transition-colors"
           >
             إغلاق
           </button>
           <button
             onClick={handlePrint}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm"
           >
             <Printer className="w-4 h-4" />
             طباعة الفاتورة الحرارية

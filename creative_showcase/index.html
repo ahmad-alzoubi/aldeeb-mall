@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA — The Infinite Creative Matrix | محرك الإبداع التفاعلي الخارق</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-obsidian">
+  <!-- Scroll Progress Indicator (Accessible & CSS Scroll-Timeline compliant) -->
+  <div id="scroll-progress" aria-hidden="true"></div>
+
+  <!-- Background Interactive Canvas (WebGL / 2D High-Performance Physics) -->
+  <canvas id="universe-canvas"></canvas>
+
+  <!-- Ambient Light Orbs -->
+  <div class="ambient-glow glow-1" aria-hidden="true"></div>
+  <div class="ambient-glow glow-2" aria-hidden="true"></div>
+
+  <!-- Navigation Bar -->
+  <header class="luxury-navbar">
+    <div class="nav-brand">
+      <div class="brand-symbol">
+        <span class="symbol-core"></span>
+        <span class="symbol-ring"></span>
+      </div>
+      <div class="brand-text">
+        <span class="brand-title">AURA</span>
+        <span class="brand-badge" data-i18n="badge">CREATIVE MATRIX v2.5</span>
+      </div>
+    </div>
+
+    <!-- HUD Stats Bar -->
+    <div class="hud-stats">
+      <div class="stat-item">
+        <span class="stat-dot"></span>
+        <span class="stat-label">FPS:</span>
+        <span class="stat-val" id="fps-counter">60</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label" data-i18n="particles">الجسيمات:</span>
+        <span class="stat-val" id="particle-counter">600</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label" data-i18n="physics">الفيزياء:</span>
+        <span class="stat-val active-status" id="physics-status" data-i18n="active">نشطة</span>
+      </div>
+    </div>
+
+    <!-- Actions & Controls -->
+    <div class="nav-actions">
+      <!-- Audio Synth Toggle -->
+      <button id="audio-toggle" class="luxury-btn btn-icon" title="تبديل التفاعل الصوتي" aria-label="Toggle Sound">
+        <svg class="icon sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <svg class="icon sound-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        <span class="btn-text" data-i18n="audio_btn">الصوت: نشط</span>
+      </button>
+
+      <!-- Language Switcher -->
+      <button id="lang-toggle" class="luxury-btn btn-pill">
+        <span id="lang-text">English</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Hero Experience -->
+  <main class="main-container">
+    <section class="hero-section">
+      <div class="hero-eyebrow">
+        <span class="pulsing-radar"></span>
+        <span data-i18n="hero_eyebrow">هندسة تفاعلية بصرية فائقة الدقة والذكاء</span>
+      </div>
+
+      <h1 class="hero-heading">
+        <span class="gradient-text text-reveal" data-i18n="hero_title_1">إبداع رقمي بلا قيود.</span><br>
+        <span class="shine-text text-reveal-delay" data-i18n="hero_title_2">حيث تتلاقى الفيزياء والخوارزميات الفاخرة</span>
+      </h1>
+
+      <p class="hero-subtitle" data-i18n="hero_subtitle">
+        منظومة ويب متطورة فائقة السرعة، تجمع بين محاكاة الجسيمات الكوانتية ثنائية وثلاثية الأبعاد، التوليد الصوتي التوافقي التفاعلي (Web Audio Synth)، والتصميم الهندسي المصقول بمعايير أرقى الاستوديوهات العالمية.
+      </p>
+
+      <!-- Quick Interactive Triggers -->
+      <div class="hero-cta-group">
+        <button id="supernova-btn" class="glow-button primary-cta">
+          <span class="btn-sparkle">✨</span>
+          <span data-i18n="trigger_supernova">إطلاق انفجار السوبرنوفا</span>
+        </button>
+        <button id="vortex-btn" class="glow-button secondary-cta">
+          <span class="btn-sparkle">🌀</span>
+          <span data-i18n="trigger_vortex">تفعيل الدوامة الكوانتية</span>
+        </button>
+        <button id="reset-physics-btn" class="glow-button ghost-cta">
+          <span class="btn-sparkle">⚡</span>
+          <span data-i18n="trigger_shockwave">نبضة مغناطيسية</span>
+        </button>
+      </div>
+
+      <div class="hero-hint">
+        <svg class="mouse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="5" y="2" width="14" height="20" rx="7"/>
+          <line x1="12" y1="6" x2="12" y2="10" class="wheel-scroll"/>
+        </svg>
+        <span data-i18n="mouse_hint">حرك المؤشر أو انقر في أي مكان للتفاعل مع حقل الجاذبية والصوت الترددي</span>
+      </div>
+    </section>
+
+    <!-- Interactive Physics Control Lab (Floating Glass Studio) -->
+    <section class="control-lab-section">
+      <div class="glass-panel lab-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="terminal-tag">PHYSICS_LAB // 01</span>
+            <h2 data-i18n="lab_title">غرفة التحكم الفيزيائي بالمصفوفة الحية</h2>
+          </div>
+          <div class="theme-palette-selector">
+            <span class="palette-label" data-i18n="color_theme">طيف الطاقة:</span>
+            <div class="palette-dots">
+              <button class="dot-btn active" data-palette="emerald" title="Cyber Emerald" style="--c: #10B981"></button>
+              <button class="dot-btn" data-palette="gold" title="Obsidian Gold" style="--c: #F59E0B"></button>
+              <button class="dot-btn" data-palette="cyan" title="Quantum Cyan" style="--c: #06B6D4"></button>
+              <button class="dot-btn" data-palette="violet" title="Cosmic Violet" style="--c: #8B5CF6"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lab-grid">
+          <!-- Control 1: Particle Count -->
+          <div class="lab-control">
+            <div class="control-meta">
+              <label for="slider-particles" data-i18n="ctrl_particles">كثافة الجسيمات</label>
+              <span class="val-display" id="val-particles">600</span>
+            </div>
+            <input type="range" id="slider-particles" min="150" max="1200" step="50" value="600">
+          </div>
+
+          <!-- Control 2: Gravity / Mouse Pull -->
+          <div class="lab-control">
+            <div class="control-meta">
+              <label for="slider-gravity" data-i18n="ctrl_gravity">قوة الجاذبية التفاعلية</label>
+              <span class="val-display" id="val-gravity">1.8x</span>
+            </div>
+            <input type="range" id="slider-gravity" min="0" max="5" step="0.2" value="1.8">
+          </div>
+
+          <!-- Control 3: Speed & Chaos -->
+          <div class="lab-control">
+            <div class="control-meta">
+              <label for="slider-speed" data-i18n="ctrl_speed">سرعة التدفق الحركي</label>
+              <span class="val-display" id="val-speed">1.2x</span>
+            </div>
+            <input type="range" id="slider-speed" min="0.2" max="3" step="0.1" value="1.2">
+          </div>
+
+          <!-- Control 4: Neural Connection Distance -->
+          <div class="lab-control">
+            <div class="control-meta">
+              <label for="slider-connect" data-i18n="ctrl_connect">مدى الترابط العصبي (Web Distance)</label>
+              <span class="val-display" id="val-connect">110px</span>
+            </div>
+            <input type="range" id="slider-connect" min="40" max="220" step="10" value="110">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3D Interactive Feature Matrix (Interactive Tilt Cards) -->
+    <section class="matrix-section">
+      <div class="section-title-wrap">
+        <span class="terminal-tag">INNOVATION_PILLARS // 02</span>
+        <h2 class="section-heading" data-i18n="matrix_title">ركائز الإتقان والهندسة الإبداعية</h2>
+        <p class="section-sub" data-i18n="matrix_sub">كل بطاقة تفاعلية ثلاثية الأبعاد تستجيب لحركة الماوس وتحتوي على محاكاة معمارية حية</p>
+      </div>
+
+      <div class="cards-grid">
+        <!-- Card 1: Hyper Performance Engine -->
+        <div class="tilt-card" data-tilt>
+          <div class="card-glass-shine"></div>
+          <div class="card-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="card-code-tag">ENGINE_CORE_01</div>
+          <h3 class="card-title" data-i18n="card1_title">محركات الحوسبة فائقة السرعة</h3>
+          <p class="card-desc" data-i18n="card1_desc">
+            بناء أنظمة برمجية مصقولة بمعدل تحديث 120 إطاراً في الثانية، مع استهلاك مثالي لذاكرة الوصول العشوائي ومعالجة الحسابات المتجهة في الوقت الفعلي.
+          </p>
+          <div class="card-live-widget">
+            <div class="widget-row">
+              <span data-i18n="render_latency">زمن المعالجة (Latency):</span>
+              <span class="badge-highlight green" id="metric-latency">0.42 ms</span>
+            </div>
+            <div class="widget-progress-track">
+              <div class="widget-progress-fill" style="width: 94%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Autonomous Agents & Intelligence -->
+        <div class="tilt-card" data-tilt>
+          <div class="card-glass-shine"></div>
+          <div class="card-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </div>
+          <div class="card-code-tag">NEURAL_AGENT_02</div>
+          <h3 class="card-title" data-i18n="card2_title">وكلاء الذكاء الاصطناعي متعددو الوسائط</h3>
+          <p class="card-desc" data-i18n="card2_desc">
+            تصميم وتنفيذ أنظمة ذكاء اصطناعي تفاعلية متعددة الوكلاء (Autonomous Multi-Agent Networks) مع ذاكرة سياقية وتفكير منطقي عميق واستخراج مهيكل.
+          </p>
+          <div class="card-live-widget">
+            <div class="synapse-stream">
+              <span class="synapse-node active">Prompt</span>
+              <span class="synapse-arrow">➔</span>
+              <span class="synapse-node active">Reasoning</span>
+              <span class="synapse-arrow">➔</span>
+              <span class="synapse-node active">Output</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Modern Luxury UI/UX Design System -->
+        <div class="tilt-card" data-tilt>
+          <div class="card-glass-shine"></div>
+          <div class="card-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <div class="card-code-tag">LUXURY_CRAFT_03</div>
+          <h3 class="card-title" data-i18n="card3_title">أنظمة التصميم الفاخرة والزجاج السائل</h3>
+          <p class="card-desc" data-i18n="card3_desc">
+            تجارب بصرية سينمائية تستلهم معايير Apple وLinear وStripe، متوافقة كلياً مع الاتجاهين العربي (RTL) والإنجليزي (LTR) وظلال متعددة الطبقات.
+          </p>
+          <div class="card-live-widget">
+            <div class="micro-buttons-row">
+              <button class="micro-magnetic-btn" data-i18n="btn_sample1">نبضة لمسية</button>
+              <button class="micro-magnetic-btn pulse" data-i18n="btn_sample2">طيف متدرج</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Web Audio & Spatial Synthesizer -->
+        <div class="tilt-card" data-tilt>
+          <div class="card-glass-shine"></div>
+          <div class="card-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="card-code-tag">ACOUSTIC_SYNTH_04</div>
+          <h3 class="card-title" data-i18n="card4_title">التخليق الصوتي التفاعلي بالمتصفح</h3>
+          <p class="card-desc" data-i18n="card4_desc">
+            توليد النغمات والموجات الصوتية الحسابية عبر Web Audio API مع ترددات البنتاتونيك الموسيقية المتناسقة وفلاتر صدى متقدمة بدون ملفات صوت خارجية.
+          </p>
+          <div class="card-live-widget">
+            <div class="sound-wave-visualizer" id="wave-bars">
+              <span class="bar" style="--h: 40%"></span>
+              <span class="bar" style="--h: 80%"></span>
+              <span class="bar" style="--h: 60%"></span>
+              <span class="bar" style="--h: 100%"></span>
+              <span class="bar" style="--h: 75%"></span>
+              <span class="bar" style="--h: 50%"></span>
+              <span class="bar" style="--h: 90%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Musical Pad & Harmonic Canvas -->
+    <section class="soundpad-section">
+      <div class="glass-panel sound-panel">
+        <div class="sound-panel-header">
+          <div>
+            <span class="terminal-tag">HARMONIC_MATRIX // 03</span>
+            <h2 data-i18n="synth_title">لوحة الترددات البنتاتونيكية التفاعلية</h2>
+            <p data-i18n="synth_sub">مرر الماوس أو المس المقاطع التالية لتوليد نغمات موسيقية كريستالية تتناغم مع حركة الجسيمات</p>
+          </div>
+        </div>
+
+        <div class="pentatonic-chimes-grid">
+          <button class="chime-pad" data-freq="261.63" data-note="C4">
+            <span class="note-name">دو (C4)</span>
+            <span class="note-freq">261.6 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+          <button class="chime-pad" data-freq="293.66" data-note="D4">
+            <span class="note-name">ري (D4)</span>
+            <span class="note-freq">293.7 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+          <button class="chime-pad" data-freq="329.63" data-note="E4">
+            <span class="note-name">مي (E4)</span>
+            <span class="note-freq">329.6 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+          <button class="chime-pad" data-freq="392.00" data-note="G4">
+            <span class="note-name">صول (G4)</span>
+            <span class="note-freq">392.0 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+          <button class="chime-pad" data-freq="440.00" data-note="A4">
+            <span class="note-name">لا (A4)</span>
+            <span class="note-freq">440.0 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+          <button class="chime-pad" data-freq="523.25" data-note="C5">
+            <span class="note-name">دو مرتفع (C5)</span>
+            <span class="note-freq">523.3 Hz</span>
+            <span class="pad-glow"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Terminal & Verification Console -->
+    <section class="console-section">
+      <div class="terminal-window">
+        <div class="terminal-header">
+          <div class="terminal-buttons">
+            <span class="t-btn t-close"></span>
+            <span class="t-btn t-min"></span>
+            <span class="t-btn t-max"></span>
+          </div>
+          <div class="terminal-title">aura_creative_runtime.sh — 120 FPS</div>
+          <div class="terminal-action">LIVE</div>
+        </div>
+        <div class="terminal-body" id="console-logs">
+          <div class="log-line text-emerald">> SYSTEM_INIT: AURA Creative Kernel Loaded successfully.</div>
+          <div class="log-line">> GRAPHICS_ACCELERATOR: WebGL / High-DPI Canvas 2D Buffering active [DevicePixelRatio: 2].</div>
+          <div class="log-line">> AUDIO_SYNTH: Web Audio AudioContext initialized with Pentatonic Scale Engine.</div>
+          <div class="log-line">> PHYSICS_ENGINE: Spring attraction & Verlet Integration running at 60-120hz.</div>
+          <div class="log-line text-gold">> READY: Interact with mouse, touch, or sliders to distort spacetime.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Luxury Footer -->
+  <footer class="luxury-footer">
+    <div class="footer-content">
+      <div class="footer-left">
+        <span class="footer-logo">AURA ENGINE</span>
+        <span class="footer-copy">© 2026 Crafted with Passion & Precision. High-Performance Creative Showcase.</span>
+      </div>
+      <div class="footer-right">
+        <button id="scroll-top-btn" class="back-to-top">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+          <span data-i18n="back_top">العودة للأعلى</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

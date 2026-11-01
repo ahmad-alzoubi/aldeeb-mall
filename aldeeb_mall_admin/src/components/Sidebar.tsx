@@ -34,8 +34,16 @@ import {
   Beef,
   TowerControl,
   Crown,
-  Megaphone
+  Megaphone,
+  Monitor,
+  Receipt,
+  Users,
+  Calculator,
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
+import { StaffRole } from '../types';
+import { checkRoleAccess } from '../lib/staffData';
 
 interface SidebarProps {
   activeTab: string;
@@ -45,6 +53,8 @@ interface SidebarProps {
   pendingOrdersCount: number;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  currentRole?: StaffRole;
+  currentBranchName?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,9 +65,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingOrdersCount,
   isOpenMobile = false,
   onCloseMobile,
+  currentRole = 'super_admin',
+  currentBranchName = 'هايبرماركت الرياض الرئيسي',
 }) => {
-  const menuItems = [
+  const allMenuItems = [
     { id: 'dashboard', label: 'لوحة التحكم والعمليات', icon: LayoutDashboard },
+    { 
+      id: 'staff_management', 
+      label: 'إدارة الموظفين والصلاحيات', 
+      icon: Users, 
+      badge: 'RBAC' 
+    },
+    { 
+      id: 'accounting_payroll', 
+      label: 'المحاسبة والرواتب والخصومات', 
+      icon: Calculator, 
+      badge: 'WPS' 
+    },
     { id: 'analytics', label: 'ذكاء الأعمال والتحليلات', icon: BarChart3, badge: 'BI' },
     { id: 'forecasting', label: 'التنبؤ بالطلب بالـ AI', icon: BrainCircuit, badge: 'AI' },
     { 
@@ -77,6 +101,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'المستودعات الذكية والفرز', 
       icon: Boxes,
       badge: '15-Min'
+    },
+    { 
+      id: 'branches', 
+      label: 'إدارة الفروع المتعددة', 
+      icon: Building2,
+      badge: 'Multi'
+    },
+    { 
+      id: 'pos_terminal', 
+      label: 'بوابة الكاشير المستقلة (POS)', 
+      icon: Monitor, 
+      badge: 'Live' 
+    },
+    { 
+      id: 'invoice_designer', 
+      label: 'تصميم الفواتير والباركود', 
+      icon: Receipt, 
+      badge: 'QR' 
     },
     { 
       id: 'inventory_transfer', 
@@ -107,17 +149,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Navigation, 
       badge: 'PIN' 
     },
-    { 
-      id: 'drone_fleet', 
-      label: 'أسطول الدرونز والشحن الجوي', 
-      icon: Plane, 
-      badge: '10-Min' 
-    },
     { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
     { id: 'meal_kits', label: 'بوكسات الوجبات وتجهيز الطبخ', icon: UtensilsCrossed, badge: 'Kits' },
     { id: 'butcher', label: 'المسلخ والملحمة الذكية', icon: Beef, badge: 'MEWA' },
     { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
-    { id: 'banners', label: 'المنارات والبانرات الإعلانية', icon: Megaphone, badge: 'Hero' },
+    { id: 'banners', label: 'البنرات والعروض التفاعلية', icon: Megaphone, badge: 'Hero' },
     { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
     { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },
     { id: 'corporate_b2b', label: 'توريد الشركات ومبيعات B2B', icon: Briefcase, badge: 'Corp' },
@@ -134,8 +170,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'returns', label: 'المرتجعات والنزاعات', icon: RotateCcw },
     { id: 'subscriptions', label: 'باقات الاشتراكات ونادي VIP', icon: Crown, badge: 'MRR' },
     { id: 'loyalty', label: 'العملاء ومكافآت النقاط', icon: Award },
-    { id: 'settings', label: 'إعدادات المول والتوصيل', icon: Settings },
+    { id: 'settings', label: 'إعدادات المول والثيم والمظهر', icon: Settings },
   ];
+
+  // Filter menu items by current role permissions
+  const menuItems = allMenuItems.filter(item => {
+    // Staff management is accessible to super_admin and general_manager
+    if (item.id === 'staff_management') {
+      return currentRole === 'super_admin' || currentRole === 'general_manager';
+    }
+    // Accounting & Payroll is accessible to super_admin, general_manager, accountant, and auditor (audit view)
+    if (item.id === 'accounting_payroll') {
+      return ['super_admin', 'general_manager', 'accountant', 'auditor'].includes(currentRole);
+    }
+    return checkRoleAccess(currentRole, item.id);
+  });
 
   return (
     <>
@@ -187,15 +236,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        {/* Locked Assigned Branch Notice */}
+        <div className="mx-4 mb-2 p-3 bg-gradient-to-r from-amber-950/40 to-slate-800/80 rounded-2xl border border-amber-600/30">
+          <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px] mb-1">
+            <Lock className="w-3.5 h-3.5" />
+            <span>الفرع المخصص (مقيد إدارياً 🔒)</span>
+          </div>
+          <p className="text-slate-200 text-xs font-extrabold truncate">{currentBranchName}</p>
+        </div>
+
         {/* Nav Items */}
-        <nav className="px-3 space-y-1 mt-2">
+        <nav className="px-3 space-y-1 mt-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (onCloseMobile) onCloseMobile();
+                }}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all duration-200 ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
@@ -215,6 +276,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           ? 'bg-white text-blue-700' 
                           : item.badge === 'Noon' || item.badge === '15-Min'
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          : item.badge === 'WPS' || item.badge === 'RBAC'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                           : 'bg-red-500 text-white'
                       }`}
                     >
@@ -232,7 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer Info */}
       <div className="p-4 border-t border-slate-800 text-[11px] text-slate-500">
         <p className="font-bold text-slate-400">نظام إدارة الهايبرماركت v2.5</p>
-        <p>متصل بقاعدة Supabase Cloud</p>
+        <p>متصل بقاعدة Supabase Cloud ⚡</p>
       </div>
     </aside>
     </>

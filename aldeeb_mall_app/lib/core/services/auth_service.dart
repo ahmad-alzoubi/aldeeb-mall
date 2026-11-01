@@ -12,7 +12,8 @@ class AuthService extends ChangeNotifier {
   bool _isLoading = false;
 
   UserProfileModel? get currentUser => _currentUser;
-  bool get isAuthenticated => _currentUser != null;
+  bool get isAuthenticated => _currentUser != null && _currentUser!.id != 'guest_user';
+  bool get isGuest => _currentUser == null || _currentUser!.id == 'guest_user';
   bool get isLoading => _isLoading;
 
   void initialize() {
@@ -72,6 +73,18 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  // 1.5 Guest Login
+  Future<void> signInAsGuest() async {
+    _currentUser = const UserProfileModel(
+      id: 'guest_user',
+      fullName: 'عميل الديب مول (زائر)',
+      email: 'guest@aldeebmall.com',
+      loyaltyPoints: 50,
+      tier: 'Silver',
+    );
+    notifyListeners();
   }
 
   // 2. Email & Password Login

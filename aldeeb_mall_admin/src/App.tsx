@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
@@ -29,12 +29,23 @@ import { MealKitsPage } from './pages/MealKitsPage';
 import { PriceMatchPage } from './pages/PriceMatchPage';
 import { PharmacyPage } from './pages/PharmacyPage';
 import { SmartLockersPage } from './pages/SmartLockersPage';
-import { DroneFleetPage } from './pages/DroneFleetPage';
 import { CorporateB2BPage } from './pages/CorporateB2BPage';
 import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
 import { BannersPage } from './pages/BannersPage';
 import { EnterpriseOperationsTowerPage } from './pages/EnterpriseOperationsTowerPage';
+import { BranchesPage } from './pages/BranchesPage';
+import { PosTerminalPage } from './pages/PosTerminalPage';
+import { InvoiceDesignerPage } from './pages/InvoiceDesignerPage';
+import { ElectronicInvoicePage } from './pages/ElectronicInvoicePage';
+import { StaffManagementPage } from './pages/StaffManagementPage';
+import { AccountingPayrollPage } from './pages/AccountingPayrollPage';
+import { 
+  INITIAL_STAFF, 
+  INITIAL_PAYROLL_TRANSACTIONS, 
+  INITIAL_PASSWORD_REQUESTS 
+} from './lib/staffData';
+import { INITIAL_BRANCHES } from './lib/branchesData';
 import { 
   initialOrders, 
   initialProducts, 
@@ -77,11 +88,43 @@ import {
   RewardCoupon,
   RewardProduct,
   SubscriptionActivityLog,
-  Banner
+  Banner,
+  StaffMember,
+  PayrollTransaction,
+  PasswordChangeRequest,
+  Branch
 } from './types';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash.startsWith('#invoice') || window.location.search.includes('invoice=')) {
+        return 'electronic_invoice';
+      }
+      if (window.location.hash === '#pos' || window.location.search.includes('mode=pos')) {
+        return 'pos_terminal';
+      }
+      if (window.location.hash === '#invoice_designer') {
+        return 'invoice_designer';
+      }
+    }
+    return 'dashboard';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash.startsWith('#invoice')) {
+        setActiveTab('electronic_invoice');
+      } else if (window.location.hash === '#pos') {
+        setActiveTab('pos_terminal');
+      } else if (window.location.hash === '#invoice_designer') {
+        setActiveTab('invoice_designer');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+  const [posBranchId, setPosBranchId] = useState<string | undefined>(undefined);
   const [isStoreOpen, setIsStoreOpen] = useState<boolean>(true);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -109,6 +152,42 @@ export const App: React.FC = () => {
   const [rewardProducts, setRewardProducts] = useState<RewardProduct[]>(initialRewardProducts);
   const [subscriptionActivities, setSubscriptionActivities] = useState<SubscriptionActivityLog[]>(initialSubscriptionActivity);
   const [banners, setBanners] = useState<Banner[]>(initialBanners);
+
+  // Multi-branch dataset
+  const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
+
+  // Staff, Roles, Permissions & Shift System
+  const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+  const [currentUser, setCurrentUser] = useState<StaffMember>(INITIAL_STAFF[0]);
+  const [payrollTransactions, setPayrollTransactions] = useState<PayrollTransaction[]>(INITIAL_PAYROLL_TRANSACTIONS);
+  const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(INITIAL_PASSWORD_REQUESTS);
+
+  const handleSwitchUser = (selectedStaff: StaffMember) => {
+    setCurrentUser(selectedStaff);
+    if (selectedStaff.role === 'cashier') {
+      setActiveTab('pos_terminal');
+    }
+  };
+
+  const handleRequestPasswordChange = (reason: string) => {
+    const newReq: PasswordChangeRequest = {
+      id: `pwr-${Date.now()}`,
+      employee_id: currentUser.id,
+      employee_name: currentUser.full_name,
+      role: currentUser.role,
+      branch_name: currentUser.branch_name,
+      requested_at: new Date().toISOString(),
+      reason,
+      status: 'pending',
+    };
+    setPasswordRequests(prev => [newReq, ...prev]);
+    setStaffList(prev => prev.map(s => s.id === currentUser.id ? { ...s, has_pending_password_request: true } : s));
+  };
+
+  const handleDirectChangePassword = (newPw: string) => {
+    setStaffList(prev => prev.map(s => s.id === currentUser.id ? { ...s, password: newPw, can_change_password: false } : s));
+    setCurrentUser(prev => ({ ...prev, password: newPw, can_change_password: false }));
+  };
 
   // Play pleasant synthetic order chime via Web Audio API
   const playOrderChime = () => {
@@ -154,6 +233,12 @@ export const App: React.FC = () => {
   // Product Actions
   const handleAddProduct = (newProduct: Product) => {
     setProducts((prev) => [newProduct, ...prev]);
+  };
+
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+    );
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -326,6 +411,16 @@ export const App: React.FC = () => {
 
   const getPageTitle = () => {
     switch (activeTab) {
+      case 'branches':
+        return { 
+          title: 'إدارة الفروع المتعددة ومراكز التوزيع (Multi-Branch)', 
+          subtitle: 'إدارة الفروع، مراكز التلبية، ونقاط البيع عبر كافة المدن' 
+        };
+      case 'pos_terminal':
+        return { 
+          title: 'بوابة الكاشير ونقاط البيع المستقلة (Enterprise POS)', 
+          subtitle: 'نظام الكاشير الميداني، مسح الباركود السريع، والطباعة الحرارية' 
+        };
       case 'dashboard':
         return { title: 'لوحة التحكم والعمليات', subtitle: 'نظرة شاملة ومؤشرات أداء مبيعات الديب مول' };
       case 'analytics':
@@ -354,7 +449,10 @@ export const App: React.FC = () => {
       case 'zones':
         return { title: 'النطاقات الجغرافية ورسوم الذروة (Geofencing & Surge)', subtitle: 'أقطار خدمة الـ 15 دقيقة والتسعير الديناميكي' };
       case 'banners':
-        return { title: 'إدارة المنارات والبانرات الإعلانية المتنقلة', subtitle: 'التحكم في سلايدر العروض الترويجية بأعلى الصفحة والإعلانات الفاصلة بين الأقسام' };
+        return { 
+          title: 'إدارة البنرات والعروض التفاعلية (Hero & Promos)', 
+          subtitle: 'التحكم الكامل بالسلايدر الرئيسي، البطاقات الجانبية، وإجراءات النقر المباشر (أقسام، صفحات، منتجات، وكوبونات)' 
+        };
       case 'categories':
         return { title: 'أقسام وتصنيفات الهايبرماركت', subtitle: 'ترتيب وإضافة الأقسام المعروضة للعملاء' };
       case 'coupons':
@@ -365,12 +463,50 @@ export const App: React.FC = () => {
         return { title: 'نادي العملاء ونقاط الولاء', subtitle: 'سجل العملاء، النقاط التراكمية، ومكافآت التقدير' };
       case 'settings':
         return { title: 'إعدادات المول وسياسات التوصيل', subtitle: 'العملة، رسوم التوصيل المجاني، ومعلومات الاتصال' };
+      case 'staff_management':
+        return { 
+          title: 'إدارة حسابات الموظفين، الصلاحيات وتحديد كلمات المرور', 
+          subtitle: 'فتح حسابات الموظفين، تحديد كلمات السر وقفل تعديلها إلا بإذن، وتقييد كل موظف بفرعه الإلزامي' 
+        };
+      case 'accounting_payroll':
+        return { 
+          title: 'مشروع المحاسبة: إدارة الرواتب، السحبيات والخصومات', 
+          subtitle: 'كشف مسير رواتب الموظفين، قيد السحبيات والسلف، تسجيل الخصومات والجزاءات، وصلاحيات المحاسب والمدقق' 
+        };
+      case 'invoice_designer':
+        return { 
+          title: 'مصمم ومحرر قوالب الفواتير والباركود الإلكتروني', 
+          subtitle: 'تخصيص فاتورة الكاشير والطباعة الحرارية، إظهار/إخفاء الحقول، وإعداد الباركود المعتمد' 
+        };
       default:
         return { title: 'الديب مول', subtitle: '' };
     }
   };
 
   const pageInfo = getPageTitle();
+
+  if (activeTab === 'electronic_invoice') {
+    return (
+      <ElectronicInvoicePage
+        onBackToApp={() => {
+          window.location.hash = '';
+          setActiveTab('pos_terminal');
+        }}
+      />
+    );
+  }
+
+  if (activeTab === 'pos_terminal') {
+    return (
+      <PosTerminalPage
+        targetBranchId={currentUser.role === 'super_admin' ? posBranchId : currentUser.branch_id}
+        onExitPos={() => setActiveTab('branches')}
+        onNavigateToInvoiceDesigner={() => setActiveTab('invoice_designer')}
+        isBranchLocked={currentUser.role !== 'super_admin'}
+        currentCashierName={currentUser.full_name}
+      />
+    );
+  }
 
   return (
     <div className="flex bg-slate-50 min-h-screen text-slate-800">
@@ -386,6 +522,8 @@ export const App: React.FC = () => {
         pendingOrdersCount={pendingCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        currentRole={currentUser.role}
+        currentBranchName={currentUser.branch_name}
       />
 
       {/* Main Content Area */}
@@ -397,9 +535,44 @@ export const App: React.FC = () => {
           setSoundEnabled={setSoundEnabled}
           onRefresh={() => playOrderChime()}
           onToggleMobileMenu={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          currentUser={currentUser}
+          staffList={staffList}
+          onSwitchUser={handleSwitchUser}
+          onRequestPasswordChange={handleRequestPasswordChange}
+          onDirectChangePassword={handleDirectChangePassword}
         />
 
         <main className="p-8 flex-1 overflow-y-auto">
+          {activeTab === 'staff_management' && (
+            <StaffManagementPage
+              staffList={staffList}
+              setStaffList={setStaffList}
+              branches={branches}
+              passwordRequests={passwordRequests}
+              setPasswordRequests={setPasswordRequests}
+              currentAdminRole={currentUser.role}
+            />
+          )}
+
+          {activeTab === 'accounting_payroll' && (
+            <AccountingPayrollPage
+              staffList={staffList}
+              payrollTransactions={payrollTransactions}
+              setPayrollTransactions={setPayrollTransactions}
+              branches={branches}
+              currentRole={currentUser.role}
+              currentStaffName={currentUser.full_name}
+            />
+          )}
+          {activeTab === 'branches' && (
+            <BranchesPage
+              onOpenPosForBranch={(branchId) => {
+                setPosBranchId(branchId);
+                setActiveTab('pos_terminal');
+              }}
+            />
+          )}
+
           {activeTab === 'dashboard' && (
             <DashboardPage
               orders={orders}
@@ -469,10 +642,6 @@ export const App: React.FC = () => {
 
           {activeTab === 'courier_portal' && (
             <CourierPortalPage />
-          )}
-
-          {activeTab === 'drone_fleet' && (
-            <DroneFleetPage />
           )}
 
           {activeTab === 'merchandising' && (
@@ -548,6 +717,8 @@ export const App: React.FC = () => {
             <BannersPage
               banners={banners}
               categories={categories}
+              products={products}
+              coupons={coupons}
               onAddBanner={handleAddBanner}
               onUpdateBanner={handleUpdateBanner}
               onDeleteBanner={handleDeleteBanner}
@@ -613,6 +784,14 @@ export const App: React.FC = () => {
           )}
 
           {activeTab === 'settings' && <SettingsPage />}
+
+          {activeTab === 'invoice_designer' && (
+            <InvoiceDesignerPage
+              onOpenElectronicInvoice={() => {
+                setActiveTab('electronic_invoice');
+              }}
+            />
+          )}
         </main>
       </div>
     </div>

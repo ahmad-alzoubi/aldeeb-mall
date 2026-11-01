@@ -81,6 +81,26 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 1.1 Add Complete Bundle with Promised Discount
+  void addBundleToCart(ProductModel mainProduct, List<ProductModel> complementary, int discountPercent) {
+    final multiplier = (1.0 - (discountPercent / 100.0));
+    final discountedMain = mainProduct.copyWith(
+      price: double.parse((mainProduct.price * multiplier).toStringAsFixed(2)),
+      originalPrice: mainProduct.price,
+      discountPercent: discountPercent,
+    );
+    addToCart(discountedMain);
+
+    for (final p in complementary) {
+      final discountedComp = p.copyWith(
+        price: double.parse((p.price * multiplier).toStringAsFixed(2)),
+        originalPrice: p.price,
+        discountPercent: discountPercent,
+      );
+      addToCart(discountedComp);
+    }
+  }
+
   // 2. Decrement or Remove
   void decrementQuantity(ProductModel product) {
     if (!_items.containsKey(product.id)) return;

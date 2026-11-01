@@ -587,6 +587,10 @@ class SupabaseService {
       isDailyDeal: true,
       rating: 4.9,
       salesCount: 1280,
+      bundleEnabled: true,
+      bundleDiscountPercent: 20,
+      bundleTitle: 'اشترِ معاً ووفر 20% (باقة الفواكه الطازجة)',
+      bundleProductIds: ['p2', 'p4'],
     ),
     const ProductModel(
       id: 'p2',

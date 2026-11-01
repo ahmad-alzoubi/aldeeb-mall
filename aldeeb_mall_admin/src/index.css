@@ -7,3 +7,33 @@
     font-family: 'Cairo', system-ui, -apple-system, sans-serif;
   }
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation, overlays, modals backgrounds */
+  nav, aside, header, .print\:hidden, button {
+    display: none !important;
+  }
+
+  /* Thermal print container isolation */
+  #aldeeb-thermal-receipt {
+    width: 100% !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 2mm !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    margin: 2mm;
+    size: auto;
+  }
+}
+

@@ -8,6 +8,7 @@ import '../../core/models/product_model.dart';
 import '../../core/utils/banner_navigator.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
+import '../../core/providers/store_settings_provider.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
@@ -31,11 +32,11 @@ import '../price_match/price_match_modal.dart';
 import '../pharmacy/pharmacy_screen.dart';
 import '../kitchen_wand/kitchen_wand_screen.dart';
 import '../lockers/smart_locker_pickup_screen.dart';
-import '../drone_delivery/drone_tracking_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../butcher/butcher_customizer_screen.dart';
 import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
+import '../notifications/notifications_sheet.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -163,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final mall = Provider.of<MallProvider>(context);
     final cart = Provider.of<CartProvider>(context);
     final auth = Provider.of<AuthService>(context);
+    final settings = Provider.of<StoreSettingsProvider>(context);
     final isDesktop = Responsive.isDesktop(context);
 
     return Scaffold(
@@ -178,6 +180,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else
                 _buildMobileSliverAppBar(context, auth, mall),
+
+              // 1.2 Global Dynamic Store Announcement Strip
+              if (settings.announcementBarText.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    color: settings.accentColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.campaign_rounded, size: 18, color: Colors.black87),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            settings.announcementBarText,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // 1.5. Quick Commerce Mode Switcher (15-Min Noon Minutes vs Hypermarket)
               SliverToBoxAdapter(
@@ -553,14 +584,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 22),
-                          tooltip: 'التوصيل الجوي بدرونز الديب 10 دقائق (Drone Delivery)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
-                            );
-                          },
+                          icon: const Badge(
+                            label: Text('3', style: TextStyle(fontSize: 10, color: Colors.white)),
+                            backgroundColor: AppColors.error,
+                            child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                          ),
+                          tooltip: 'الإشعارات والعروض الحصرية',
+                          onPressed: () => NotificationsSheet.show(context),
                         ),
                         IconButton(
                           icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 22),
@@ -966,14 +996,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.cyanAccent, size: 20),
-                  tooltip: 'توصيل بالدرونز 10 دقائق',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DroneTrackingScreen()),
-                    );
-                  },
+                  icon: const Badge(
+                    label: Text('3', style: TextStyle(fontSize: 10, color: Colors.white)),
+                    backgroundColor: AppColors.error,
+                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+                  ),
+                  tooltip: 'الإشعارات والتنبيهات',
+                  onPressed: () => NotificationsSheet.show(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 20),
@@ -1897,12 +1926,12 @@ class _HomeScreenState extends State<HomeScreen> {
         'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmacyScreen())),
       },
       {
-        'title': 'درونز الديب',
-        'subtitle': 'توصيل 10 دقائق',
-        'icon': Icons.flight_takeoff_rounded,
-        'gradient': const [Color(0xFF0284C7), Color(0xFF0369A1)],
-        'badge': 'جوي فوري ⚡',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DroneTrackingScreen())),
+        'title': 'فاحص الأسعار',
+        'subtitle': 'مسح وكاميرا بالـ AI',
+        'icon': Icons.qr_code_scanner_rounded,
+        'gradient': const [Color(0xFF0F172A), Color(0xFF1E293B)],
+        'badge': 'مسح فوري 📷',
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen())),
       },
       {
         'title': 'أخصائي AI',

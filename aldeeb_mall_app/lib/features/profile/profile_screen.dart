@@ -7,6 +7,7 @@ import '../../core/providers/order_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../auth/login_screen.dart';
 import '../orders/order_tracking_screen.dart';
+import '../notifications/notifications_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -198,7 +199,8 @@ class ProfileScreen extends StatelessWidget {
                     Icons.notifications_active_outlined,
                     'إشعارات العروض وتحديثات الطلبات',
                     subtitle: 'مفعلة للحصول على كوبونات وتنبيهات الخصم',
-                    onTap: () {},
+                    iconColor: AppColors.primary,
+                    onTap: () => NotificationsSheet.show(context),
                   ),
                   const Divider(height: 1),
                   _menuItem(

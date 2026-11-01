@@ -16,6 +16,10 @@ export interface Product {
   is_daily_deal: boolean;
   rating: number;
   sales_count: number;
+  bundle_enabled?: boolean;
+  bundle_discount_percent?: number;
+  bundle_title?: string;
+  bundle_product_ids?: string[];
 }
 
 export interface Category {
@@ -329,12 +333,14 @@ export interface Banner {
   subtitle_ar?: string;
   subtitle_en?: string;
   image_url: string;
-  target_type: 'category' | 'product' | 'deal' | 'external';
+  slot: 'hero' | 'side_top' | 'side_bottom' | 'promo' | 'middle_secondary';
+  position?: 'hero' | 'middle_secondary' | 'side_top' | 'side_bottom' | 'promo';
+  target_type: 'category' | 'screen' | 'product' | 'deal' | 'coupon' | 'external';
   target_id?: string;
   badge_ar?: string;
+  badge_color?: string;
   sort_order: number;
   is_active: boolean;
-  position: 'hero' | 'middle_secondary';
 }
 
 export interface HomeShelf {
@@ -347,6 +353,169 @@ export interface HomeShelf {
   order: number;
   customTitleAr?: string;
 }
+
+// ==========================================
+// Multi-Branch Management Interfaces
+// ==========================================
+export interface Branch {
+  id: string;
+  code: string;
+  name_ar: string;
+  name_en: string;
+  city: string;
+  district: string;
+  address: string;
+  phone: string;
+  manager_name: string;
+  is_active: boolean;
+  terminals_count: number;
+  daily_sales: number;
+  currency: string;
+  type: 'hypermarket' | 'supermarket' | 'express' | 'dark_store';
+  created_at: string;
+}
+
+// ==========================================
+// Enterprise POS Interfaces
+// ==========================================
+export interface PosCartItem {
+  product_id: string;
+  barcode?: string;
+  name_ar: string;
+  name_en?: string;
+  price: number;
+  quantity: number;
+  unit: string;
+  discount_amount: number;
+  total: number;
+  tax_amount: number;
+  image_url?: string;
+}
+
+export interface ParkedCart {
+  id: string;
+  cart_number: number;
+  customer_name?: string;
+  customer_phone?: string;
+  items: PosCartItem[];
+  parked_at: string;
+  total: number;
+}
+
+export interface PosShift {
+  id: string;
+  branch_id: string;
+  branch_name: string;
+  terminal_code: string;
+  cashier_name: string;
+  opened_at: string;
+  closed_at?: string;
+  opening_balance: number;
+  cash_sales: number;
+  card_sales: number;
+  total_sales: number;
+  transactions_count: number;
+  status: 'open' | 'closed';
+}
+
+export interface PosTransaction {
+  id: string;
+  receipt_number: string;
+  branch_id: string;
+  branch_name: string;
+  terminal_code: string;
+  cashier_name: string;
+  customer_name?: string;
+  customer_phone?: string;
+  created_at: string;
+  items: PosCartItem[];
+  subtotal: number;
+  tax_amount: number;
+  discount_amount: number;
+  grand_total: number;
+  payment_method: 'cash' | 'card' | 'split' | 'loyalty';
+  cash_received?: number;
+  change_given?: number;
+  card_amount?: number;
+  zatca_qr_payload?: string;
+}
+
+export type { InvoiceSettings } from '../lib/invoiceSettings';
+
+// ==========================================
+// Staff, Roles, Permissions & Shift System
+// ==========================================
+
+export type StaffRole = 
+  | 'super_admin'      // مسؤول نظام
+  | 'general_manager'  // مدير عام
+  | 'auditor'          // مدقق
+  | 'accountant'       // محاسب
+  | 'cashier'          // كاشير
+  | 'branch_manager';  // مدير فرع
+
+export interface StaffMember {
+  id: string;
+  employee_code: string;
+  full_name: string;
+  username: string;
+  email: string;
+  phone: string;
+  role: StaffRole;
+  branch_id: string;
+  branch_name: string;
+  password?: string;
+  can_change_password: boolean; // لا يمكن تغيير كلمة السر إلا بإذن من الإدارة
+  has_pending_password_request?: boolean;
+  password_request_reason?: string;
+  basic_salary: number; // الراتب الأساسي
+  allowances: number;   // البدلات
+  shift_start: string;  // وقت بدء الدوام HH:mm (e.g. "08:00")
+  shift_end: string;    // وقت انتهاء الدوام HH:mm (e.g. "16:00")
+  avatar_url?: string;
+  is_active: boolean;
+  joined_date: string;
+}
+
+export type PayrollTransactionType = 
+  | 'salary_payment'     // صرف راتب
+  | 'advance_withdrawal' // سحب سلفة / سحبيات
+  | 'deduction'          // خصم (تأخير / غياب / جزاءات)
+  | 'bonus';             // مكافأة
+
+export interface PayrollTransaction {
+  id: string;
+  transaction_number: string;
+  employee_id: string;
+  employee_name: string;
+  employee_role: StaffRole;
+  branch_id: string;
+  branch_name: string;
+  type: PayrollTransactionType;
+  amount: number;
+  reason: string;
+  created_by_name: string;
+  created_by_role: StaffRole;
+  date: string;
+  status: 'completed' | 'pending' | 'approved';
+  notes?: string;
+}
+
+export interface PasswordChangeRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  role: StaffRole;
+  branch_name: string;
+  requested_at: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string;
+  reviewed_at?: string;
+}
+
+
+
 
 
 

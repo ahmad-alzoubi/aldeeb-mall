@@ -1,7 +1,14 @@
 class SupabaseConstants {
-  // Replace these with your Supabase Project details from Project Settings -> API
-  static const String supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+  // Configurable via --dart-define=SUPABASE_URL=... and --dart-define=SUPABASE_ANON_KEY=...
+  // or default to our live Supabase project
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://ffqjtixxzgmvoxzzmxdy.supabase.co',
+  );
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmcWp0aXh4emdtdm94enpteGR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0NzIyNzUsImV4cCI6MjEwOTA0ODI3NX0.3yzwxb6sSLF779aNqmS2f3JVsMbdx9krx38Z8nBcavE',
+  );
 
   // Storage Buckets
   static const String productsBucket = 'products';

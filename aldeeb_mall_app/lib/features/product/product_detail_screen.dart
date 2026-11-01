@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
+import '../../core/providers/store_settings_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
 
@@ -32,6 +33,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
     final mall = Provider.of<MallProvider>(context);
+    final storeSettings = Provider.of<StoreSettingsProvider>(context);
     final isFav = mall.isFavorite(widget.product.id);
     final currentQty = cart.getProductQuantity(widget.product.id);
     final isDesktop = Responsive.isDesktop(context);
@@ -41,11 +43,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ? widget.product.images
         : [widget.product.firstImage];
 
-    // Find complementary bundle products from mall
-    final bundleComplementary = mall.filteredProducts
-        .where((p) => p.id != widget.product.id)
-        .take(2)
-        .toList();
+    // Find complementary bundle products from mall if enabled
+    final isBundleAllowed = storeSettings.enableProductBundles && widget.product.bundleEnabled;
+    final List<ProductModel> bundleComplementary;
+    if (isBundleAllowed) {
+      if (widget.product.bundleProductIds.isNotEmpty) {
+        bundleComplementary = mall.products
+            .where((p) => widget.product.bundleProductIds.contains(p.id) && p.id != widget.product.id)
+            .toList();
+      } else {
+        final sameCategory = mall.products
+            .where((p) => p.categoryId == widget.product.categoryId && p.id != widget.product.id)
+            .take(2)
+            .toList();
+        bundleComplementary = sameCategory.isNotEmpty
+            ? sameCategory
+            : mall.products.where((p) => p.id != widget.product.id).take(2).toList();
+      }
+    } else {
+      bundleComplementary = const [];
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -398,103 +415,157 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 3. "Frequently Bought Together" Bundle (Noon Style)
+              // 3. "Frequently Bought Together" Bundle (Customizable from Admin)
               if (bundleComplementary.isNotEmpty) ...[
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppColors.cardShadow,
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Builder(
+                  builder: (context) {
+                    final int discount = widget.product.bundleDiscountPercent;
+                    final String title = (widget.product.bundleTitle != null && widget.product.bundleTitle!.trim().isNotEmpty)
+                        ? widget.product.bundleTitle!
+                        : 'اشترِ معاً ووفر $discount% (باقة الديب)';
+                    final double originalTotal = widget.product.price +
+                        bundleComplementary.fold<double>(0.0, (sum, p) => sum + p.price);
+                    final double discountedTotal = originalTotal * (1.0 - (discount / 100.0));
+                    final double savings = originalTotal - discountedTotal;
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppColors.cardShadow,
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(Icons.auto_awesome, color: AppColors.accent, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'اشترِ معاً ووفر 15% (باقة الديب)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.auto_awesome, color: AppColors.accent, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'وفر $discount%',
+                                  style: const TextStyle(
+                                    color: AppColors.secondary,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'وفر 15%',
-                              style: TextStyle(
-                                color: AppColors.secondary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _buildBundleThumb(widget.product.firstImage),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textMuted)),
                               ),
-                            ),
+                              _buildBundleThumb(bundleComplementary[0].firstImage),
+                              if (bundleComplementary.length > 1) ...[
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textMuted)),
+                                ),
+                                _buildBundleThumb(bundleComplementary[1].firstImage),
+                              ],
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _buildBundleThumb(widget.product.firstImage),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6),
-                            child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textMuted)),
-                          ),
-                          _buildBundleThumb(bundleComplementary[0].firstImage),
-                          if (bundleComplementary.length > 1) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6),
-                              child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textMuted)),
+                          const SizedBox(height: 12),
+                          // Price Breakdown & Savings
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            _buildBundleThumb(bundleComplementary[1].firstImage),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      ElevatedButton.icon(
-                        onPressed: _bundleAdded
-                            ? null
-                            : () {
-                                cart.addToCart(widget.product);
-                                for (final p in bundleComplementary) {
-                                  cart.addToCart(p);
-                                }
-                                setState(() => _bundleAdded = true);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('✓ تم إضافة المجموعة كاملة إلى سلتك بخصم خاص!'),
-                                    backgroundColor: AppColors.primary,
+                            child: Row(
+                              children: [
+                                Text(
+                                  '${discountedTotal.toStringAsFixed(2)} ل.س',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    color: AppColors.primary,
                                   ),
-                                );
-                              },
-                        icon: Icon(_bundleAdded ? Icons.check : Icons.add_shopping_cart, size: 18),
-                        label: Text(
-                          _bundleAdded ? 'تمت إضافة المجموعة' : 'أضف المجموعة كاملة للسلة',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryDark,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(42),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${originalTotal.toStringAsFixed(2)} ل.س',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  'وفرت ${savings.toStringAsFixed(2)} ل.س',
+                                  style: const TextStyle(
+                                    color: AppColors.secondary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            onPressed: _bundleAdded
+                                ? null
+                                : () {
+                                    cart.addBundleToCart(widget.product, bundleComplementary, discount);
+                                    setState(() => _bundleAdded = true);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('✓ تم إضافة الباقة كاملة بخصم $discount% إلى سلتك!'),
+                                        backgroundColor: AppColors.primary,
+                                      ),
+                                    );
+                                  },
+                            icon: Icon(_bundleAdded ? Icons.check : Icons.add_shopping_cart, size: 18),
+                            label: Text(
+                              _bundleAdded ? 'تمت إضافة الباقة للسلة' : 'أضف المجموعة كاملة للسلة ووفر $discount%',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryDark,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(42),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
               ],

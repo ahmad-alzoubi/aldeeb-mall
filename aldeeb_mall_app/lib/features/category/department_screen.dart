@@ -9,6 +9,7 @@ import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
+import '../cart/widgets/floating_cart_bar.dart';
 import '../butcher/butcher_customizer_screen.dart';
 import '../home/widgets/product_card.dart';
 
@@ -364,13 +365,13 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
 
           // 9. Floating Sticky Cart Bar (When Cart Has Items)
           if (cart.itemCount > 0)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: MaxWidthContainer(
-                maxWidth: 600,
-                child: _buildFloatingCartBar(context, cart, theme),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 8,
+              child: SafeArea(
+                top: false,
+                child: FloatingCartBar(),
               ),
             ),
         ],
@@ -912,71 +913,7 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
     );
   }
 
-  // ===========================================================================
-  // 8. Floating Sticky Cart Bar
-  // ===========================================================================
-  Widget _buildFloatingCartBar(BuildContext context, CartProvider cart, _DepartmentTheme theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.primaryColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${cart.itemCount} أصناف في السلة',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              Text(
-                'الإجمالي: ${cart.subtotal.toStringAsFixed(2)} ل.س',
-                style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 13),
-              ),
-            ],
-          ),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              );
-            },
-            icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textPrimary),
-            label: const Text(
-              'عرض السلة',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }
 
 class _DepartmentTheme {

@@ -1,0 +1,203 @@
+import http.server
+import socketserver
+import threading
+import sys
+import os
+import json
+
+STORE_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'store_settings.json')
+
+DEFAULT_SETTINGS = {
+    "primaryColor": "#0D47A1",
+    "primaryDarkColor": "#0A2E6B",
+    "secondaryColor": "#E53935",
+    "accentColor": "#FFB300",
+    "backgroundColor": "#F8FAFC",
+    "surfaceColor": "#FFFFFF",
+    "textPrimaryColor": "#0F172A",
+    "textSecondaryColor": "#64748B",
+    "storeNameAr": "الديب مول",
+    "storeNameEn": "Aldeeb Mall",
+    "taglineAr": "هايبرماركت العائلة الأول - جودة وتوفير بلا حدود",
+    "announcementText": "🚚 توصيل مجاني للطلبات فوق 100 ل.س | صفقات حصرية يومياً",
+    "expressDeliveryText": "توصيل إكسبريس فوري خلال 15 دقيقة ⚡",
+    "smartExperiencesTitle": "تجارب الديب الذكية",
+    "smartExperiencesSubtitle": "وفّر مع الجيران، ونظّم مقاضيك الشهرية بذكاء وسرعة",
+    "groupDealsTitle": "الشراء الجماعي الذكي",
+    "groupDealsSubtitle": "وفّر حتى 40% مع عروض الجيران التشاركية الحية",
+    "groceryListTitle": "القائمة الذكية ومخطط المقاضي",
+    "groceryListSubtitle": "تنظيم ومزامنة المقاضي العائلية بذكاء",
+    "currency": "ل.س",
+    "deliveryFee": 10.0,
+    "freeThreshold": 100.0,
+    "phone": "+971 50 123 4567",
+    "whatsapp": "+971 50 123 4567"
+}
+
+def get_current_settings():
+    if os.path.exists(STORE_SETTINGS_FILE):
+        try:
+            with open(STORE_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return DEFAULT_SETTINGS
+
+def save_current_settings(data):
+    try:
+        with open(STORE_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        sys.stderr.write(f"Error saving store_settings.json: {e}\n")
+
+    # Also mirror into app and admin assets if folders exist
+    sync_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aldeeb_mall_app', 'build', 'web', 'assets', 'store_settings.json'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aldeeb_mall_admin', 'dist', 'store_settings.json'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aldeeb_mall_app', 'assets', 'store_settings.json'),
+    ]
+    for sp in sync_paths:
+        try:
+            os.makedirs(os.path.dirname(sp), exist_ok=True)
+            with open(sp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+class RobustHandler(http.server.SimpleHTTPRequestHandler):
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        '.wasm': 'application/wasm',
+        '.js': 'application/javascript',
+        '.mjs': 'application/javascript',
+        '.json': 'application/json',
+        '.otf': 'font/otf',
+        '.ttf': 'font/ttf',
+        '.css': 'text/css',
+    }
+
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path.startswith('/api/store_settings'):
+            data = get_current_settings()
+            body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith('/api/store_settings'):
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                raw_body = self.rfile.read(length).decode('utf-8')
+                new_settings = json.loads(raw_body)
+                current = get_current_settings()
+                if isinstance(new_settings, dict):
+                    current.update(new_settings)
+                    save_current_settings(current)
+                
+                resp = json.dumps({'success': True, 'settings': current}, ensure_ascii=False).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(resp)))
+                self.end_headers()
+                self.wfile.write(resp)
+                return
+            except Exception as e:
+                err_resp = json.dumps({'success': False, 'error': str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(err_resp)))
+                self.end_headers()
+                self.wfile.write(err_resp)
+                return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def copyfile(self, source, outputfile):
+        try:
+            super().copyfile(source, outputfile)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def log_message(self, format, *args):
+        sys.stderr.write(f"[{self.server.server_port}] {args[0]} {args[1]}\n")
+
+class PosRedirectHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        host = self.headers.get('Host', '').split(':')[0] or '192.168.0.100'
+        target_url = f"http://{host}:3000/#pos"
+        html = f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>الديب مول | بوابة الكاشير المستقلة (POS)</title>
+    <meta http-equiv="refresh" content="0; url={target_url}">
+</head>
+<body style="background:#020617;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;">
+        <h2 style="font-size:24px;margin-bottom:8px;">🚀 جاري فتح محطة الكاشير ونقاط البيع (POS Terminal)...</h2>
+        <p style="color:#94a3b8;"><a href="{target_url}" style="color:#38bdf8;">انقر هنا إن لم يتم نقلك تلقائياً</a></p>
+    </div>
+    <script>window.location.href = "{target_url}";</script>
+</body>
+</html>"""
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.send_header('Content-length', str(len(html.encode('utf-8'))))
+        self.end_headers()
+        self.wfile.write(html.encode('utf-8'))
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def log_message(self, format, *args):
+        pass
+
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+def serve(port, directory):
+    handler = lambda *args, **kwargs: RobustHandler(*args, directory=directory, **kwargs)
+    server = ThreadingHTTPServer(('0.0.0.0', port), handler)
+    print(f"🚀 Serving {directory} at http://0.0.0.0:{port}", flush=True)
+    server.serve_forever()
+
+def serve_pos_redirect(port):
+    server = ThreadingHTTPServer(('0.0.0.0', port), PosRedirectHandler)
+    print(f"🖥️ Serving Standalone POS Terminal on http://0.0.0.0:{port}", flush=True)
+    server.serve_forever()
+
+if __name__ == '__main__':
+    admin_dir = "/Volumes/ssd/Projects/aldeeb_mall/aldeeb_mall_admin/dist"
+    app_dir = "/Volumes/ssd/Projects/aldeeb_mall/aldeeb_mall_app/build/web"
+
+    t1 = threading.Thread(target=serve, args=(3000, admin_dir), daemon=True)
+    t2 = threading.Thread(target=serve, args=(8080, app_dir), daemon=True)
+    t3 = threading.Thread(target=serve_pos_redirect, args=(3050,), daemon=True)
+
+    t1.start()
+    t2.start()
+    t3.start()
+
+    print("✅ All servers started successfully on port 3000 (Admin), 3050 (Standalone POS), and 8080 (User App).", flush=True)
+    t1.join()

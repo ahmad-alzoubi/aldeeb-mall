@@ -13,7 +13,7 @@ import '../../features/live_shopping/live_shopping_screen.dart';
 import '../../features/loyalty/loyalty_screen.dart';
 import '../../features/pharmacy/pharmacy_screen.dart';
 import '../../features/lockers/smart_locker_pickup_screen.dart';
-import '../../features/drone_delivery/drone_tracking_screen.dart';
+import '../../features/grocery_list/grocery_list_screen.dart';
 import '../../features/meal_kits/meal_kits_screen.dart';
 import '../../features/butcher/butcher_customizer_screen.dart';
 import '../../features/zero_waste/zero_waste_screen.dart';
@@ -163,10 +163,15 @@ class BannerNavigator {
         destination = const SmartLockerPickupScreen();
         break;
 
-      case 'drone':
-      case 'drone_delivery':
-      case 'drone_tracking':
-        destination = const DroneTrackingScreen();
+      case 'group_deals':
+      case 'group_buying':
+        destination = const GroupDealsScreen();
+        break;
+
+      case 'grocery_list':
+      case 'smart_list':
+      case 'shopping_list':
+        destination = const GroceryListScreen();
         break;
 
       case 'meal_kits':
@@ -187,11 +192,6 @@ class BannerNavigator {
       case 'recipes':
       case 'cooking':
         destination = const RecipesScreen();
-        break;
-
-      case 'group_deals':
-      case 'group_buying':
-        destination = const GroupDealsScreen();
         break;
 
       case 'subscriptions':
