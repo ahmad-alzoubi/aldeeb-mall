@@ -17,7 +17,6 @@ import '../scanner/barcode_scanner_screen.dart';
 import '../voice/voice_assistant_modal.dart';
 import '../wallet/wallet_screen.dart';
 import '../address/address_book_screen.dart';
-import '../butcher/butcher_customizer_screen.dart';
 import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
 import '../notifications/notifications_sheet.dart';
@@ -152,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDesktop = Responsive.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: settings.backgroundColor,
       body: Stack(
         children: [
           CustomScrollView(
@@ -160,10 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
               // 1. Navigation App Bar (Adaptive Desktop vs Mobile)
               if (isDesktop)
                 SliverToBoxAdapter(
-                  child: _buildDesktopTopNav(context, cart, auth, mall),
+                  child: _buildDesktopTopNav(context, cart, auth, mall, settings),
                 )
               else
-                _buildMobileSliverAppBar(context, auth, mall),
+                _buildMobileSliverAppBar(context, auth, mall, settings),
 
               // 1.2 Global Dynamic Store Announcement Strip
               if (settings.announcementBarText.isNotEmpty)
@@ -329,15 +328,16 @@ class _HomeScreenState extends State<HomeScreen> {
     CartProvider cart,
     AuthService auth,
     MallProvider mall,
+    StoreSettingsProvider settings,
   ) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: settings.primaryColor,
         boxShadow: [
           BoxShadow(
-            color: Color(0x1A0D47A1),
+            color: settings.primaryDarkColor.withValues(alpha: 0.15),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -365,15 +365,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.shopping_bag_rounded, color: AppColors.primary, size: 26),
+                        child: Icon(Icons.shopping_bag_rounded, color: settings.primaryColor, size: 26),
                       ),
                       const SizedBox(width: 12),
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'الديب مول',
-                            style: TextStyle(
+                            settings.storeNameAr,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
@@ -381,8 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Text(
-                            'Aldeeb Hypermarket',
-                            style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                            settings.storeNameEn,
+                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -473,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
+                          icon: Icon(Icons.mic_none_rounded, color: settings.primaryColor, size: 22),
                           tooltip: 'البحث الصوتي',
                           onPressed: () => VoiceAssistantModal.show(context),
                         ),
@@ -481,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: const EdgeInsets.all(4),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: settings.primaryColor,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Center(
@@ -509,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.accent,
+                      color: settings.accentColor,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
@@ -622,18 +622,23 @@ class _HomeScreenState extends State<HomeScreen> {
   // ===========================================================================
   // Mobile Sliver App Bar
   // ===========================================================================
-  Widget _buildMobileSliverAppBar(BuildContext context, AuthService auth, MallProvider mall) {
+  Widget _buildMobileSliverAppBar(
+    BuildContext context,
+    AuthService auth,
+    MallProvider mall,
+    StoreSettingsProvider settings,
+  ) {
     return SliverAppBar(
       floating: true,
       pinned: true,
       elevation: 0,
-      backgroundColor: AppColors.primary,
+      backgroundColor: settings.primaryColor,
       expandedHeight: 125,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
+              colors: [settings.primaryDarkColor, settings.primaryColor],
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
             ),
@@ -709,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
+                        color: settings.accentColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -2211,14 +2216,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
+                    final cat = mall.categories.firstWhere((c) => c.id == 'c3', orElse: () => mall.categories.first);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => DepartmentScreen(category: cat),
+                      ),
                     );
                   },
-                  icon: const Icon(Icons.content_cut_rounded, size: 14, color: Colors.white),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
                   label: const Text(
-                    'فصّل ذبيحتك 🔪',
+                    'تصفح اللحوم الطازجة',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11.5),
                   ),
                   style: ElevatedButton.styleFrom(

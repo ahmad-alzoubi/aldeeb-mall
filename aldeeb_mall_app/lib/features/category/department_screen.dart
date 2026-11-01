@@ -10,7 +10,6 @@ import '../../core/providers/mall_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
 import '../cart/widgets/floating_cart_bar.dart';
-import '../butcher/butcher_customizer_screen.dart';
 import '../home/widgets/product_card.dart';
 
 class DepartmentScreen extends StatefulWidget {
@@ -733,27 +732,7 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
               ],
             ),
           ),
-          if (widget.category.id == 'c3') ...[
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: theme.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text(
-                'فصّل ذبيحتك 🔪',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
+
         ],
       ),
     );

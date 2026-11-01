@@ -32,6 +32,14 @@ jobs:
           cd aldeeb_mall_app
           flutter pub get
           flutter build web --release --base-href "/aldeeb-mall/"
+          python3 -c "
+          with open('build/web/flutter_bootstrap.js', 'r') as f:
+              c = f.read()
+          import re
+          c = re.sub(r'serviceWorkerSettings:\s*\{[^}]*\}', 'serviceWorkerSettings: null', c)
+          with open('build/web/flutter_bootstrap.js', 'w') as f:
+              f.write(c)
+          "
           cp build/web/index.html build/web/404.html
 
       - name: Set up Node.js

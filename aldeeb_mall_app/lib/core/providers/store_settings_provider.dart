@@ -160,8 +160,9 @@ class StoreSettingsProvider extends ChangeNotifier {
 
   void _startPeriodicSync() {
     _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _syncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       syncFromApi();
+      syncFromSupabase();
     });
   }
 
@@ -245,7 +246,14 @@ class StoreSettingsProvider extends ChangeNotifier {
 
   bool _applyMap(Map<String, dynamic> data) {
     final prevPrimary = _primaryColor;
+    final prevPrimaryDark = _primaryDarkColor;
+    final prevSecondary = _secondaryColor;
+    final prevAccent = _accentColor;
+    final prevBg = _backgroundColor;
+    final prevSurface = _surfaceColor;
     final prevName = _storeNameAr;
+    final prevEn = _storeNameEn;
+    final prevAnnounce = _announcementBarText;
 
     _primaryColor = _parseColor(data['primaryColor'] ?? data['primaryColorValue'], _primaryColor);
     _primaryDarkColor = _parseColor(data['primaryDarkColor'] ?? data['primaryDarkColorValue'], _primaryDarkColor);
@@ -273,7 +281,23 @@ class StoreSettingsProvider extends ChangeNotifier {
       _enableProductBundles = data['enableProductBundles'] == true || data['enableProductBundles'] == 'true';
     }
 
-    return prevPrimary != _primaryColor || prevName != _storeNameAr;
+    final changed = prevPrimary != _primaryColor ||
+        prevPrimaryDark != _primaryDarkColor ||
+        prevSecondary != _secondaryColor ||
+        prevAccent != _accentColor ||
+        prevBg != _backgroundColor ||
+        prevSurface != _surfaceColor ||
+        prevName != _storeNameAr ||
+        prevEn != _storeNameEn ||
+        prevAnnounce != _announcementBarText;
+
+    if (changed) {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString(_prefKey, jsonEncode(toMap()));
+      });
+    }
+
+    return changed;
   }
 
   Map<String, dynamic> toMap() {

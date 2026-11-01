@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/banner_model.dart';
+import '../models/category_model.dart';
 import '../providers/cart_provider.dart';
 import '../providers/mall_provider.dart';
 import '../providers/order_provider.dart';
@@ -9,14 +10,8 @@ import '../../features/category/department_screen.dart';
 import '../../features/category/categories_screen.dart';
 import '../../features/product/product_detail_screen.dart';
 import '../../features/flyer/flyer_screen.dart';
-import '../../features/live_shopping/live_shopping_screen.dart';
 import '../../features/loyalty/loyalty_screen.dart';
-import '../../features/pharmacy/pharmacy_screen.dart';
-import '../../features/lockers/smart_locker_pickup_screen.dart';
 import '../../features/grocery_list/grocery_list_screen.dart';
-import '../../features/meal_kits/meal_kits_screen.dart';
-import '../../features/butcher/butcher_customizer_screen.dart';
-import '../../features/zero_waste/zero_waste_screen.dart';
 import '../../features/recipes/recipes_screen.dart';
 import '../../features/group_buying/group_deals_screen.dart';
 import '../../features/subscriptions/subscriptions_screen.dart';
@@ -138,29 +133,15 @@ class BannerNavigator {
       case 'deals':
       case 'flash_deals':
       case 'offers':
+      case 'zero_waste':
+      case 'food_rescue':
         destination = const FlyerScreen();
-        break;
-
-      case 'live':
-      case 'live_shopping':
-        destination = const LiveShoppingScreen();
         break;
 
       case 'loyalty':
       case 'rewards':
       case 'points':
         destination = const LoyaltyScreen();
-        break;
-
-      case 'pharmacy':
-      case 'rx':
-      case 'meds':
-        destination = const PharmacyScreen();
-        break;
-
-      case 'lockers':
-      case 'smart_lockers':
-        destination = const SmartLockerPickupScreen();
         break;
 
       case 'group_deals':
@@ -176,22 +157,25 @@ class BannerNavigator {
 
       case 'meal_kits':
       case 'recipes_kits':
-        destination = const MealKitsScreen();
+      case 'recipes':
+      case 'cooking':
+        destination = const RecipesScreen();
         break;
 
       case 'butcher':
       case 'meat_cutting':
-        destination = const ButcherCustomizerScreen();
-        break;
-
-      case 'zero_waste':
-      case 'food_rescue':
-        destination = const ZeroWasteScreen();
-        break;
-
-      case 'recipes':
-      case 'cooking':
-        destination = const RecipesScreen();
+      case 'meat':
+        final mall = Provider.of<MallProvider>(context, listen: false);
+        final meatCat = mall.categories.firstWhere(
+          (c) => c.slug.contains('meat') || c.nameAr.contains('لحوم') || c.id == 'c3',
+          orElse: () => const CategoryModel(
+            id: 'c3',
+            nameAr: 'اللحوم والدواجن والأسماك',
+            nameEn: 'Fresh Meat & Poultry',
+            slug: 'meat',
+          ),
+        );
+        destination = DepartmentScreen(category: meatCat);
         break;
 
       case 'subscriptions':
