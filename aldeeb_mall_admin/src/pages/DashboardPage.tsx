@@ -36,6 +36,7 @@ import { FootfallPeakAnalytics } from '../components/dashboard/FootfallPeakAnaly
 import { LossPreventionRadar } from '../components/dashboard/LossPreventionRadar';
 import { IncidentReviewModal } from '../components/dashboard/IncidentReviewModal';
 import { CameraMonitorModal } from '../components/dashboard/CameraMonitorModal';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 interface DashboardPageProps {
   orders: Order[];
@@ -185,20 +186,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           المركز القيادي الشامل (Omni Operations)
         </button>
 
-        <button
-          onClick={() => setActiveDeck('cctv_matrix')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-            activeDeck === 'cctv_matrix'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-              : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm'
-          }`}
-        >
-          <Camera className="w-4 h-4" />
-          مصفوفة الكاميرات والذكاء البصري (CCTV 6-Cam)
-          <span className="text-[10px] bg-slate-900 text-emerald-400 px-1.5 py-0.5 rounded-md font-mono">
-            LIVE 4K
-          </span>
-        </button>
+        {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && (
+          <button
+            onClick={() => setActiveDeck('cctv_matrix')}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
+              activeDeck === 'cctv_matrix'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm'
+            }`}
+          >
+            <Camera className="w-4 h-4" />
+            مصفوفة الكاميرات والذكاء البصري (CCTV 6-Cam)
+            <span className="text-[10px] bg-slate-900 text-emerald-400 px-1.5 py-0.5 rounded-md font-mono">
+              LIVE 4K
+            </span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveDeck('footfall_peaks')}

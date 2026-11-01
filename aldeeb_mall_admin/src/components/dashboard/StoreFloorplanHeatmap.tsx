@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { STORE_ZONES, StoreZoneDensity, INITIAL_CAMERAS, StoreCamera } from '../../lib/storeVisionData';
+import { FEATURE_FLAGS } from '../../lib/featureFlags';
 
 interface StoreFloorplanHeatmapProps {
   onSelectCamera: (cam: StoreCamera) => void;
@@ -62,14 +63,16 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
           >
             مدة المكوث (Dwell)
           </button>
-          <button
-            onClick={() => setActiveLayer('cameras')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-              activeLayer === 'cameras' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            نطاق الكاميرات (FOV)
-          </button>
+          {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && (
+            <button
+              onClick={() => setActiveLayer('cameras')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                activeLayer === 'cameras' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              نطاق الكاميرات (FOV)
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,28 +226,30 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
           </div>
 
           {/* Interactive Camera Nodes with clickable cones */}
-          <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <span className="font-bold text-slate-400 flex items-center gap-1">
-              <Camera className="w-4 h-4 text-blue-400" />
-              الكاميرات الموزعة على الخريطة (اضغط للانتقال للبث المباشر):
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {INITIAL_CAMERAS.map((cam) => (
-                <button
-                  key={cam.id}
-                  onClick={() => onSelectCamera(cam)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors flex items-center gap-1 ${
-                    cam.status === 'alert'
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
-                      : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${cam.status === 'alert' ? 'bg-rose-500 animate-ping' : 'bg-emerald-400'}`} />
-                  {cam.id}
-                </button>
-              ))}
+          {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && (
+            <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <span className="font-bold text-slate-400 flex items-center gap-1">
+                <Camera className="w-4 h-4 text-blue-400" />
+                الكاميرات الموزعة على الخريطة (اضغط للانتقال للبث المباشر):
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {INITIAL_CAMERAS.map((cam) => (
+                  <button
+                    key={cam.id}
+                    onClick={() => onSelectCamera(cam)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors flex items-center gap-1 ${
+                      cam.status === 'alert'
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${cam.status === 'alert' ? 'bg-rose-500 animate-ping' : 'bg-emerald-400'}`} />
+                    {cam.id}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Selected Zone Deep Dive Panel (4 Cols) */}
