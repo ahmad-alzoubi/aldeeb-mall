@@ -23,15 +23,20 @@ import {
   BarChart3,
   Calendar,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Eye,
+  Check,
+  X
 } from 'lucide-react';
 import { 
   SubscriptionPlan, 
   Subscriber, 
   RewardCoupon, 
   RewardProduct, 
-  SubscriptionActivityLog 
+  SubscriptionActivityLog,
+  ShamCashPaymentReceipt
 } from '../types';
+import { logAuditEvent } from '../lib/auditLogger';
 
 interface SubscriptionsPageProps {
   plans: SubscriptionPlan[];
@@ -66,10 +71,45 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
   onAddRewardProduct,
   onToggleRewardItem,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'plans' | 'subscribers' | 'rewards' | 'logs'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'plans' | 'subscribers' | 'rewards' | 'sham_cash_review' | 'logs'>('analytics');
   const [searchSubscriber, setSearchSubscriber] = useState('');
   const [selectedPlanFilter, setSelectedPlanFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Sham Cash review state with fraud prevention
+  const [shamReceipts, setShamReceipts] = useState<ShamCashPaymentReceipt[]>([
+    {
+      id: 'rcpt-1',
+      reference_number: 'SHAM-2026-94812',
+      subscriber_id: 'sub-1',
+      customer_name: 'أحمد المحاميد',
+      amount: 49000,
+      receipt_image_url: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
+      status: 'pending',
+      submitted_at: 'اليوم، 09:15 ص',
+    },
+    {
+      id: 'rcpt-2',
+      reference_number: 'SHAM-2026-88231',
+      subscriber_id: 'sub-2',
+      customer_name: 'نور الهدى الزعبي',
+      amount: 89000,
+      receipt_image_url: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=600&q=80',
+      status: 'pending',
+      submitted_at: 'اليوم، 10:20 ص',
+    },
+  ]);
+  const [usedReferencesCache, setUsedReferencesCache] = useState<string[]>(['SHAM-2026-77100']);
+  const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
+
+  // Manual Activation Modal
+  const [manualSubscriberModal, setManualSubscriberModal] = useState<Subscriber | null>(null);
+  const [manualReason, setManualReason] = useState<string>('دفع نقدي مباشر في مكتب إدارة درعا المحطة');
+  const [manualEmployeeName, setManualEmployeeName] = useState<string>('مسؤول الاشتراكات');
+
+  // Rejection Modal
+  const [rejectingReceipt, setRejectingReceipt] = useState<ShamCashPaymentReceipt | null>(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState<string>('رقم مرجع التحويل غير مطابق لسجلات الحساب البنكي');
 
   // Modals state
   const [isAddPlanModalOpen, setIsAddPlanModalOpen] = useState(false);
@@ -200,6 +240,90 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
     };
     onAddRewardProduct(prod);
     setIsAddProductModalOpen(false);
+  };
+
+  // Sham Cash Approval Handler
+  const handleApproveShamReceipt = (receipt: ShamCashPaymentReceipt) => {
+    if (usedReferencesCache.includes(receipt.reference_number)) {
+      alert(`🚨 تحذير أمني خطير: هذا الرقم المرجعي (${receipt.reference_number}) تم اعتماده مسبقاً! محاولة احتيال مكررة.`);
+      return;
+    }
+
+    setShamReceipts((prev) =>
+      prev.map((r) =>
+        r.id === receipt.id
+          ? {
+              ...r,
+              status: 'approved',
+              reviewed_by: 'مدير الاشتراكات والمالية',
+              reviewed_at: new Date().toISOString(),
+            }
+          : r
+      )
+    );
+
+    setUsedReferencesCache((prev) => [...prev, receipt.reference_number]);
+    onExtendSubscriber(receipt.subscriber_id, 30);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مدير الاشتراكات والمالية',
+      actor_role: 'subscription_auditor',
+      action: 'SHAM_CASH_RECEIPT_APPROVED',
+      category: 'financial',
+      details: `اعتماد إشعار سداد شام كاش مرجع (${receipt.reference_number}) بمبلغ ${receipt.amount.toLocaleString()} ل.س للمشترك ${receipt.customer_name} وتفعيل الباقة.`,
+      target_id: receipt.id,
+    });
+  };
+
+  // Sham Cash Rejection Handler
+  const handleConfirmRejectShamReceipt = () => {
+    if (!rejectingReceipt) return;
+
+    setShamReceipts((prev) =>
+      prev.map((r) =>
+        r.id === rejectingReceipt.id
+          ? {
+              ...r,
+              status: 'rejected',
+              rejection_reason: rejectionReasonText,
+              reviewed_by: 'مدير الاشتراكات والمالية',
+              reviewed_at: new Date().toISOString(),
+            }
+          : r
+      )
+    );
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مدير الاشتراكات والمالية',
+      actor_role: 'subscription_auditor',
+      action: 'SHAM_CASH_RECEIPT_REJECTED',
+      category: 'financial',
+      details: `رفض إشعار سداد شام كاش للمشترك (${rejectingReceipt.customer_name}). السبب: ${rejectionReasonText}`,
+      target_id: rejectingReceipt.id,
+    });
+
+    setRejectingReceipt(null);
+  };
+
+  // Manual Activation Handler
+  const handleConfirmManualActivation = () => {
+    if (!manualSubscriberModal) return;
+
+    onExtendSubscriber(manualSubscriberModal.id, 30);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: manualEmployeeName,
+      actor_role: 'manager',
+      action: 'MANUAL_SUBSCRIPTION_ACTIVATION',
+      category: 'staff',
+      details: `تفعيل يدوي استثنائي لاشتراك العميل (${manualSubscriberModal.customer_name}) بواسطة (${manualEmployeeName}). السبب الموثق: ${manualReason}`,
+      target_id: manualSubscriberModal.id,
+    });
+
+    setManualSubscriberModal(null);
   };
 
   return (
@@ -384,6 +508,23 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
         >
           <Gift className="w-4 h-4 text-emerald-400" />
           كتالوج استبدال النقاط (كوبونات & منتجات)
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('sham_cash_review')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'sham_cash_review'
+              ? 'bg-emerald-700 text-white shadow-md'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <DollarSign className="w-4 h-4 text-emerald-400" />
+          <span>مراجعة واعتماد دفعات شام كاش</span>
+          {shamReceipts.filter(r => r.status === 'pending').length > 0 && (
+            <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-extrabold animate-pulse">
+              {shamReceipts.filter(r => r.status === 'pending').length}
+            </span>
+          )}
         </button>
 
         <button
@@ -776,6 +917,19 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
                         </button>
 
                         <button
+                          onClick={() => {
+                            setManualSubscriberModal(sub);
+                            setManualReason('دفع نقدي مباشر في مكتب إدارة درعا المحطة');
+                            setManualEmployeeName('مسؤول الاشتراكات');
+                          }}
+                          title="تفعيل يدوي استثنائي من الإدارة مع توثيق السبب"
+                          className="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[11px] transition-colors border border-emerald-200 cursor-pointer flex items-center gap-1"
+                        >
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                          تفعيل يدوي
+                        </button>
+
+                        <button
                           onClick={() => onToggleSubscriberStatus(sub.id)}
                           title={sub.status === 'active' ? 'إيقاف مؤقت' : 'استئناف الاشتراك'}
                           className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
@@ -921,6 +1075,137 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- Tab: Sham Cash Payment Review & Fraud Prevention ---------------- */}
+      {activeSubTab === 'sham_cash_review' && (
+        <div className="space-y-6">
+          {/* Banner */}
+          <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-md border border-emerald-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 mb-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                بوابة الحوكمة ومطابقة حوالات شام كاش (Sham Cash)
+              </div>
+              <h3 className="text-base font-black">
+                مراجعة إشعارات التحويل البنكي وتفعيل اشتراكات برايم VIP
+              </h3>
+              <p className="text-xs text-emerald-200 mt-1 max-w-xl">
+                يتم فحص مطابقة رقم المرجع وقفل الإشعارات المعتمدة تلقائياً لمنع استخدام الإشعار أكثر من مرة.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-950/60 border border-emerald-700 px-4 py-2 rounded-xl text-center">
+                <span className="text-[10px] text-emerald-300 block font-bold">بانتظار المراجعة</span>
+                <span className="text-lg font-black text-white font-mono">
+                  {shamReceipts.filter(r => r.status === 'pending').length}
+                </span>
+              </div>
+              <div className="bg-emerald-950/60 border border-emerald-700 px-4 py-2 rounded-xl text-center">
+                <span className="text-[10px] text-emerald-300 block font-bold">معتمد اليوم</span>
+                <span className="text-lg font-black text-emerald-300 font-mono">
+                  {shamReceipts.filter(r => r.status === 'approved').length}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Receipts Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-800">قائمة إشعارات الدفع الواردة من تطبيق العملاء</span>
+              <span className="text-slate-400">نظام كشف الاحتيال الفوري مفعل ✓</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-bold">
+                  <tr>
+                    <th className="p-3.5">رقم مرجع الحوالة</th>
+                    <th className="p-3.5">المشترك</th>
+                    <th className="p-3.5">المبلغ المحول</th>
+                    <th className="p-3.5 text-center">إشعار التحويل</th>
+                    <th className="p-3.5">وقت الإرسال</th>
+                    <th className="p-3.5">حالة المطابقة</th>
+                    <th className="p-3.5 text-center">إجراء المراجعة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {shamReceipts.map((receipt) => {
+                    const isDuplicate = usedReferencesCache.includes(receipt.reference_number);
+                    return (
+                      <tr key={receipt.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="p-3.5 font-mono font-bold text-blue-700">
+                          {receipt.reference_number}
+                          {isDuplicate && receipt.status === 'pending' && (
+                            <span className="mr-1.5 text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.2 rounded font-extrabold border border-rose-200">
+                              مرجع مكرر!
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 font-bold text-slate-900">{receipt.customer_name}</td>
+                        <td className="p-3.5 font-mono font-bold text-slate-800">
+                          {receipt.amount.toLocaleString()} ل.س
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <button
+                            onClick={() => setPreviewReceiptUrl(receipt.receipt_image_url)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-colors inline-flex items-center gap-1 border border-slate-200"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-blue-600" />
+                            معاينة الإشعار
+                          </button>
+                        </td>
+                        <td className="p-3.5 text-slate-500 text-[11px]">{receipt.submitted_at}</td>
+                        <td className="p-3.5">
+                          {receipt.status === 'approved' && (
+                            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-bold border border-emerald-200">
+                              معتمد ومفعل
+                            </span>
+                          )}
+                          {receipt.status === 'rejected' && (
+                            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[11px] font-bold border border-rose-200">
+                              مرفوض: {receipt.rejection_reason || 'غير مطابق'}
+                            </span>
+                          )}
+                          {receipt.status === 'pending' && (
+                            <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-bold border border-amber-200">
+                              قيد التدقيق
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-center">
+                          {receipt.status === 'pending' ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleApproveShamReceipt(receipt)}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-sm transition-colors flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" />
+                                اعتماد وتفعيل
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRejectingReceipt(receipt);
+                                  setRejectionReasonText('رقم مرجع التحويل غير مطابق لسجلات الحساب البنكي');
+                                }}
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-[11px] border border-rose-200 transition-colors"
+                              >
+                                رفض
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">مكتمل</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1370,6 +1655,145 @@ export const SubscriptionsPage: React.FC<SubscriptionsPageProps> = ({
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-md cursor-pointer"
                 >
                   تأكيد الإيداع الفوري
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Preview Receipt Image */}
+      {previewReceiptUrl && (
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-slate-900 text-sm">معاينة إشعار التحويل البنكي (شام كاش)</h4>
+              <button
+                onClick={() => setPreviewReceiptUrl(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-slate-200 max-h-[70vh] flex items-center justify-center bg-slate-950">
+              <img src={previewReceiptUrl} alt="Receipt Preview" className="max-h-[65vh] w-auto object-contain" />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setPreviewReceiptUrl(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Reject Sham Cash Receipt */}
+      {rejectingReceipt && (
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 space-y-4">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-600" />
+              رفض إشعار سداد شام كاش
+            </h4>
+            <p className="text-xs text-slate-500 font-mono">
+              مرجع: {rejectingReceipt.reference_number} • المشترك: {rejectingReceipt.customer_name}
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">سبب الرفض الإلزامي *</label>
+                <select
+                  value={rejectionReasonText}
+                  onChange={(e) => setRejectionReasonText(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                >
+                  <option value="رقم مرجع التحويل غير مطابق لسجلات الحساب البنكي">رقم مرجع التحويل غير مطابق لسجلات الحساب البنكي</option>
+                  <option value="المبلغ المحول غير كافي لقيمة الباقة المختارة">المبلغ المحول غير كافي لقيمة الباقة المختارة</option>
+                  <option value="صورة الإشعار غير واضحة أو مقصوصة التفاصيل">صورة الإشعار غير واضحة أو مقصوصة التفاصيل</option>
+                  <option value="الإشعار محول لحساب خاطئ خارج حسابات المول">الإشعار محول لحساب خاطئ خارج حسابات المول</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setRejectingReceipt(null)}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRejectShamReceipt}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30"
+                >
+                  تأكيد رفض الإشعار
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Manual Subscriber Activation */}
+      {manualSubscriberModal && (
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-emerald-200 space-y-4">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              تفعيل يدوي استثنائي لاشتراك العميل
+            </h4>
+            <p className="text-xs text-slate-500 font-mono">
+              المشترك: {manualSubscriberModal.customer_name} • الباقة: {manualSubscriberModal.plan_name_ar}
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">اسم الموظف المسؤول المنفذ *</label>
+                <input
+                  type="text"
+                  required
+                  value={manualEmployeeName}
+                  onChange={(e) => setManualEmployeeName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">سبب التفعيل الاستثنائي الإلزامي للتدقيق *</label>
+                <select
+                  value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                >
+                  <option value="دفع نقدي مباشر في مكتب إدارة درعا المحطة">دفع نقدي مباشر في مكتب إدارة درعا المحطة</option>
+                  <option value="اشتراك شرفي لكبار الشخصيات والشخصيات المعتمدة">اشتراك شرفي لكبار الشخصيات والشخصيات المعتمدة</option>
+                  <option value="تعويض للعميل عن تأخير توصيل سابق">تعويض للعميل عن تأخير توصيل سابق</option>
+                  <option value="حوالة خارجية مؤكدة هاتفياً من الإدارة المالية">حوالة خارجية مؤكدة هاتفياً من الإدارة المالية</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl text-amber-800 text-[11px]">
+                سيتم تفعيل الاشتراك لمدة 30 يوماً إضافية وتوثيق العملية باسمك في سجل التدقيق المالي.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setManualSubscriberModal(null)}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmManualActivation}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/30"
+                >
+                  تأكيد التفعيل والتوثيق
                 </button>
               </div>
             </div>

@@ -20,6 +20,11 @@ export interface Product {
   bundle_discount_percent?: number;
   bundle_title?: string;
   bundle_product_ids?: string[];
+  branch_id?: string;
+  branch_name?: string;
+  is_draft?: boolean;
+  cost_price?: number;
+  status?: 'published' | 'incomplete_data' | 'archived';
 }
 
 export interface Category {
@@ -66,6 +71,14 @@ export interface Order {
   created_at: string;
   notes?: string;
   items: OrderItem[];
+  branch_id?: string;
+  branch_name?: string;
+  courier_id?: string;
+  courier_name?: string;
+  delivery_otp?: string;
+  delivery_failure_reason?: string;
+  delivered_at?: string;
+  assigned_at?: string;
 }
 
 export interface Coupon {
@@ -79,6 +92,10 @@ export interface Coupon {
   times_used: number;
   is_active: boolean;
   expires_at?: string;
+  per_customer_limit?: number;
+  allow_combine_with_flash_deals?: boolean;
+  allow_stacking_coupons?: boolean;
+  branch_id?: string;
 }
 
 export interface Customer {
@@ -106,6 +123,66 @@ export interface DarkStore {
   avg_pick_seconds: number;
 }
 
+export interface WarehouseItemStock {
+  id: string;
+  warehouse_id: string;
+  product_id: string;
+  product_name_ar: string;
+  barcode: string;
+  available_stock: number;
+  reserved_stock: number;
+  damaged_stock: number;
+  bin_location: string;
+  last_updated: string;
+}
+
+export interface InventoryMovementLog {
+  id: string;
+  timestamp: string;
+  warehouse_id: string;
+  product_id: string;
+  barcode: string;
+  type: 'inbound_po' | 'transfer_out' | 'transfer_in' | 'damaged' | 'order_fulfillment' | 'adjustment';
+  quantity_change: number;
+  resulting_available: number;
+  reference_id: string;
+  notes?: string;
+  performed_by: string;
+}
+
+export type TransferStatus = 
+  | 'requested'          // طلب المناقلة الأولي
+  | 'under_review'       // قيد المراجعة الفنية
+  | 'approved'           // تم الاعتماد
+  | 'dispatched'         // تم الإرسال والشحن
+  | 'received'           // تم الاستلام الأولي
+  | 'matched'            // تمت المطابقة وحصر التلف أو الفروقات
+  | 'closed';            // مغلق ومقيد في المخزون
+
+export interface TransferOrder {
+  id: string;
+  manifest_number: string;
+  source_warehouse_id: string;
+  source_warehouse_name: string;
+  destination_warehouse_id: string;
+  destination_warehouse_name: string;
+  sku: string;
+  barcode?: string;
+  product_id?: string;
+  product_name_ar: string;
+  quantity_requested: number;
+  quantity_dispatched: number;
+  quantity_received: number;
+  quantity_damaged: number;
+  status: TransferStatus;
+  assigned_driver?: string;
+  requested_at: string;
+  dispatched_at?: string;
+  received_at?: string;
+  discrepancy_reason?: string;
+  audit_locked?: boolean;
+}
+
 export interface PickerTask {
   id: string;
   order_number: string;
@@ -130,6 +207,13 @@ export interface FlashDeal {
   claimed_quota: number;
   ends_at: string;
   is_active: boolean;
+  branch_id?: string;
+  branch_name?: string;
+  product_ids?: string[];
+  real_views_count?: number;
+  real_clicks_count?: number;
+  real_sold_units?: number;
+  real_revenue_generated?: number;
 }
 
 export interface Courier {
@@ -139,11 +223,16 @@ export interface Courier {
   vehicle_type: 'motorbike' | 'van' | 'electric_scooter';
   license_plate: string;
   current_location: string;
-  status: 'idle' | 'on_delivery' | 'returning';
+  status: 'idle' | 'on_delivery' | 'returning' | 'offline';
+  shift_status?: 'active' | 'break' | 'off_duty';
+  earnings_today?: number;
+  tips_today?: number;
   battery_or_fuel: number;
   rating: number;
   assigned_orders_count: number;
   completed_today: number;
+  branch_id?: string;
+  branch_name?: string;
 }
 
 
@@ -160,15 +249,31 @@ export interface Supplier {
   status: 'active' | 'under_review' | 'inactive';
 }
 
+export interface PurchaseOrderItem {
+  product_id?: string;
+  name_ar: string;
+  barcode?: string;
+  quantity_ordered: number;
+  quantity_received: number;
+  unit_cost: number;
+  total_cost: number;
+  is_new_draft_product?: boolean;
+}
+
 export interface PurchaseOrder {
   id: string;
   po_number: string;
   supplier_name: string;
+  supplier_id?: string;
   total_items: number;
   total_cost: number;
-  status: 'draft' | 'sent' | 'received' | 'cancelled';
+  paid_amount?: number;
+  payment_status?: 'unpaid' | 'partial' | 'paid';
+  status: 'draft' | 'sent' | 'partially_received' | 'received' | 'cancelled';
   order_date: string;
   expected_arrival: string;
+  items?: PurchaseOrderItem[];
+  notes?: string;
 }
 
 export interface SupportTicket {
@@ -280,7 +385,7 @@ export interface Subscriber {
   plan_key: string;
   plan_name_ar: string;
   billing_cycle: 'monthly' | 'annual';
-  status: 'active' | 'paused' | 'cancelled' | 'expired';
+  status: 'active' | 'paused' | 'cancelled' | 'expired' | 'pending_payment_review';
   auto_renew: boolean;
   started_at: string;
   renews_at: string;
@@ -288,6 +393,28 @@ export interface Subscriber {
   total_money_saved: number;
   total_spent: number;
   loyalty_points: number;
+  payment_method?: 'sham_cash' | 'card' | 'manual_admin';
+  transfer_receipt_url?: string;
+  transfer_reference?: string;
+  transfer_amount?: number;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
+  manual_activation_reason?: string;
+}
+
+export interface ShamCashPaymentReceipt {
+  id: string;
+  reference_number: string;
+  subscriber_id: string;
+  customer_name: string;
+  amount: number;
+  receipt_image_url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submitted_at: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
 }
 
 export interface RewardCoupon {
@@ -475,6 +602,9 @@ export interface StaffMember {
   avatar_url?: string;
   is_active: boolean;
   joined_date: string;
+  allowed_branch_ids?: string[];
+  last_active_at?: string;
+  session_revoked_at?: string;
 }
 
 export type PayrollTransactionType = 

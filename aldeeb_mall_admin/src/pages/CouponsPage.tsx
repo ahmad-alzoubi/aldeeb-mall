@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
-import { Plus, TicketPercent, Check, X, Trash2 } from 'lucide-react';
+import { 
+  Plus, 
+  TicketPercent, 
+  Check, 
+  X, 
+  Trash2, 
+  ShieldAlert, 
+  AlertCircle, 
+  Clock, 
+  Calendar, 
+  Building2, 
+  Layers,
+  Sparkles,
+  Lock
+} from 'lucide-react';
 import { Coupon } from '../types';
+import { logAuditEvent } from '../lib/auditLogger';
 
 interface CouponsPageProps {
   coupons: Coupon[];
@@ -19,8 +34,18 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState<number>(15);
-  const [minOrder, setMinOrder] = useState<number>(60);
-  const [usageLimit, setUsageLimit] = useState<number>(1000);
+  const [minOrder, setMinOrder] = useState<number>(50);
+  const [maxDiscount, setMaxDiscount] = useState<number>(20);
+  const [usageLimit, setUsageLimit] = useState<number>(500);
+  const [perCustomerLimit, setPerCustomerLimit] = useState<number>(1);
+  const [allowWithFlash, setAllowWithFlash] = useState<boolean>(false);
+  const [allowStacking, setAllowStacking] = useState<boolean>(false);
+  const [expiryDate, setExpiryDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [targetBranch, setTargetBranch] = useState<string>('all');
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,27 +57,49 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
       discount_type: discountType,
       discount_value: Number(discountValue),
       min_order_amount: Number(minOrder),
+      max_discount: discountType === 'percentage' ? Number(maxDiscount) : undefined,
       usage_limit: Number(usageLimit),
       times_used: 0,
       is_active: true,
+      expires_at: expiryDate,
+      per_customer_limit: Number(perCustomerLimit),
+      allow_combine_with_flash_deals: allowWithFlash,
+      allow_stacking_coupons: allowStacking,
+      branch_id: targetBranch === 'all' ? undefined : targetBranch,
     };
 
     onAddCoupon(newCoupon);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مدير التسويق',
+      actor_role: 'marketing_manager',
+      action: 'COUPON_CREATED',
+      category: 'financial',
+      details: `إنشاء كود خصم جديد (${newCoupon.code}) بقيمة ${discountValue}${discountType === 'percentage' ? '%' : 'ل.س'} مع منع التضارب والتكرار.`,
+      target_id: newCoupon.id,
+    });
+
     setIsModalOpen(false);
     setCode('');
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Action Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+      {/* Top Banner with Anti-Conflict Guarantees */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-base font-extrabold text-slate-900">إدارة الكوبونات وقسائم الخصم</h3>
-          <p className="text-xs text-slate-400">أنشئ أكواد خصم ترويجية لحملات التسويق وزيادة المبيعات</p>
+          <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <TicketPercent className="w-5 h-5 text-blue-600" />
+            إدارة الكوبونات وقواعد منع التضارب والتكرار
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">
+            كافة الكوبونات مضبوطة بقواعد حوكمة مالية: منع الاستخدام المكرر لنفس العميل، منع دمج أكثر من كوبون في نفس السلة، ومنع تضارب الخصومات مع عروض الفلاش إلا بشرط صريح.
+          </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2"
+          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2 shrink-0"
         >
           <Plus className="w-4 h-4" />
           إنشاء كوبون جديد
@@ -70,7 +117,7 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
           >
             <div>
               <div className="flex items-center justify-between mb-4">
-                <span className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                <span className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
                   <TicketPercent className="w-6 h-6" />
                 </span>
                 <button
@@ -100,115 +147,193 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                       : `${coupon.discount_value.toFixed(2)} ل.س خصم مباشر`}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span>الحد الأدنى للطلب:</span>
-                  <span className="font-bold text-slate-800">{coupon.min_order_amount.toFixed(2)} ل.س</span>
+                  <span className="font-mono font-bold">{coupon.min_order_amount.toFixed(2)} ل.س</span>
                 </div>
+
+                {coupon.max_discount && (
+                  <div className="flex justify-between">
+                    <span>الحد الأقصى للخصم (سقف الخصم):</span>
+                    <span className="font-mono font-bold text-amber-700">{coupon.max_discount.toFixed(2)} ل.س</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
-                  <span>مرات الاستخدام:</span>
+                  <span>حد الاستخدام للعميل الواحد:</span>
                   <span className="font-bold text-slate-800">
-                    {coupon.times_used} من أصل {coupon.usage_limit}
+                    {coupon.per_customer_limit ? `${coupon.per_customer_limit} مرة واحدة` : 'مرة واحدة فقط'}
                   </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>صالح حتى تاريخ:</span>
+                  <span className="font-mono text-slate-500">{coupon.expires_at || 'مفتوح الصلاحية'}</span>
+                </div>
+
+                {/* Conflict Badges */}
+                <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                  <span className="text-[10px] px-2 py-0.5 rounded font-extrabold bg-slate-100 text-slate-700 flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-slate-500" />
+                    غير قابل للدمج مع كوبونات أخرى
+                  </span>
+                  {!coupon.allow_combine_with_flash_deals && (
+                    <span className="text-[10px] px-2 py-0.5 rounded font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                      محجوب عن أصناف عروض الفلاش
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">صالح في التطبيق والمتجر</span>
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-400">
+                مرات الاستخدام: <strong className="text-slate-700 font-mono">{coupon.times_used}</strong> / {coupon.usage_limit}
+              </span>
               <button
                 onClick={() => onDeleteCoupon(coupon.id)}
-                className="text-xs text-slate-400 hover:text-rose-600 flex items-center gap-1 font-bold"
+                className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                title="حذف الكوبون"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                حذف
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Create Coupon Modal */}
+      {/* New Coupon Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">إنشاء كوبون خصم جديد</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <TicketPercent className="w-5 h-5 text-blue-600" />
+              إنشاء كود خصم جديد مع حوكمة المنع
+            </h3>
 
-            <form onSubmit={handleCreate} className="space-y-4 text-xs font-bold text-slate-700">
+            <form onSubmit={handleCreate} className="space-y-4 text-xs">
               <div>
-                <label className="block mb-1">كود الكوبون (رمز الخصم) *</label>
+                <label className="block font-bold text-slate-700 mb-1">كود الكوبون (الرمز الترويجي) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: RAMADAN25"
+                  placeholder="مثال: ALDEEB2026 أو WELCOME10"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 font-mono uppercase text-sm"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase font-black text-blue-800"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1">نوع الخصم</label>
+                  <label className="block font-bold text-slate-700 mb-1">نوع الخصم</label>
                   <select
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as 'percentage' | 'fixed')}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                   >
                     <option value="percentage">نسبة مئوية (%)</option>
-                    <option value="fixed">مبلغ مالي ثابت (ل.س)</option>
+                    <option value="fixed">مبلغ ثابت (ل.س)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1">قيمة الخصم *</label>
+                  <label className="block font-bold text-slate-700 mb-1">قيمة الخصم *</label>
                   <input
                     type="number"
+                    min="1"
                     required
                     value={discountValue}
                     onChange={(e) => setDiscountValue(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1">الحد الأدنى للطلب (ل.س)</label>
+                  <label className="block font-bold text-slate-700 mb-1">الحد الأدنى للطلب (ل.س) *</label>
                   <input
                     type="number"
+                    min="0"
+                    required
                     value={minOrder}
                     onChange={(e) => setMinOrder(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block mb-1">حد مرات الاستخدام الكلي</label>
+                  <label className="block font-bold text-slate-700 mb-1">سقف الخصم الأقصى (ل.س)</label>
                   <input
                     type="number"
-                    value={usageLimit}
-                    onChange={(e) => setUsageLimit(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                    min="1"
+                    placeholder="20"
+                    value={maxDiscount}
+                    onChange={(e) => setMaxDiscount(Number(e.target.value))}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end gap-3 border-t">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">حد مرات الاستخدام للعميل الواحد</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={perCustomerLimit}
+                    onChange={(e) => setPerCustomerLimit(Number(e.target.value))}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">1 يعني يمنع العميل من تكرار الاستخدام</span>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">تاريخ انتهاء الصلاحية</label>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Anti-Conflict Toggles */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <span className="font-bold text-slate-800 block text-[11px]">سياسات منع التضارب المالي:</span>
+                <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={allowWithFlash}
+                    onChange={(e) => setAllowWithFlash(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                  />
+                  <span>السماح بتطبيق الكوبون على سلع عروض الفلاش (افتراضياً: ممنوع لمنع الخسارة)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={allowStacking}
+                    onChange={(e) => setAllowStacking(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                  />
+                  <span>السماح بدمج أكثر من كوبون في نفس السلة (افتراضياً: ممنوع)</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md shadow-blue-600/30"
                 >
-                  تفعيل وحفظ الكوبون
+                  حفظ وتفعيل الكوبون
                 </button>
               </div>
             </form>

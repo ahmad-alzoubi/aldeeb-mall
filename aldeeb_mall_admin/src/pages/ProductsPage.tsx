@@ -9,9 +9,16 @@ import {
   Tag,
   Sparkles,
   Package,
-  Layers
+  Layers,
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  FileQuestion
 } from 'lucide-react';
 import { Product, Category } from '../types';
+import { lookupBarcodeOpenFoodFacts, ScannedProductResult } from '../lib/openFoodFacts';
+import { MediaUploadManager } from '../components/common/MediaUploadManager';
+import { BundleProductPicker } from '../components/common/BundleProductPicker';
 
 interface ProductsPageProps {
   products: Product[];
@@ -43,16 +50,38 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [originalPrice, setOriginalPrice] = useState<number>(12.50);
   const [unit, setUnit] = useState('kg');
   const [stockQuantity, setStockQuantity] = useState<number>(150);
-  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=400&q=80');
+  const [images, setImages] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState<string>('');
   const [isDailyDeal, setIsDailyDeal] = useState(true);
   const [isFeatured, setIsFeatured] = useState(true);
+
+  // Open Food Facts barcode lookup state
+  const [isLookingUpBarcode, setIsLookingUpBarcode] = useState<boolean>(false);
+  const [barcodeLookupResult, setBarcodeLookupResult] = useState<ScannedProductResult | null>(null);
+
+  const handleBarcodeLookup = async (codeToLookup?: string) => {
+    const code = (codeToLookup !== undefined ? codeToLookup : barcode).trim();
+    if (!code) return;
+    setIsLookingUpBarcode(true);
+    setBarcodeLookupResult(null);
+    const res = await lookupBarcodeOpenFoodFacts(code);
+    setIsLookingUpBarcode(false);
+    setBarcodeLookupResult(res);
+
+    if (res.found) {
+      if (res.name_ar && !nameAr) setNameAr(res.name_ar);
+      if (res.name_en && !nameEn) setNameEn(res.name_en);
+      if (res.brand && (brand === 'طازج' || !brand)) setBrand(res.brand);
+      if (res.unit) setUnit(res.unit);
+      if (res.image_url && images.length === 0) setImages([res.image_url]);
+    }
+  };
 
   // Bundle Offer Controls (Frequently Bought Together)
   const [bundleEnabled, setBundleEnabled] = useState(false);
   const [bundleDiscountPercent, setBundleDiscountPercent] = useState<number>(15);
   const [bundleTitle, setBundleTitle] = useState('');
   const [bundleProductIds, setBundleProductIds] = useState<string[]>([]);
-  const [selectedBundleProductToAdd, setSelectedBundleProductToAdd] = useState('');
 
   const filteredProducts = products.filter((p) => {
     const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
@@ -75,14 +104,15 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     setOriginalPrice(12.50);
     setUnit('kg');
     setStockQuantity(150);
-    setImageUrl('https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=400&q=80');
+    setImages([]);
+    setVideoUrl('');
+    setBarcodeLookupResult(null);
     setIsDailyDeal(false);
     setIsFeatured(false);
     setBundleEnabled(false);
     setBundleDiscountPercent(15);
     setBundleTitle('');
     setBundleProductIds([]);
-    setSelectedBundleProductToAdd('');
     setIsModalOpen(true);
   };
 
@@ -97,14 +127,15 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     setOriginalPrice(p.original_price || p.price);
     setUnit(p.unit || 'piece');
     setStockQuantity(p.stock_quantity);
-    setImageUrl(p.images[0] || '');
+    setImages(p.images && p.images.length > 0 ? [...p.images] : []);
+    setVideoUrl('');
+    setBarcodeLookupResult(null);
     setIsDailyDeal(p.is_daily_deal);
     setIsFeatured(p.is_featured);
     setBundleEnabled(p.bundle_enabled ?? false);
     setBundleDiscountPercent(p.bundle_discount_percent ?? 15);
     setBundleTitle(p.bundle_title || '');
     setBundleProductIds(p.bundle_product_ids ? [...p.bundle_product_ids] : []);
-    setSelectedBundleProductToAdd('');
     setIsModalOpen(true);
   };
 
@@ -126,6 +157,10 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       ? Math.round(((originalPrice - price) / originalPrice) * 100) 
       : 0;
 
+    const finalImages = images.length > 0 
+      ? images 
+      : ['https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=400&q=80'];
+
     if (editingProduct && onUpdateProduct) {
       const updatedProd: Product = {
         ...editingProduct,
@@ -140,7 +175,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         unit,
         weight_step: unit === 'kg' ? 0.5 : 1.0,
         stock_quantity: Number(stockQuantity),
-        images: [imageUrl],
+        images: finalImages,
         is_daily_deal: isDailyDeal,
         is_featured: isFeatured,
         bundle_enabled: bundleEnabled,
@@ -163,7 +198,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         unit,
         weight_step: unit === 'kg' ? 0.5 : 1.0,
         stock_quantity: Number(stockQuantity),
-        images: [imageUrl],
+        images: finalImages,
         is_daily_deal: isDailyDeal,
         is_featured: isFeatured,
         rating: 4.9,
@@ -432,14 +467,61 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1">الباركود</label>
-                  <input
-                    type="text"
-                    placeholder="6291000..."
-                    value={barcode}
-                    onChange={(e) => setBarcode(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 font-mono"
-                  />
+                  <label className="block mb-1">الباركود الدولي أو المحلي</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="امسح أو اكتب الباركود (مثال: 6291000...)"
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value)}
+                        className="w-full p-2.5 pr-8 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 font-mono text-xs"
+                      />
+                      <Barcode className="w-4 h-4 text-slate-400 absolute right-2.5 top-3" />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!barcode.trim() || isLookingUpBarcode}
+                      onClick={() => handleBarcodeLookup()}
+                      className="px-3.5 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 border border-indigo-200"
+                      title="البحث التلقائي في قاعدة Open Food Facts العالمية والمحلية"
+                    >
+                      {isLookingUpBarcode ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                          <span>جاري الفحص...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-3.5 h-3.5" />
+                          <span>فحص تلقائي</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {barcodeLookupResult && (
+                    <div className="mt-2">
+                      {barcodeLookupResult.found ? (
+                        <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-bold">
+                              تم العثور على المنتج ({barcodeLookupResult.source === 'open_food_facts' ? 'قاعدة بيانات Open Food Facts' : 'القاعدة الإقليمية'}):
+                            </p>
+                            <p className="text-[11px] text-emerald-700 mt-0.5">
+                              {barcodeLookupResult.name_ar || barcodeLookupResult.name_en} {barcodeLookupResult.brand ? `• ${barcodeLookupResult.brand}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>لم يُعثر على هذا الباركود سحابياً. يمكنك تعبئة تفاصيل المنتج يدوياً.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -490,22 +572,13 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block mb-1">رابط صورة المنتج (URL)</label>
-                <input
-                  type="url"
-                  required
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
-                />
-                {imageUrl && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <img src={imageUrl} alt="preview" className="w-12 h-12 object-cover rounded-lg border" />
-                    <span className="text-[11px] text-slate-400">معاينة الصورة المباشرة</span>
-                  </div>
-                )}
-              </div>
+              <MediaUploadManager
+                mediaList={images}
+                onChange={setImages}
+                videoUrl={videoUrl}
+                onVideoChange={setVideoUrl}
+                maxFiles={6}
+              />
 
               <div className="flex items-center gap-6 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -603,75 +676,19 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                       </div>
                     </div>
 
-                    {/* Complementary Products Picker */}
+                    {/* Complementary Products Picker with Search & Visual Selection */}
                     <div>
                       <label className="block mb-1 text-slate-800">
                         المنتجات المرافقة للباقة (تخصيص يدوي):
                       </label>
-                      <div className="flex gap-2">
-                        <select
-                          value={selectedBundleProductToAdd}
-                          onChange={(e) => setSelectedBundleProductToAdd(e.target.value)}
-                          className="flex-1 p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-bold focus:outline-none focus:border-purple-600"
-                        >
-                          <option value="">-- اختر صنفاً لإضافته للباقة الترويجية --</option>
-                          {products
-                            .filter((p) => p.id !== editingProduct?.id && !bundleProductIds.includes(p.id))
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name_ar} ({p.price.toFixed(2)} ل.س)
-                              </option>
-                            ))}
-                        </select>
-                        <button
-                          type="button"
-                          disabled={!selectedBundleProductToAdd}
-                          onClick={() => {
-                            if (selectedBundleProductToAdd && !bundleProductIds.includes(selectedBundleProductToAdd)) {
-                              setBundleProductIds([...bundleProductIds, selectedBundleProductToAdd]);
-                              setSelectedBundleProductToAdd('');
-                            }
-                          }}
-                          className="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shrink-0"
-                        >
-                          + إضافة صنف
-                        </button>
-                      </div>
-
-                      {/* Selected Items List */}
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {bundleProductIds.length === 0 ? (
-                          <div className="text-[11px] text-purple-900 bg-purple-100/60 p-2.5 rounded-xl border border-purple-200 w-full flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                            <span>
-                              <strong>اقتراح تلقائي ذكي:</strong> لم تقم بتحديد أصناف معينة، سيقوم التطبيق باختيار أفضل صنفين مكملين من نفس القسم تلقائياً.
-                            </span>
-                          </div>
-                        ) : (
-                          bundleProductIds.map((pId) => {
-                            const item = products.find((p) => p.id === pId);
-                            if (!item) return null;
-                            return (
-                              <div
-                                key={pId}
-                                className="flex items-center gap-2 bg-white border border-purple-200 px-3 py-1.5 rounded-xl shadow-xs"
-                              >
-                                <img src={item.images[0]} alt="" className="w-6 h-6 rounded-md object-cover" />
-                                <span className="text-xs font-bold text-slate-800">{item.name_ar}</span>
-                                <span className="text-[11px] text-purple-700 font-extrabold">({item.price.toFixed(2)} ل.س)</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setBundleProductIds(bundleProductIds.filter((id) => id !== pId))}
-                                  className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
-                                  title="إزالة هذا الصنف من الباقة"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+                      <BundleProductPicker
+                        allProducts={products}
+                        categories={categories}
+                        selectedProductIds={bundleProductIds}
+                        onChange={setBundleProductIds}
+                        currentProductId={editingProduct?.id}
+                        currentCategoryId={categoryId}
+                      />
                     </div>
                   </div>
                 )}

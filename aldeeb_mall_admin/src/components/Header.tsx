@@ -17,10 +17,12 @@ import {
   LogOut, 
   Sparkles,
   Building2,
-  Calendar
+  Calendar,
+  HelpCircle
 } from 'lucide-react';
-import { StaffMember, StaffRole } from '../types';
+import { StaffMember, StaffRole, Branch } from '../types';
 import { calculateShiftRemaining, getRoleArabicTitle, getRoleBadgeStyle, INITIAL_STAFF } from '../lib/staffData';
+import { useHelp } from './common/InteractiveHelpSystem';
 
 interface HeaderProps {
   title: string;
@@ -34,6 +36,10 @@ interface HeaderProps {
   onSwitchUser?: (staff: StaffMember) => void;
   onRequestPasswordChange?: (reason: string) => void;
   onDirectChangePassword?: (newPw: string) => void;
+  branches?: Branch[];
+  activeBranchId?: string;
+  onSwitchBranch?: (branchId: string) => void;
+  isBranchSwitching?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,7 +54,12 @@ export const Header: React.FC<HeaderProps> = ({
   onSwitchUser = () => {},
   onRequestPasswordChange = () => {},
   onDirectChangePassword = () => {},
+  branches = [],
+  activeBranchId = 'all',
+  onSwitchBranch,
+  isBranchSwitching = false,
 }) => {
+  const { isHelpModeActive, toggleHelpMode } = useHelp();
   // Live shift countdown state
   const [shiftStats, setShiftStats] = useState(() => 
     calculateShiftRemaining(currentUser.shift_start || '08:00', currentUser.shift_end || '16:00')
@@ -145,6 +156,31 @@ export const Header: React.FC<HeaderProps> = ({
           <h2 className="text-lg md:text-xl font-extrabold text-slate-800">{title}</h2>
           {subtitle && <p className="text-xs text-slate-500 font-medium hidden sm:block">{subtitle}</p>}
         </div>
+
+        {/* Branch Selector with Strict Isolation */}
+        {branches && branches.length > 0 && onSwitchBranch && (
+          <div className="hidden md:flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 rounded-2xl border border-slate-200 mr-2 transition-all">
+            <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] text-slate-400 font-bold leading-none">الفرع النشط:</span>
+              <select
+                value={activeBranchId}
+                onChange={(e) => onSwitchBranch(e.target.value)}
+                className="bg-transparent font-black text-xs text-slate-800 focus:outline-none cursor-pointer pr-0.5"
+              >
+                <option value="all">🌐 كافة الفروع (مؤشرات عامة)</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    📍 {b.name_ar}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isBranchSwitching && (
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping shrink-0" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Center: Live Shift Countdown Widget */}
@@ -184,6 +220,20 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Left Side: Audio, Refresh, and User Profile Badge */}
       <div className="flex items-center gap-3">
+        {/* Interactive 3-Clicks Help Mode Toggle */}
+        <button
+          onClick={toggleHelpMode}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+            isHelpModeActive
+              ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/30 animate-pulse'
+              : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+          }`}
+          title="تفعيل وضع المساعدة التفاعلي والشروحات (أو انقر 3 مرات على أي ميزة)"
+        >
+          <HelpCircle className="w-4 h-4 text-amber-600" />
+          <span className="hidden sm:inline">{isHelpModeActive ? 'وضع المساعدة نشط 💡' : 'شرح الوظائف'}</span>
+        </button>
+
         {/* Audio Ping Toggle */}
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}

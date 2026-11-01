@@ -24,6 +24,8 @@ class ProductModel {
   final int bundleDiscountPercent;
   final String? bundleTitle;
   final List<String> bundleProductIds;
+  final bool isDraft;
+  final String status;
 
   const ProductModel({
     required this.id,
@@ -51,6 +53,8 @@ class ProductModel {
     this.bundleDiscountPercent = 15,
     this.bundleTitle,
     this.bundleProductIds = const [],
+    this.isDraft = false,
+    this.status = 'published',
   });
 
   bool get hasDiscount => discountPercent > 0 || (originalPrice != null && originalPrice! > price);
@@ -172,6 +176,8 @@ class ProductModel {
       bundleProductIds: json['bundle_product_ids'] != null
           ? (json['bundle_product_ids'] as List).map((e) => e.toString()).toList()
           : const [],
+      isDraft: json['is_draft'] as bool? ?? false,
+      status: json['status'] as String? ?? 'published',
     );
   }
 
@@ -201,6 +207,8 @@ class ProductModel {
     int? bundleDiscountPercent,
     String? bundleTitle,
     List<String>? bundleProductIds,
+    bool? isDraft,
+    String? status,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -228,6 +236,8 @@ class ProductModel {
       bundleDiscountPercent: bundleDiscountPercent ?? this.bundleDiscountPercent,
       bundleTitle: bundleTitle ?? this.bundleTitle,
       bundleProductIds: bundleProductIds ?? this.bundleProductIds,
+      isDraft: isDraft ?? this.isDraft,
+      status: status ?? this.status,
     );
   }
 
@@ -258,6 +268,8 @@ class ProductModel {
       'bundle_discount_percent': bundleDiscountPercent,
       'bundle_title': bundleTitle,
       'bundle_product_ids': bundleProductIds,
+      'is_draft': isDraft,
+      'status': status,
     };
   }
 }

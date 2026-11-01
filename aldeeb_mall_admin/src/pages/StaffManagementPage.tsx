@@ -18,10 +18,16 @@ import {
   Eye, 
   EyeOff, 
   Sparkles,
-  FileCheck
+  FileCheck,
+  UserCheck,
+  UserX,
+  Power,
+  History,
+  Sliders
 } from 'lucide-react';
 import { StaffMember, StaffRole, PasswordChangeRequest, Branch } from '../types';
 import { getRoleArabicTitle, getRoleBadgeStyle } from '../lib/staffData';
+import { logAuditEvent, getAuditLogs, AuditLogEntry } from '../lib/auditLogger';
 
 interface StaffManagementPageProps {
   staffList: StaffMember[];
@@ -52,6 +58,12 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Edit Employee & Audit Trail state
+  const [selectedStaffForEdit, setSelectedStaffForEdit] = useState<StaffMember | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedStaffForAudit, setSelectedStaffForAudit] = useState<StaffMember | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   // New employee form state
   const [newEmployee, setNewEmployee] = useState<Partial<StaffMember>>({
@@ -202,6 +214,94 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     setPasswordRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'rejected', reviewed_at: new Date().toISOString() } : r));
     setStaffList(prev => prev.map(emp => emp.id === request.employee_id ? { ...emp, has_pending_password_request: false } : emp));
     showToast(`❌ تم رفض طلب الموظف [${request.employee_name}] لتغيير كلمة المرور`);
+  };
+
+  // Immediate toggle of account status (Active / Deactivated)
+  const handleToggleStaffActive = (emp: StaffMember) => {
+    const nextStatus = !emp.is_active;
+    setStaffList(prev => prev.map(s => {
+      if (s.id === emp.id) {
+        return {
+          ...s,
+          is_active: nextStatus,
+          session_revoked_at: !nextStatus ? new Date().toISOString() : s.session_revoked_at,
+        };
+      }
+      return s;
+    }));
+
+    logAuditEvent({
+      actor_id: currentAdminRole,
+      actor_name: 'مدير النظام',
+      actor_role: currentAdminRole,
+      action: nextStatus ? 'ACTIVATE_ACCOUNT' : 'DEACTIVATE_ACCOUNT',
+      category: 'staff',
+      target_id: emp.id,
+      target_type: 'staff_member',
+      details: nextStatus
+        ? `تم تنشيط وتفعيل حساب الموظف: ${emp.full_name}`
+        : `تم تجميد وتعطيل حساب الموظف: ${emp.full_name} وإنهاء جلسته النشطة فوراً ومنعه من الدخول`,
+      branch_id: emp.branch_id,
+      branch_name: emp.branch_name,
+    });
+
+    showToast(nextStatus 
+      ? `✅ تم تفعيل حساب الموظف [${emp.full_name}] فوراً!` 
+      : `⚠️ تم تجميد حساب الموظف [${emp.full_name}] وإنهاء جلسته النشطة فوراً ومنعه من الدخول!`
+    );
+  };
+
+  // Immediate termination of active session
+  const handleTerminateSession = (emp: StaffMember) => {
+    const nowIso = new Date().toISOString();
+    setStaffList(prev => prev.map(s => s.id === emp.id ? { ...s, session_revoked_at: nowIso } : s));
+    logAuditEvent({
+      actor_id: currentAdminRole,
+      actor_name: 'مدير النظام',
+      actor_role: currentAdminRole,
+      action: 'TERMINATE_SESSION',
+      category: 'auth',
+      target_id: emp.id,
+      target_type: 'staff_member',
+      details: `تم إنهاء جلسة الموظف النشطة قسرياً: ${emp.full_name}`,
+      branch_id: emp.branch_id,
+      branch_name: emp.branch_name,
+    });
+    showToast(`🔒 تم إنهاء الجلسة النشطة للموظف [${emp.full_name}] فورياً على كافة الأجهزة.`);
+  };
+
+  // Save edited employee
+  const handleSaveEditEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaffForEdit) return;
+
+    const assignedBranch = branches.find(b => b.id === selectedStaffForEdit.branch_id);
+
+    setStaffList(prev => prev.map(s => {
+      if (s.id === selectedStaffForEdit.id) {
+        return {
+          ...selectedStaffForEdit,
+          branch_name: assignedBranch ? assignedBranch.name_ar : s.branch_name,
+        };
+      }
+      return s;
+    }));
+
+    logAuditEvent({
+      actor_id: currentAdminRole,
+      actor_name: 'مدير النظام',
+      actor_role: currentAdminRole,
+      action: 'UPDATE_STAFF_DETAILS',
+      category: 'staff',
+      target_id: selectedStaffForEdit.id,
+      target_type: 'staff_member',
+      details: `تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}]: الدور (${selectedStaffForEdit.role})، الفرع (${assignedBranch?.name_ar})`,
+      branch_id: selectedStaffForEdit.branch_id,
+      branch_name: assignedBranch?.name_ar,
+    });
+
+    setIsEditModalOpen(false);
+    showToast(`✅ تم تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}] بنجاح.`);
   };
 
   return (
@@ -364,6 +464,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                   <th className="py-4 px-5">الموظف والكود</th>
                   <th className="py-4 px-4">الصلاحية / الدور</th>
                   <th className="py-4 px-4">الفرع المخصص (مقفل 🔒)</th>
+                  <th className="py-4 px-4">حالة الحساب</th>
                   <th className="py-4 px-4">مواعيد الدوام</th>
                   <th className="py-4 px-4">الراتب الأساسي</th>
                   <th className="py-4 px-4">تغيير كلمة السر</th>
@@ -373,7 +474,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
               <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredStaff.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
+                    <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
                       لا يوجد موظفون مطابقون لخيارات البحث
                     </td>
                   </tr>
@@ -423,6 +524,31 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                           </div>
                         </td>
 
+                        {/* Account Status & Instant Toggle */}
+                        <td className="py-4 px-4">
+                          <button
+                            onClick={() => handleToggleStaffActive(emp)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
+                              emp.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                            }`}
+                            title={emp.is_active ? 'انقر لتعطيل الحساب وإنهاء الجلسة فوراً' : 'انقر لتفعيل وتنشيط الحساب'}
+                          >
+                            {emp.is_active ? (
+                              <>
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>نشط ومفعل</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserX className="w-3.5 h-3.5 text-rose-600" />
+                                <span>معطل ومجمد</span>
+                              </>
+                            )}
+                          </button>
+                        </td>
+
                         {/* Shift Hours */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-1.5 text-slate-700 font-bold">
@@ -457,7 +583,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
 
                         {/* Admin Action Buttons */}
                         <td className="py-4 px-5">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
                             {/* Set / Reset Password from Admin */}
                             <button
                               onClick={() => {
@@ -465,17 +591,51 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                                 setNewPasswordValue(emp.password || '');
                                 setIsResetPasswordModalOpen(true);
                               }}
-                              className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-xs flex items-center gap-1.5 transition-all"
+                              className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-xs flex items-center gap-1 transition-all"
                               title="تحديد كلمة السر من الإدارة"
                             >
                               <KeyRound className="w-3.5 h-3.5" />
-                              <span>تحديد كلمة السر</span>
+                              <span>كلمة السر</span>
+                            </button>
+
+                            {/* Edit Details & Permissions */}
+                            <button
+                              onClick={() => {
+                                setSelectedStaffForEdit(emp);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1 transition-all"
+                              title="تعديل البيانات والصلاحيات والفرع"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                              <span>تعديل</span>
+                            </button>
+
+                            {/* Terminate Active Session */}
+                            <button
+                              onClick={() => handleTerminateSession(emp)}
+                              className="p-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-all"
+                              title="إنهاء الجلسة النشطة فوراً"
+                            >
+                              <Power className="w-3.5 h-3.5 text-amber-600" />
+                            </button>
+
+                            {/* Audit Trail History */}
+                            <button
+                              onClick={() => {
+                                setSelectedStaffForAudit(emp);
+                                setIsAuditModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all"
+                              title="سجل العمليات والنشاط الأخير"
+                            >
+                              <History className="w-3.5 h-3.5 text-indigo-600" />
                             </button>
 
                             {/* Toggle Permission Button */}
                             <button
                               onClick={() => handleTogglePasswordPermission(emp.id, emp.can_change_password)}
-                              className={`p-2 rounded-xl border transition-all ${
+                              className={`p-1.5 rounded-xl border transition-all ${
                                 emp.can_change_password
                                   ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200'
@@ -897,6 +1057,200 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                   حفظ وتعيين كلمة المرور
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: EDIT EMPLOYEE DETAILS & PERMISSIONS */}
+      {isEditModalOpen && selectedStaffForEdit && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto animate-scale-in">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">تعديل بيانات وصلاحيات الموظف</h3>
+                  <p className="text-xs text-slate-500">تعديل الدور، الفرع، ومحددات الوصول</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditEmployee} className="space-y-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">الاسم الكامل</label>
+                  <input
+                    type="text"
+                    required
+                    value={selectedStaffForEdit.full_name}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, full_name: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">الصلاحية / الدور الوظيفي</label>
+                  <select
+                    value={selectedStaffForEdit.role}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, role: e.target.value as StaffRole })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="super_admin">مسؤول النظام (Super Admin)</option>
+                    <option value="general_manager">مدير عام (General Manager)</option>
+                    <option value="auditor">مدقق (Auditor)</option>
+                    <option value="accountant">محاسب (Accountant)</option>
+                    <option value="branch_manager">مدير فرع (Branch Manager)</option>
+                    <option value="cashier">كاشير ونقاط البيع (Cashier)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">الفرع الأساسي المخصص</label>
+                <select
+                  value={selectedStaffForEdit.branch_id}
+                  onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, branch_id: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-amber-300 bg-amber-50/40 text-xs font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.name_ar} - ({b.city})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">رقم الهاتف</label>
+                  <input
+                    type="tel"
+                    value={selectedStaffForEdit.phone}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    value={selectedStaffForEdit.email}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, email: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">الراتب الأساسي (ل.س)</label>
+                  <input
+                    type="number"
+                    value={selectedStaffForEdit.basic_salary}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, basic_salary: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">البدلات (ل.س)</label>
+                  <input
+                    type="number"
+                    value={selectedStaffForEdit.allowances}
+                    onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, allowances: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/30"
+                >
+                  حفظ التعديلات واعتمادها
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: AUDIT TRAIL HISTORY MODAL */}
+      {isAuditModalOpen && selectedStaffForAudit && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto animate-scale-in">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    سجل العمليات والنشاط الأخير للموظف: {selectedStaffForAudit.full_name}
+                  </h3>
+                  <p className="text-xs text-slate-500">كود الموظف: {selectedStaffForAudit.employee_code} • {selectedStaffForAudit.branch_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {(() => {
+                const logs = getAuditLogs().filter(l => l.target_id === selectedStaffForAudit.id || l.actor_id === selectedStaffForAudit.id);
+                if (logs.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-400 font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      لا توجد عمليات مسجلة حديثاً في سجل التدقيق لهذا الحساب
+                    </div>
+                  );
+                }
+                return logs.map((log) => (
+                  <div key={log.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start justify-between gap-3 text-xs">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-extrabold text-slate-900">{log.action}</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+                          {log.category}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 font-medium">{log.details}</p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                      {new Date(log.timestamp).toLocaleString('ar-SA')}
+                    </span>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100 mt-6">
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+              >
+                إغلاق
+              </button>
             </div>
           </div>
         </div>

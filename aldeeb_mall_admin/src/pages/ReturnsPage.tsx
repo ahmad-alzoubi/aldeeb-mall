@@ -8,9 +8,13 @@ import {
   Truck, 
   AlertCircle,
   Eye,
-  MessageSquare
+  MessageSquare,
+  ShieldCheck,
+  Lock,
+  Clock
 } from 'lucide-react';
 import { ReturnRequest } from '../types';
+import { logAuditEvent } from '../lib/auditLogger';
 
 export const ReturnsPage: React.FC = () => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([
@@ -19,12 +23,12 @@ export const ReturnsPage: React.FC = () => {
       return_number: 'RET-2026-881',
       order_number: 'ORD-9024',
       customer_name: 'سارة بنت عبدالله',
-      customer_phone: '+966 50 123 4567',
+      customer_phone: '+963 933 123 456',
       items_summary: 'أفوكادو هاس مكسيكي (3 حبات) - نضج زائد جداً وغير صالح للاستخدام',
       reason: 'defective_fresh',
       reason_ar: 'منتج طازج غير مطابق لمعايير الجودة العالية',
       requested_at: 'قبل 12 دقيقة',
-      refund_amount: 24.50,
+      refund_amount: 24500,
       photo_evidence_url: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=500&auto=format&fit=crop&q=80',
       status: 'pending_review',
     },
@@ -32,13 +36,13 @@ export const ReturnsPage: React.FC = () => {
       id: 'ret-102',
       return_number: 'RET-2026-880',
       order_number: 'ORD-9018',
-      customer_name: 'خالد المطيري',
-      customer_phone: '+966 55 987 6543',
+      customer_name: 'خالد الزعبي',
+      customer_phone: '+963 988 987 654',
       items_summary: 'جبنة فيتا يونانية طبيعية - تم إرسال جبنة حلوم بدلاً منها بالخطأ',
       reason: 'wrong_item',
       reason_ar: 'عنصر خاطئ أثناء تجهيز الطلب (Packing Mismatch)',
       requested_at: 'قبل 45 دقيقة',
-      refund_amount: 18.00,
+      refund_amount: 18000,
       photo_evidence_url: 'https://images.unsplash.com/photo-1559561853-08451507cbe7?w=500&auto=format&fit=crop&q=80',
       status: 'pending_review',
     },
@@ -46,13 +50,13 @@ export const ReturnsPage: React.FC = () => {
       id: 'ret-103',
       return_number: 'RET-2026-879',
       order_number: 'ORD-8991',
-      customer_name: 'فهد العتيبي',
-      customer_phone: '+966 54 333 2211',
+      customer_name: 'فهد المقداد',
+      customer_phone: '+963 944 333 221',
       items_summary: 'علبة بيض عضوي بلدي 30 بيضة - كسر في 3 بيضات أثناء نقل المندوب',
       reason: 'damaged_packaging',
       reason_ar: 'تلف جزئي بسبب النقل السريع',
       requested_at: 'قبل ساعتين',
-      refund_amount: 12.00,
+      refund_amount: 12000,
       photo_evidence_url: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=500&auto=format&fit=crop&q=80',
       status: 'approved_refunded',
     },
@@ -68,24 +72,62 @@ export const ReturnsPage: React.FC = () => {
   };
 
   const handleApproveWalletRefund = (req: ReturnRequest) => {
+    if (req.status === 'approved_refunded') {
+      alert('تم استرداد هذا المبلغ مسبقاً! لا يمكن تكرار عملية الاسترداد.');
+      return;
+    }
+
     setReturnRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: 'approved_refunded' } : r))
     );
-    showToast(`تم استرداد مبلغ ${req.refund_amount} ل.س فمع مكافأة ولاء فوراً إلى محفظة ${req.customer_name}!`);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مسؤول خدمة العملاء والمرتجعات',
+      actor_role: 'support_officer',
+      action: 'RETURN_REFUND_APPROVED',
+      category: 'financial',
+      details: `اعتماد استرداد فوري لمبلغ ${req.refund_amount.toLocaleString()} ل.س لمحفظة العميل (${req.customer_name}) للطلب ${req.order_number}. السبب: ${req.reason_ar}`,
+      target_id: req.id,
+    });
+
+    showToast(`✓ تم استرداد مبلغ ${req.refund_amount.toLocaleString()} ل.س وإيداعه بمحفظة العميل وقفل الطلب ضد التكرار.`);
   };
 
   const handleApproveReplacement = (req: ReturnRequest) => {
     setReturnRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: 'approved_replacement' } : r))
     );
-    showToast(`تم توجيه أمر استبدال فوري إلى أقرب كوريير لطلب ${req.order_number}!`);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مسؤول خدمة العملاء والمرتجعات',
+      actor_role: 'support_officer',
+      action: 'RETURN_REPLACEMENT_DISPATCHED',
+      category: 'orders',
+      details: `توجيه أمر استبدال فوري لطلب العميل (${req.customer_name}) للطلب ${req.order_number}`,
+      target_id: req.id,
+    });
+
+    showToast(`✓ تم توجيه أمر استبدال فوري إلى أقرب كابتن توصيل لطلب ${req.order_number}!`);
   };
 
   const handleReject = (req: ReturnRequest) => {
     setReturnRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: 'rejected' } : r))
     );
-    showToast(`تم رفض طلب المرتجع ${req.return_number} وإرسال إشعار توضيحي للعميل.`);
+
+    logAuditEvent({
+      actor_id: 'admin-1',
+      actor_name: 'مسؤول خدمة العملاء والمرتجعات',
+      actor_role: 'support_officer',
+      action: 'RETURN_REQUEST_REJECTED',
+      category: 'orders',
+      details: `رفض طلب المرتجع ${req.return_number} لعدم استيفاء شروط الإرجاع.`,
+      target_id: req.id,
+    });
+
+    showToast(`تم رفض طلب المرتجع ${req.return_number} وتوثيق القرار في سجل التدقيق.`);
   };
 
   const filteredRequests = returnRequests.filter((r) => {

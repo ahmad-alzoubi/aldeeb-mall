@@ -23,6 +23,7 @@ interface FleetPageProps {
 export const FleetPage: React.FC<FleetPageProps> = ({
   couriers: initialCouriers,
   orders,
+  onAssignOrderToCourier,
 }) => {
   const [couriers, setCouriers] = useState<Courier[]>(initialCouriers);
   const [filter, setFilter] = useState<'all' | 'on_delivery' | 'idle'>('all');
@@ -50,12 +51,16 @@ export const FleetPage: React.FC<FleetPageProps> = ({
   const handleAssignOrder = (orderId: string) => {
     if (!assignModalCourier) return;
 
+    if (onAssignOrderToCourier) {
+      onAssignOrderToCourier(orderId, assignModalCourier.id);
+    }
+
     setCouriers((prev) =>
       prev.map((c) =>
         c.id === assignModalCourier.id
           ? {
               ...c,
-              assigned_orders_count: c.assigned_orders_count + 1,
+              assigned_orders_count: (c.assigned_orders_count || 0) + 1,
               status: 'on_delivery',
             }
           : c
@@ -66,6 +71,28 @@ export const FleetPage: React.FC<FleetPageProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Top Banner with PWA link */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-slate-800">
+        <div>
+          <h3 className="font-bold text-sm flex items-center gap-2">
+            <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+            غرفة التحكم بأسطول التوصيل الميداني (Fleet Dispatch Control)
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            تتبع حي لحالات السائقين، الورديات، إسناد الطلبات الفورية، والتحقق عبر OTP
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            window.location.hash = '#courier';
+          }}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/30 flex items-center gap-2 shrink-0"
+        >
+          <Navigation className="w-4 h-4" />
+          <span>فتح بوابة وتطبيق الكابتن المستقل (PWA)</span>
+        </button>
+      </div>
+
       {/* Fleet KPI Banner */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">

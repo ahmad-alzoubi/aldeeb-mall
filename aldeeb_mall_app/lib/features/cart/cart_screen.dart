@@ -477,8 +477,8 @@ class _CartScreenState extends State<CartScreen> {
                           if (_couponController.text.trim().isEmpty) return;
                           setState(() => _isApplyingCoupon = true);
                           final error = await cart.applyCoupon(_couponController.text.trim());
+                          if (!mounted) return;
                           setState(() => _isApplyingCoupon = false);
-                          if (!context.mounted) return;
                           if (error != null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text(error), backgroundColor: AppColors.error),

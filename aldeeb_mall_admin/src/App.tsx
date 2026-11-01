@@ -25,6 +25,7 @@ import { BannersPage } from './pages/BannersPage';
 import { EnterpriseOperationsTowerPage } from './pages/EnterpriseOperationsTowerPage';
 import { BranchesPage } from './pages/BranchesPage';
 import { PosTerminalPage } from './pages/PosTerminalPage';
+import { CourierPortalPage } from './pages/CourierPortalPage';
 import { InvoiceDesignerPage } from './pages/InvoiceDesignerPage';
 import { ElectronicInvoicePage } from './pages/ElectronicInvoicePage';
 import { StaffManagementPage } from './pages/StaffManagementPage';
@@ -35,6 +36,15 @@ import {
   INITIAL_PASSWORD_REQUESTS 
 } from './lib/staffData';
 import { INITIAL_BRANCHES } from './lib/branchesData';
+import { HelpProvider } from './components/common/InteractiveHelpSystem';
+import { 
+  filterOrdersByBranch, 
+  filterProductsByBranch, 
+  filterStaffByBranch, 
+  filterCouriersByBranch,
+  getActiveBranchId,
+  setActiveBranchId
+} from './lib/branchContext';
 import { 
   initialOrders, 
   initialProducts, 
@@ -93,6 +103,9 @@ export const App: React.FC = () => {
       if (window.location.hash === '#pos' || window.location.search.includes('mode=pos')) {
         return 'pos_terminal';
       }
+      if (window.location.hash === '#courier' || window.location.search.includes('mode=courier')) {
+        return 'courier_portal';
+      }
       if (window.location.hash === '#invoice_designer') {
         return 'invoice_designer';
       }
@@ -106,6 +119,8 @@ export const App: React.FC = () => {
         setActiveTab('electronic_invoice');
       } else if (window.location.hash === '#pos') {
         setActiveTab('pos_terminal');
+      } else if (window.location.hash === '#courier') {
+        setActiveTab('courier_portal');
       } else if (window.location.hash === '#invoice_designer') {
         setActiveTab('invoice_designer');
       }
@@ -127,7 +142,7 @@ export const App: React.FC = () => {
   const [darkStores] = useState<DarkStore[]>(initialDarkStores);
   const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
   const [flashDeals, setFlashDeals] = useState<FlashDeal[]>(initialFlashDeals);
-  const [couriers] = useState<Courier[]>(initialCouriers);
+  const [couriers, setCouriers] = useState<Courier[]>(initialCouriers);
   const [suppliers] = useState<Supplier[]>(initialSuppliers);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
   const [supportTickets] = useState<SupportTicket[]>(initialSupportTickets);
@@ -144,12 +159,29 @@ export const App: React.FC = () => {
 
   // Multi-branch dataset
   const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
+  const [activeBranchId, setActiveBranchIdState] = useState<string>(() => getActiveBranchId());
+  const [isBranchSwitching, setIsBranchSwitching] = useState<boolean>(false);
+
+  const handleSwitchBranch = (newBranchId: string) => {
+    setIsBranchSwitching(true);
+    setActiveBranchId(newBranchId);
+    setActiveBranchIdState(newBranchId);
+    setTimeout(() => {
+      setIsBranchSwitching(false);
+    }, 300);
+  };
 
   // Staff, Roles, Permissions & Shift System
   const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
   const [currentUser, setCurrentUser] = useState<StaffMember>(INITIAL_STAFF[0]);
   const [payrollTransactions, setPayrollTransactions] = useState<PayrollTransaction[]>(INITIAL_PAYROLL_TRANSACTIONS);
   const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(INITIAL_PASSWORD_REQUESTS);
+
+  // Branch-isolated reactive views
+  const visibleOrders = filterOrdersByBranch(orders, activeBranchId);
+  const visibleProducts = filterProductsByBranch(products, activeBranchId);
+  const visibleStaff = filterStaffByBranch(staffList, activeBranchId);
+  const visibleCouriers = filterCouriersByBranch(couriers, activeBranchId);
 
   const handleSwitchUser = (selectedStaff: StaffMember) => {
     setCurrentUser(selectedStaff);
@@ -211,12 +243,24 @@ export const App: React.FC = () => {
     }
   };
 
-  // Status Updater
+  // Status & Order Updater
   const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
     playOrderChime();
+  };
+
+  const handleUpdateOrder = (updatedOrder: Order) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+  };
+
+  const handleUpdateCourier = (updatedCourier: Courier) => {
+    setCouriers((prev) =>
+      prev.map((c) => (c.id === updatedCourier.id ? updatedCourier : c))
+    );
   };
 
   // Product Actions
@@ -497,8 +541,62 @@ export const App: React.FC = () => {
     );
   }
 
+  if (activeTab === 'courier_portal') {
+    return (
+      <CourierPortalPage
+        couriers={couriers}
+        orders={orders}
+        onUpdateOrder={handleUpdateOrder}
+        onUpdateCourier={handleUpdateCourier}
+        onBackToAdmin={() => {
+          window.location.hash = '';
+          setActiveTab('fleet');
+        }}
+      />
+    );
+  }
+
+  if (!currentUser.is_active) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center" dir="rtl">
+        <div className="bg-slate-900 p-8 rounded-3xl border border-rose-500/40 max-w-md w-full shadow-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto text-2xl font-black border border-rose-500/30">
+            ✕
+          </div>
+          <h2 className="text-xl font-black text-rose-400">الحساب معطل أو تم إنهاء الجلسة</h2>
+          <p className="text-xs text-slate-300 leading-relaxed font-medium">
+            تم تجميد هذا الحساب أو إنهاء الجلسة من قبل الإدارة المركزية للديب مول بموجب بروتوكول الحوكمة والأمان.
+          </p>
+          <button
+            onClick={() => {
+              const activeOne = staffList.find(s => s.is_active) || staffList[0];
+              setCurrentUser(activeOne);
+            }}
+            className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all"
+          >
+            تسجيل الدخول بحساب مسؤول نشط
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex bg-slate-50 min-h-screen text-slate-800">
+    <HelpProvider>
+    <div className="flex bg-slate-50 min-h-screen text-slate-800 relative">
+      {/* Branch Switching Isolation Overlay */}
+      {isBranchSwitching && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center animate-fade-in" dir="rtl">
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-200 flex flex-col items-center gap-3.5 max-w-sm text-center">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-black text-slate-900">جاري عزل وتصفية بيانات الفرع النشط...</p>
+            <p className="text-xs text-slate-500 font-medium">
+              مزامنة فواتير المبيعات، حركات المخزون، والطلبات الخاصة بالفرع المحدد ومنع اختلاط البيانات
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -529,6 +627,10 @@ export const App: React.FC = () => {
           onSwitchUser={handleSwitchUser}
           onRequestPasswordChange={handleRequestPasswordChange}
           onDirectChangePassword={handleDirectChangePassword}
+          branches={branches}
+          activeBranchId={activeBranchId}
+          onSwitchBranch={handleSwitchBranch}
+          isBranchSwitching={isBranchSwitching}
         />
 
         <main className="p-8 flex-1 overflow-y-auto">
@@ -564,8 +666,8 @@ export const App: React.FC = () => {
 
           {activeTab === 'dashboard' && (
             <DashboardPage
-              orders={orders}
-              products={products}
+              orders={visibleOrders}
+              products={visibleProducts}
               setActiveTab={setActiveTab}
               onUpdateOrderStatus={handleUpdateOrderStatus}
             />
@@ -573,26 +675,29 @@ export const App: React.FC = () => {
 
           {activeTab === 'analytics' && (
             <AnalyticsPage
-              orders={orders}
-              products={products}
+              orders={visibleOrders}
+              products={visibleProducts}
             />
           )}
 
           {activeTab === 'forecasting' && (
-            <ForecastingPage />
+            <ForecastingPage
+              products={visibleProducts}
+              orders={visibleOrders}
+            />
           )}
 
           {activeTab === 'orders' && (
             <OrdersPage
-              orders={orders}
+              orders={visibleOrders}
               onUpdateOrderStatus={handleUpdateOrderStatus}
             />
           )}
 
           {activeTab === 'operations_tower' && (
             <EnterpriseOperationsTowerPage
-              orders={orders}
-              products={products}
+              orders={visibleOrders}
+              products={visibleProducts}
               darkStores={darkStores}
             />
           )}
@@ -605,13 +710,17 @@ export const App: React.FC = () => {
           )}
 
           {activeTab === 'inventory_transfer' && (
-            <InventoryTransferPage />
+            <InventoryTransferPage
+              darkStores={darkStores}
+              products={products}
+            />
           )}
 
           {activeTab === 'flash_deals' && (
             <FlashDealsPage
               deals={flashDeals}
-              products={products}
+              products={visibleProducts}
+              orders={visibleOrders}
               onAddDeal={handleAddFlashDeal}
               onDeleteDeal={handleDeleteFlashDeal}
               onToggleDeal={handleToggleFlashDeal}
@@ -620,8 +729,35 @@ export const App: React.FC = () => {
 
           {activeTab === 'fleet' && (
             <FleetPage
-              couriers={couriers}
-              orders={orders}
+              couriers={visibleCouriers}
+              orders={visibleOrders}
+              onAssignOrderToCourier={(orderId, courierId) => {
+                const targetCourier = couriers.find((c) => c.id === courierId);
+                setOrders((prev) =>
+                  prev.map((o) =>
+                    o.id === orderId
+                      ? {
+                          ...o,
+                          courier_id: courierId,
+                          courier_name: targetCourier?.full_name,
+                          status: 'out_for_delivery',
+                          delivery_otp: o.delivery_otp || `${Math.floor(1000 + Math.random() * 9000)}`,
+                        }
+                      : o
+                  )
+                );
+                setCouriers((prev) =>
+                  prev.map((c) =>
+                    c.id === courierId
+                      ? {
+                          ...c,
+                          status: 'on_delivery',
+                          assigned_orders_count: (c.assigned_orders_count || 0) + 1,
+                        }
+                      : c
+                  )
+                );
+              }}
             />
           )}
 
@@ -634,6 +770,7 @@ export const App: React.FC = () => {
               products={products}
               categories={categories}
               onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
             />
           )}
@@ -644,6 +781,8 @@ export const App: React.FC = () => {
               purchaseOrders={purchaseOrders}
               products={products}
               onAddPO={(newPO) => setPurchaseOrders((prev) => [newPO, ...prev])}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
             />
           )}
 
@@ -740,5 +879,6 @@ export const App: React.FC = () => {
         </main>
       </div>
     </div>
+    </HelpProvider>
   );
 };
