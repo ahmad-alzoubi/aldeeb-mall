@@ -1,18 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/providers/store_settings_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../product/product_detail_screen.dart';
-
-enum ScannerMode {
-  photoSnap,    // تصوير المنتج بالكاميرا والتعرف عليه بالـ AI
-  laserBarcode, // مسح الباركود المباشر
-}
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({super.key});
@@ -26,18 +21,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   late AnimationController _animController;
   final TextEditingController _manualBarcodeCtrl = TextEditingController();
 
-  ScannerMode _mode = ScannerMode.photoSnap;
   ProductModel? _scannedProduct;
+  String _searchedCode = '';
+  bool _isNotFound = false;
   bool _isTorchOn = false;
-  bool _isAnalyzing = false;
-  String _analyzingText = 'جاري تحليل الصورة والتعرف البصري بالذكاء الاصطناعي...';
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
   }
 
@@ -48,39 +42,37 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     super.dispose();
   }
 
-  // Trigger simulated photo snap & AI recognition
-  void _snapPhotoAndAnalyze(ProductModel targetProduct) {
-    setState(() {
-      _isAnalyzing = true;
-      _analyzingText = 'جاري التقاط الصورة وتحليل مواصفات الصنف بالـ AI...';
-    });
-
-    Timer(const Duration(milliseconds: 650), () {
-      if (!mounted) return;
+  void _lookupBarcode(String rawCode, List<ProductModel> products) {
+    final code = rawCode.trim();
+    if (code.isEmpty) {
       setState(() {
-        _isAnalyzing = false;
-        _scannedProduct = targetProduct;
+        _searchedCode = '';
+        _scannedProduct = null;
+        _isNotFound = false;
       });
+      return;
+    }
+
+    final match = products.where((p) {
+      final b = (p.barcode ?? '').trim().toLowerCase();
+      final id = p.id.trim().toLowerCase();
+      final q = code.toLowerCase();
+      return b == q || id == q;
+    }).firstOrNull;
+
+    setState(() {
+      _searchedCode = code;
+      _scannedProduct = match;
+      _isNotFound = (match == null);
     });
   }
 
-  void _onBarcodeDetected(String barcode, List<ProductModel> products) {
+  void _clearScan() {
     setState(() {
-      _isAnalyzing = true;
-      _analyzingText = 'جاري مطابقة الباركود مع قاعدة بيانات المتجر...';
-    });
-
-    Timer(const Duration(milliseconds: 400), () {
-      if (!mounted) return;
-      final match = products.firstWhere(
-        (p) => p.barcode == barcode || p.id == barcode,
-        orElse: () => products.first,
-      );
-
-      setState(() {
-        _isAnalyzing = false;
-        _scannedProduct = match;
-      });
+      _manualBarcodeCtrl.clear();
+      _searchedCode = '';
+      _scannedProduct = null;
+      _isNotFound = false;
     });
   }
 
@@ -92,20 +84,27 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     final products = mall.products.isNotEmpty ? mall.products : mall.filteredProducts;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.camera_alt_rounded, color: Colors.amberAccent, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              _mode == ScannerMode.photoSnap
-                  ? 'تصوير المنتج بالـ AI لمعرفة السعر'
-                  : 'مسح الباركود السريع (Scan & Go)',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            const Row(
+              children: [
+                Icon(Icons.qr_code_scanner_rounded, color: AppColors.accent, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'فاحص الأسعار وقارئ الباركود',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const Text(
+              'مطابقة فورية للأسعار والمخزون في المتجر والفرع النشط',
+              style: TextStyle(fontSize: 10.5, color: Colors.white60),
             ),
           ],
         ),
@@ -113,459 +112,429 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
           IconButton(
             icon: Icon(
               _isTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-              color: _isTorchOn ? Colors.amberAccent : Colors.white70,
+              color: _isTorchOn ? Colors.amberAccent : Colors.white60,
             ),
             onPressed: () => setState(() => _isTorchOn = !_isTorchOn),
-            tooltip: 'إضاءة الفلاش',
+            tooltip: 'إضاءة الكشاف',
           ),
+          if (_scannedProduct != null || _isNotFound)
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+              onPressed: _clearScan,
+              tooltip: 'مسح وإعادة الفحص',
+            ),
         ],
       ),
-      body: Stack(
-        children: [
-          // 1. Simulated Live In-Store Camera Viewfinder Background
-          Positioned.fill(
-            child: Opacity(
-              opacity: _isTorchOn ? 0.55 : 0.35,
-              child: Image.network(
-                _mode == ScannerMode.photoSnap
-                    ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80'
-                    : 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-
-          // 2. Top Scanner Mode Switcher (Photo vs Barcode)
-          Positioned(
-            top: 16,
-            left: 20,
-            right: 20,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.75),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white24, width: 0.8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildModeButton(
-                      mode: ScannerMode.photoSnap,
-                      icon: Icons.camera_enhance_rounded,
-                      label: 'تصوير المنتج بالـ AI',
-                      isActive: _mode == ScannerMode.photoSnap,
-                    ),
-                    _buildModeButton(
-                      mode: ScannerMode.laserBarcode,
-                      icon: Icons.qr_code_scanner_rounded,
-                      label: 'مسح الباركود',
-                      isActive: _mode == ScannerMode.laserBarcode,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 3. Central Viewfinder HUD Area
-          Align(
-            alignment: const Alignment(0, -0.22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Scan Reticle Box
-                Container(
-                  width: 290,
-                  height: 290,
+      body: SafeArea(
+        child: MaxWidthContainer(
+          maxWidth: 900,
+          child: Column(
+            children: [
+              // 1. Manual Barcode Entry Bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _mode == ScannerMode.photoSnap ? Colors.amberAccent : Colors.cyanAccent,
-                      width: 2.5,
+                      color: _isNotFound ? Colors.redAccent.withValues(alpha: 0.6) : const Color(0xFF334155),
+                      width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (_mode == ScannerMode.photoSnap ? Colors.amberAccent : Colors.cyanAccent)
-                            .withValues(alpha: 0.25),
-                        blurRadius: 24,
-                        spreadRadius: 4,
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(26),
-                    child: Stack(
-                      children: [
-                        // Animated Scanning Laser Line
-                        AnimatedBuilder(
-                          animation: _animController,
-                          builder: (ctx, child) {
-                            return Positioned(
-                              top: 290 * _animController.value,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                height: 3.5,
-                                decoration: BoxDecoration(
-                                  color: _mode == ScannerMode.photoSnap ? Colors.amberAccent : Colors.cyanAccent,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _mode == ScannerMode.photoSnap ? Colors.amberAccent : Colors.cyanAccent,
-                                      blurRadius: 12,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Icon(Icons.barcode_reader, color: AppColors.accent, size: 22),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _manualBarcodeCtrl,
+                          keyboardType: TextInputType.text,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'monospace'),
+                          decoration: InputDecoration(
+                            hintText: 'أدخل رقم الباركود يدوياً أو اختر صنفاً أدناه...',
+                            hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                            suffixIcon: _manualBarcodeCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.white60),
+                                    onPressed: () {
+                                      _manualBarcodeCtrl.clear();
+                                      _lookupBarcode('', products);
+                                    },
+                                  )
+                                : null,
+                          ),
+                          onChanged: (val) {
+                            if (val.trim().isEmpty) {
+                              _lookupBarcode('', products);
+                            }
                           },
+                          onSubmitted: (val) => _lookupBarcode(val, products),
                         ),
-
-                        // Center Icon & Frame HUD
-                        Center(
-                          child: Icon(
-                            _mode == ScannerMode.photoSnap
-                                ? Icons.filter_center_focus_rounded
-                                : Icons.qr_code_scanner_rounded,
-                            color: Colors.white24,
-                            size: 110,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6, right: 6),
+                        child: ElevatedButton(
+                          onPressed: () => _lookupBarcode(_manualBarcodeCtrl.text, products),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
+                          child: const Text('فحص السعر', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
-
-                        // Corner Target Accents
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Colors.white, width: 3),
-                                right: BorderSide(color: Colors.white, width: 3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Colors.white, width: 3),
-                                left: BorderSide(color: Colors.white, width: 3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          right: 12,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.white, width: 3),
-                                right: BorderSide(color: Colors.white, width: 3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.white, width: 3),
-                                left: BorderSide(color: Colors.white, width: 3),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Analyzing Overlay
-                        if (_isAnalyzing)
-                          Container(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(
-                                    width: 36,
-                                    height: 36,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 3,
-                                      color: Colors.amberAccent,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text(
-                                      _analyzingText,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
+              ),
 
-                // Instruction Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24, width: 0.8),
-                  ),
-                  child: Text(
-                    _mode == ScannerMode.photoSnap
-                        ? '📸 صوّر المنتج أو اختر من النماذج لمعرفة سعره وعروضه فوراً'
-                        : '⚡ وجّه الكاميرا نحو باركود الصنف لمطابقة السعر فوراً',
-                    style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 4. In-Store Live Products Simulation Chips (One-Click Camera Snap Test)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: _scannedProduct != null ? 360 : 100,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // 2. Barcode Samples Strip from Real Active Branch Products
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
                   children: [
-                    Text(
-                      _mode == ScannerMode.photoSnap
-                          ? 'أصناف المتجر للتصوير السريع (Snap Samples):'
-                          : 'باركود أصناف المتجر (Barcode Samples):',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                    const Icon(Icons.touch_app_outlined, color: AppColors.accent, size: 14),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'عينات باركود حقيقية للتجربة المباشرة:',
+                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
-                    const Text('اسحب للمزيد ←', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                    const Spacer(),
+                    Text(
+                      '${products.length} صنف متاح',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10.5),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
+              ),
+              SizedBox(
+                height: 38,
+                child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: products.take(6).map((prod) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: _demoProductChip(prod, products),
-                      );
-                    }).toList(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: products.take(8).length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final p = products[index];
+                    final barcode = p.barcode ?? p.id;
+                    final isCurrent = _searchedCode == barcode;
+                    return ActionChip(
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            p.nameAr,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                              color: isCurrent ? AppColors.accent : Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${p.price.toStringAsFixed(0)} ${settings.currency})',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isCurrent ? Colors.white : Colors.white60,
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: isCurrent ? AppColors.primary : const Color(0xFF1E293B),
+                      side: BorderSide(
+                        color: isCurrent ? AppColors.accent : const Color(0xFF334155),
+                      ),
+                      onPressed: () {
+                        _manualBarcodeCtrl.text = barcode;
+                        _lookupBarcode(barcode, products);
+                      },
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // 3. Main Scanning Area or Product Card / Error Result
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // When a product is successfully matched
+                      if (_scannedProduct != null)
+                        _buildProductResultCard(context, _scannedProduct!, cart, settings)
+                      // When a barcode was searched but not found in branch DB
+                      else if (_isNotFound)
+                        _buildNotFoundCard()
+                      // Viewfinder default standby state
+                      else
+                        _buildScannerViewfinder(),
+                    ],
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Camera / Viewfinder Box HUD
+  Widget _buildScannerViewfinder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 20),
+        Container(
+          width: 280,
+          height: 280,
+          decoration: BoxDecoration(
+            color: _isTorchOn ? const Color(0xFF1E293B) : const Color(0xFF111827),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.6), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.cyanAccent.withValues(alpha: 0.15),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(26),
+            child: Stack(
+              children: [
+                // Animated Laser Line
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (ctx, child) {
+                    return Positioned(
+                      top: 280 * _animController.value,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: Colors.cyanAccent,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.cyanAccent.withValues(alpha: 0.8),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // Center Icon HUD
+                const Center(
+                  child: Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: Colors.white12,
+                    size: 120,
+                  ),
+                ),
+
+                // Corner Reticle Accents
+                _cornerAccent(top: 14, right: 14, isTop: true, isRight: true),
+                _cornerAccent(top: 14, left: 14, isTop: true, isRight: false),
+                _cornerAccent(bottom: 14, right: 14, isTop: false, isRight: true),
+                _cornerAccent(bottom: 14, left: 14, isTop: false, isRight: false),
               ],
             ),
           ),
-
-          // 5. Camera Shutter Button (For Photo Snap Mode)
-          if (_scannedProduct == null && _mode == ScannerMode.photoSnap)
-            Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () {
-                    if (products.isNotEmpty) {
-                      _snapPhotoAndAnalyze(products.first);
-                    }
-                  },
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(color: Colors.amberAccent, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.amberAccent.withValues(alpha: 0.4),
-                          blurRadius: 18,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.camera_alt_rounded, color: Colors.black, size: 32),
-                    ),
-                  ),
-                ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF334155)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'وجّه الكاميرا نحو باركود السلعة أو اكتب الرقم واضغط "فحص السعر"',
+                style: TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.bold),
               ),
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-          // 6. COMPREHENSIVE IN-STORE PRODUCT INTELLIGENCE CARD (When Product Identified)
-          if (_scannedProduct != null)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: MaxWidthContainer(
-                maxWidth: 620,
-                child: _buildProductDetailsCard(context, _scannedProduct!, cart, settings, products),
-              ),
+  Widget _cornerAccent({
+    double? top,
+    double? bottom,
+    double? left,
+    double? right,
+    required bool isTop,
+    required bool isRight,
+  }) {
+    return Positioned(
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
+      child: Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          border: Border(
+            top: isTop ? const BorderSide(color: Colors.cyanAccent, width: 3.5) : BorderSide.none,
+            bottom: !isTop ? const BorderSide(color: Colors.cyanAccent, width: 3.5) : BorderSide.none,
+            right: isRight ? const BorderSide(color: Colors.cyanAccent, width: 3.5) : BorderSide.none,
+            left: !isRight ? const BorderSide(color: Colors.cyanAccent, width: 3.5) : BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Not Found Card (Zero Hallucination - Honest Result)
+  Widget _buildNotFoundCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
+            child: const Icon(Icons.search_off_rounded, color: Colors.redAccent, size: 48),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'لم يتم العثور على أي صنف بهذا الباركود',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'الرمز المدخل: $_searchedCode',
+              style: const TextStyle(fontSize: 12, color: Colors.amberAccent, fontFamily: 'monospace'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'الصنف غير مدرج في قاعدة بيانات هذا الفرع، أو تم إدخال رقم الباركود بشكل غير صحيح. يرجى مراجعة الكاشير أو الاستعلام عبر خدمة العملاء.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.white60, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _clearScan,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('إعادة المحاولة ومسح صنف آخر', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildModeButton({
-    required ScannerMode mode,
-    required IconData icon,
-    required String label,
-    required bool isActive,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _mode = mode;
-          _scannedProduct = null;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.amberAccent : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isActive ? Colors.black : Colors.white70,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? Colors.black : Colors.white70,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _demoProductChip(ProductModel product, List<ProductModel> allProducts) {
-    return InkWell(
-      onTap: () {
-        if (_mode == ScannerMode.photoSnap) {
-          _snapPhotoAndAnalyze(product);
-        } else {
-          _onBarcodeDetected(product.barcode ?? product.id, allProducts);
-        }
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white24, width: 0.6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(
-                imageUrl: product.firstImage,
-                width: 22,
-                height: 22,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              product.nameAr,
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Comprehensive Product Intelligence Sheet (Price, Offers, Nutrition, Alternatives)
-  Widget _buildProductDetailsCard(
+  // Real Matched Product Card
+  Widget _buildProductResultCard(
     BuildContext context,
     ProductModel product,
     CartProvider cart,
     StoreSettingsProvider settings,
-    List<ProductModel> allProducts,
   ) {
     final currency = settings.currency;
-    final hasOffers = product.hasDiscount || product.isDailyDeal;
-    final relatedProducts = allProducts
-        .where((p) => p.id != product.id && p.categoryId == product.categoryId)
-        .take(4)
-        .toList();
+    final inStock = product.stockQuantity > 0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 28,
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 24,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Product Info & Dismiss
+          // Header Row: Product Image + Basic Info + Close Button
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Product Image with In-Store Tag
+              // Product Image with Unit Badge
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: CachedNetworkImage(
                       imageUrl: product.firstImage,
-                      width: 76,
-                      height: 76,
+                      width: 86,
+                      height: 86,
                       fit: BoxFit.cover,
+                      placeholder: (ctx, url) => Container(
+                        width: 86,
+                        height: 86,
+                        color: Colors.grey.shade100,
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (ctx, url, err) => Container(
+                        width: 86,
+                        height: 86,
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        child: const Icon(Icons.shopping_bag_outlined, color: AppColors.primary),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -574,19 +543,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 2),
-                      color: Colors.black.withValues(alpha: 0.75),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                      ),
                       child: Text(
                         product.unitLabelAr,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
 
-              // Title, Category, Barcode
+              // Title, Brand, Barcode
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,50 +566,63 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: AppColors.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             product.brand ?? 'الديب مول',
-                            style: TextStyle(color: Colors.blue.shade800, fontSize: 9.5, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
                         if (product.barcode != null)
                           Text(
                             'باركود: ${product.barcode}',
-                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5, fontFamily: 'monospace'),
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 9.5,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 6),
                     Text(
                       product.nameAr,
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A)),
-                      maxLines: 1,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: Color(0xFF0F172A),
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
 
-                    // Price and Discount Row
+                    // Price display
                     Row(
                       children: [
                         Text(
-                          '${product.price.toStringAsFixed(2)} $currency',
-                          style: TextStyle(
+                          '${product.price.toStringAsFixed(0)} $currency',
+                          style: const TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            color: settings.primaryColor,
+                            fontSize: 19,
+                            color: AppColors.primary,
                           ),
                         ),
                         if (product.originalPrice != null && product.originalPrice! > product.price) ...[
                           const SizedBox(width: 8),
                           Text(
-                            '${product.originalPrice!.toStringAsFixed(2)} $currency',
+                            '${product.originalPrice!.toStringAsFixed(0)} $currency',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 12.5,
                               color: Color(0xFF94A3B8),
                               decoration: TextDecoration.lineThrough,
                             ),
@@ -651,7 +636,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                             ),
                             child: Text(
                               'وفر %${product.discountPercent > 0 ? product.discountPercent : 20}',
-                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -661,129 +646,54 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                 ),
               ),
 
-              // Close / Scan Another Button
+              // Close / Reset Button
               IconButton(
                 icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 22),
-                onPressed: () => setState(() => _scannedProduct = null),
-                tooltip: 'إغلاق ومسح صنف آخر',
+                onPressed: _clearScan,
+                tooltip: 'مسح صنف آخر',
               ),
             ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
 
-          // In-Store Offers & Location Pills
+          // Stock and Location Information
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.blue, size: 14),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'موقع الصنف في الفرع: ',
-                      style: TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.bold),
-                    ),
-                    const Text(
-                      'الممر 4 - الرف الأوسط (أصناف طازجة)',
-                      style: TextStyle(fontSize: 10.5, color: Color(0xFF0F172A), fontWeight: FontWeight.w900),
-                    ),
-                  ],
+                Icon(
+                  inStock ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  color: inStock ? Colors.green.shade600 : Colors.red.shade600,
+                  size: 16,
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.local_fire_department_rounded, color: Colors.deepOrange, size: 14),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'العروض الحالية: ',
-                      style: TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.bold),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    inStock
+                        ? 'متوفر في الفرع الحالي (${product.stockQuantity} قطعة جاهزة للتسوق)'
+                        : 'هذا الصنف نفد حالياً من المخزون في الفرع النشط',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: inStock ? Colors.green.shade800 : Colors.red.shade800,
                     ),
-                    Text(
-                      hasOffers
-                        ? '🔥 عرض ترويجي نشط بنسبة حسم خاصة!'
-                        : 'متاح للشراء التشاركي مع الجيران للتوفير حتى 40%',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: hasOffers ? Colors.deepOrange.shade800 : Colors.teal.shade800,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
 
-          if (relatedProducts.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            const Row(
-              children: [
-                Icon(Icons.auto_awesome, color: Colors.amber, size: 14),
-                SizedBox(width: 4),
-                Text(
-                  'أصناف وعروض بديلة قد تهمك في نفس القسم:',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 34,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: relatedProducts.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final rel = relatedProducts[i];
-                  return InkWell(
-                    onTap: () => setState(() => _scannedProduct = rel),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: rel.firstImage,
-                              width: 20,
-                              height: 20,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${rel.nameAr} (${rel.price.toStringAsFixed(1)} $currency)',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+          const SizedBox(height: 16),
 
-          const SizedBox(height: 12),
-
-          // Action Buttons: Add to Cart, Add to Grocery List, View Full Details
+          // Action Buttons: Details + Add to Cart
           Row(
             children: [
-              // Details Button
               OutlinedButton(
                 onPressed: () {
                   Navigator.push(
@@ -794,56 +704,48 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  side: BorderSide(color: settings.primaryColor),
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('التفاصيل الكاملة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                child: const Text(
+                  'تفاصيل الصنف',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                ),
               ),
-              const SizedBox(width: 8),
-
-              // Add to Grocery List Button
-              IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('✓ أُضيف ${product.nameAr} إلى مخطط المقاضي الذكي!'),
-                      backgroundColor: Colors.teal.shade700,
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.playlist_add_check_rounded, color: Colors.teal, size: 22),
-                tooltip: 'أضف لقائمتي الذكية',
-              ),
-              const SizedBox(width: 4),
-
-              // Add to Cart Button (Main CTA)
+              const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    cart.addToCart(product);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                            const SizedBox(width: 8),
-                            Text('✓ تمت إضافة ${product.nameAr} إلى السلة!'),
-                          ],
-                        ),
-                        backgroundColor: settings.primaryColor,
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                    setState(() => _scannedProduct = null);
-                  },
+                  onPressed: inStock
+                      ? () {
+                          cart.addToCart(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text('✓ تمت إضافة "${product.nameAr}" إلى سلة التسوق!'),
+                                ],
+                              ),
+                              backgroundColor: AppColors.primaryDark,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          _clearScan();
+                        }
+                      : null,
                   icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                  label: const Text('أضف للسلة فوراً', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                  label: Text(
+                    inStock ? 'أضف للسلة فوراً' : 'غير متوفر',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: settings.primaryColor,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.grey.shade500,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),

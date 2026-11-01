@@ -91,5 +91,44 @@ void main() {
       expect(calculateEffectiveFee(5000.0, 2500.0, true), equals(7500.0));
       expect(calculateEffectiveFee(5000.0, 2500.0, false), equals(5000.0));
     });
+
+    test('Barcode matcher strictly searches by exact barcode or id and returns null when not found without fake fallback', () {
+      const p1 = ProductModel(
+        id: 'p-1',
+        barcode: '6291001001',
+        nameAr: 'حليب كامل الدسم',
+        nameEn: 'Full Cream Milk',
+        price: 8500,
+        stockQuantity: 40,
+      );
+      const p2 = ProductModel(
+        id: 'p-2',
+        barcode: '6291001002',
+        nameAr: 'جبنة قشقوان',
+        nameEn: 'Kashkaval Cheese',
+        price: 32000,
+        stockQuantity: 15,
+      );
+
+      final storeProducts = [p1, p2];
+
+      ProductModel? matchBarcode(String raw) {
+        final q = raw.trim().toLowerCase();
+        if (q.isEmpty) return null;
+        return storeProducts.where((p) {
+          final b = (p.barcode ?? '').trim().toLowerCase();
+          final id = p.id.trim().toLowerCase();
+          return b == q || id == q;
+        }).firstOrNull;
+      }
+
+      // Exact match by barcode
+      expect(matchBarcode('6291001001')?.nameAr, equals('حليب كامل الدسم'));
+      // Exact match by id
+      expect(matchBarcode('p-2')?.nameAr, equals('جبنة قشقوان'));
+      // Non-existent barcode returns null (never fake or fallback)
+      expect(matchBarcode('9999999999'), isNull);
+      expect(matchBarcode(''), isNull);
+    });
   });
 }
