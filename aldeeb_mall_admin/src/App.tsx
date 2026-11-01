@@ -16,21 +16,10 @@ import { SupportPage } from './pages/SupportPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { ZonesPage } from './pages/ZonesPage';
-import { ColdChainPage } from './pages/ColdChainPage';
 import { ReturnsPage } from './pages/ReturnsPage';
-import { CourierPortalPage } from './pages/CourierPortalPage';
 import { MerchandisingPage } from './pages/MerchandisingPage';
 import { InventoryTransferPage } from './pages/InventoryTransferPage';
 import { ForecastingPage } from './pages/ForecastingPage';
-import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
-import { ZeroWastePage } from './pages/ZeroWastePage';
-import { LiveShoppingPage } from './pages/LiveShoppingPage';
-import { MealKitsPage } from './pages/MealKitsPage';
-import { PriceMatchPage } from './pages/PriceMatchPage';
-import { PharmacyPage } from './pages/PharmacyPage';
-import { SmartLockersPage } from './pages/SmartLockersPage';
-import { CorporateB2BPage } from './pages/CorporateB2BPage';
-import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
 import { BannersPage } from './pages/BannersPage';
 import { EnterpriseOperationsTowerPage } from './pages/EnterpriseOperationsTowerPage';
@@ -629,10 +618,6 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeTab === 'live_shopping' && (
-            <LiveShoppingPage />
-          )}
-
           {activeTab === 'fleet' && (
             <FleetPage
               couriers={couriers}
@@ -640,20 +625,8 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeTab === 'courier_portal' && (
-            <CourierPortalPage />
-          )}
-
           {activeTab === 'merchandising' && (
             <MerchandisingPage />
-          )}
-
-          {activeTab === 'meal_kits' && (
-            <MealKitsPage />
-          )}
-
-          {activeTab === 'butcher' && (
-            <ButcherOperationsPage />
           )}
 
           {activeTab === 'products' && (
@@ -674,14 +647,6 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeTab === 'marketplace_vendors' && (
-            <MarketplaceVendorsPage />
-          )}
-
-          {activeTab === 'corporate_b2b' && (
-            <CorporateB2BPage />
-          )}
-
           {activeTab === 'support' && (
             <SupportPage
               tickets={supportTickets}
@@ -699,14 +664,6 @@ export const App: React.FC = () => {
             <ZonesPage
               zones={deliveryZones}
             />
-          )}
-
-          {activeTab === 'cold_chain' && (
-            <ColdChainPage />
-          )}
-
-          {activeTab === 'zero_waste' && (
-            <ZeroWastePage />
           )}
 
           {activeTab === 'returns' && (
@@ -743,18 +700,6 @@ export const App: React.FC = () => {
               onToggleCoupon={handleToggleCoupon}
               onDeleteCoupon={handleDeleteCoupon}
             />
-          )}
-
-          {activeTab === 'price_match' && (
-            <PriceMatchPage />
-          )}
-
-          {activeTab === 'pharmacy' && (
-            <PharmacyPage />
-          )}
-
-          {activeTab === 'lockers' && (
-            <SmartLockersPage />
           )}
 
           {activeTab === 'subscriptions' && (

@@ -336,6 +336,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
 
           {/* Real-time Surveillance Highlights (2-cam live snapshot + fast incident alert) */}
+          {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Live Camera Grid Preview (8 cols) */}
             <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-3xl p-5 text-slate-100 shadow-xl space-y-4">
@@ -430,6 +431,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </button>
             </div>
           </div>
+          )}
 
           {/* Quick Operations & Order Queue Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -566,7 +568,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       )}
 
       {/* 4. VIEW MODE 2: FULL CCTV 6-CAM MATRIX */}
-      {activeDeck === 'cctv_matrix' && (
+      {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && activeDeck === 'cctv_matrix' && (
         <div className="space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
             <div>
@@ -619,7 +621,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       )}
 
       {/* Fullscreen Camera Monitor Modal */}
-      {selectedMonitorCamera && (
+      {FEATURE_FLAGS.ENABLE_STORE_CAMERAS && selectedMonitorCamera && (
         <CameraMonitorModal
           camera={selectedMonitorCamera}
           allCameras={cameras}

@@ -17,25 +17,13 @@ import {
   BarChart3,
   Bell,
   Compass,
-  ThermometerSnowflake,
   RotateCcw,
-  Navigation,
   Split,
   ArrowLeftRight,
   BrainCircuit,
-  HeartHandshake,
-  Radio,
-  UtensilsCrossed,
-  Scale,
-  Pill,
-  DoorClosed,
-  Plane,
-  Briefcase,
-  Beef,
   TowerControl,
   Crown,
   Megaphone,
-  Monitor,
   Receipt,
   Users,
   Calculator,
@@ -83,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'WPS' 
     },
     { id: 'analytics', label: 'ذكاء الأعمال والتحليلات', icon: BarChart3, badge: 'BI' },
-    { id: 'forecasting', label: 'التنبؤ بالطلب بالـ AI', icon: BrainCircuit, badge: 'AI' },
+    { id: 'forecasting', label: 'التنبؤ بالطلب والمخزون', icon: BrainCircuit, badge: 'AI' },
     { 
       id: 'orders', 
       label: 'إدارة الطلبات الفورية', 
@@ -92,33 +80,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     { 
       id: 'operations_tower', 
-      label: 'برج مراقبة العمليات الـ 20', 
+      label: 'برج مراقبة العمليات المؤتمت', 
       icon: TowerControl, 
-      badge: '20-Ops' 
+      badge: 'Ops' 
     },
     { 
       id: 'fulfillment', 
       label: 'المستودعات الذكية والفرز', 
       icon: Boxes,
-      badge: '15-Min'
+      badge: 'WMS'
     },
     { 
       id: 'branches', 
-      label: 'إدارة الفروع المتعددة', 
+      label: 'إدارة الفروع وتخصيصها', 
       icon: Building2,
       badge: 'Multi'
-    },
-    { 
-      id: 'pos_terminal', 
-      label: 'بوابة الكاشير المستقلة (POS)', 
-      icon: Monitor, 
-      badge: 'Live' 
-    },
-    { 
-      id: 'invoice_designer', 
-      label: 'تصميم الفواتير والباركود', 
-      icon: Receipt, 
-      badge: 'QR' 
     },
     { 
       id: 'inventory_transfer', 
@@ -127,50 +103,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Hub'
     },
     { 
-      id: 'flash_deals', 
-      label: 'عروض الفلاش الخاطفة', 
-      icon: Zap,
-      badge: 'Noon'
+      id: 'products', 
+      label: 'كتالوج المنتجات والباركود', 
+      icon: Package 
     },
     { 
-      id: 'live_shopping', 
-      label: 'الديب لايف والتسوق الحي', 
-      icon: Radio, 
-      badge: 'Live' 
+      id: 'categories', 
+      label: 'أقسام وتصنيفات المول', 
+      icon: Layers 
+    },
+    { 
+      id: 'suppliers', 
+      label: 'الموردون وفواتير الشراء', 
+      icon: Building2 
     },
     { 
       id: 'fleet', 
-      label: 'أسطول التوصيل والكوريير', 
+      label: 'منظومة التوصيل والأسطول', 
       icon: Bike 
     },
     { 
-      id: 'courier_portal', 
-      label: 'بوابة الكابتن والتسليم', 
-      icon: Navigation, 
-      badge: 'PIN' 
+      id: 'flash_deals', 
+      label: 'عروض الفلاش والتخفيضات', 
+      icon: Zap 
     },
-    { id: 'products', label: 'كتالوج المنتجات والمخزون', icon: Package },
-    { id: 'meal_kits', label: 'بوكسات الوجبات وتجهيز الطبخ', icon: UtensilsCrossed, badge: 'Kits' },
-    { id: 'butcher', label: 'المسلخ والملحمة الذكية', icon: Beef, badge: 'MEWA' },
-    { id: 'merchandising', label: 'هندسة العرض والـ A/B', icon: Split, badge: 'Opt' },
-    { id: 'banners', label: 'البنرات والعروض التفاعلية', icon: Megaphone, badge: 'Hero' },
-    { id: 'suppliers', label: 'الموردون وأوامر الشراء', icon: Building2 },
-    { id: 'marketplace_vendors', label: 'تجار الماركت بليس والعمولات', icon: Store, badge: '3P' },
-    { id: 'corporate_b2b', label: 'توريد الشركات ومبيعات B2B', icon: Briefcase, badge: 'Corp' },
-    { id: 'support', label: 'خدمة العملاء والدردشة', icon: Headset, badge: 'Live' },
-    { id: 'categories', label: 'أقسام وتصنيفات المول', icon: Layers },
-    { id: 'coupons', label: 'الكوبونات والعروض', icon: TicketPercent },
-    { id: 'price_match', label: 'رادار مطابقة الأسعار وضمانها', icon: Scale, badge: '200%' },
-    { id: 'pharmacy', label: 'صيدلية الديب ورقابة SFDA', icon: Pill, badge: 'Rx' },
-    { id: 'lockers', label: 'خزائن الاستلام الذكية 24/7', icon: DoorClosed, badge: 'Hub' },
-    { id: 'campaigns', label: 'الإشعارات والتسويق', icon: Bell, badge: 'Push' },
-    { id: 'zones', label: 'نطاقات التغطية والذروة', icon: Compass },
-    { id: 'cold_chain', label: 'سلسلة التبريد والصلاحية', icon: ThermometerSnowflake, badge: 'IoT' },
-    { id: 'zero_waste', label: 'إنقاذ الغذاء والتخفيض الذكي', icon: HeartHandshake, badge: '-70%' },
-    { id: 'returns', label: 'المرتجعات والنزاعات', icon: RotateCcw },
-    { id: 'subscriptions', label: 'باقات الاشتراكات ونادي VIP', icon: Crown, badge: 'MRR' },
-    { id: 'loyalty', label: 'العملاء ومكافآت النقاط', icon: Award },
-    { id: 'settings', label: 'إعدادات المول والثيم والمظهر', icon: Settings },
+    { 
+      id: 'coupons', 
+      label: 'الكوبونات وقواعد الخصم', 
+      icon: TicketPercent 
+    },
+    { 
+      id: 'banners', 
+      label: 'البنرات والعروض التفاعلية', 
+      icon: Megaphone 
+    },
+    { 
+      id: 'merchandising', 
+      label: 'هندسة العرض وترتيب الواجهة', 
+      icon: Split 
+    },
+    { 
+      id: 'campaigns', 
+      label: 'التسويق والإشعارات الموجهة', 
+      icon: Bell 
+    },
+    { 
+      id: 'zones', 
+      label: 'نطاقات التغطية (درعا وسوريا)', 
+      icon: Compass 
+    },
+    { 
+      id: 'subscriptions', 
+      label: 'باقات الاشتراكات وشام كاش', 
+      icon: Crown, 
+      badge: 'VIP' 
+    },
+    { 
+      id: 'loyalty', 
+      label: 'العملاء ومكافآت النقاط', 
+      icon: Award 
+    },
+    { 
+      id: 'returns', 
+      label: 'المرتجعات والنزاعات المالية', 
+      icon: RotateCcw 
+    },
+    { 
+      id: 'support', 
+      label: 'خدمة العملاء والشكاوى', 
+      icon: Headset 
+    },
+    { 
+      id: 'invoice_designer', 
+      label: 'تصميم الفواتير والباركود', 
+      icon: Receipt, 
+      badge: 'QR' 
+    },
+    { 
+      id: 'settings', 
+      label: 'إعدادات المول والثيم والمظهر', 
+      icon: Settings 
+    },
   ];
 
   // Filter menu items by current role permissions

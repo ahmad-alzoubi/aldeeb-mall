@@ -91,6 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       final success = await auth.signInWithGoogle();
                       if (context.mounted && success) {
                         Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('مرحباً بك ${auth.currentUser?.fullName ?? ''} 🎉 تم تسجيل الدخول بنجاح!'),
+                            backgroundColor: AppColors.freshGreen,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
                       }
                     },
               style: OutlinedButton.styleFrom(
