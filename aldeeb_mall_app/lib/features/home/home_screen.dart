@@ -14,25 +14,9 @@ import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../scanner/barcode_scanner_screen.dart';
-import '../flyer/flyer_screen.dart';
 import '../voice/voice_assistant_modal.dart';
-import '../subscriptions/subscriptions_screen.dart';
 import '../wallet/wallet_screen.dart';
-import '../group_buying/group_deals_screen.dart';
 import '../address/address_book_screen.dart';
-import '../navigation/in_store_navigator_screen.dart';
-import '../pickup/curbside_pickup_screen.dart';
-import '../grocery_list/grocery_list_screen.dart';
-import '../sustainability/eco_tracker_modal.dart';
-import '../zero_waste/zero_waste_screen.dart';
-import '../live_shopping/live_shopping_screen.dart';
-import '../smart_cart_iot/smart_cart_iot_screen.dart';
-import '../meal_kits/meal_kits_screen.dart';
-import '../price_match/price_match_modal.dart';
-import '../pharmacy/pharmacy_screen.dart';
-import '../kitchen_wand/kitchen_wand_screen.dart';
-import '../lockers/smart_locker_pickup_screen.dart';
-import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../butcher/butcher_customizer_screen.dart';
 import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
@@ -231,12 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // 3. Quick Services & Feature Hub (Single horizontal luxury row)
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  child: _buildQuickServicesHub(context),
-                ),
-              ),
+
 
               // 4. Major Visual Departments Showcase & Interactive Category Explorer
               SliverToBoxAdapter(
@@ -485,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 22),
-                          tooltip: 'المسح الذكي للباركود (Scan & Go)',
+                          tooltip: 'المسح الذكي للباركود',
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -494,127 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.map_outlined, color: AppColors.primary, size: 22),
-                          tooltip: 'مرشد ممرات الفرع (In-Store Navigator)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const InStoreNavigatorScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 22),
-                          tooltip: 'مخطط المقاضي الذكي (Smart Grocery Planner)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 22),
-                          tooltip: 'مبادرة الأثر البيئي والخضراء (Eco Tracker)',
-                          onPressed: () => EcoTrackerModal.show(context),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.live_tv_rounded, color: Colors.redAccent, size: 22),
-                          tooltip: 'الديب لايف (Live Video Shopping)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.shopping_cart_checkout_rounded, color: Colors.teal, size: 22),
-                          tooltip: 'عربة الديب الذكية (Smart Dash Cart)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.restaurant_menu_rounded, color: Colors.amber, size: 22),
-                          tooltip: 'بوكسات وجبات الطهي السريع (Chef Meal Kits)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const MealKitsScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 22),
-                          tooltip: 'ضمان أرخص سعر ومطابقة الأسعار (Price Match)',
-                          onPressed: () => PriceMatchModal.show(context),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFF34D399), size: 22),
-                          tooltip: 'صيدلية الديب وفاحص SFDA',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const PharmacyScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 22),
-                          tooltip: 'عصا المطبخ الذكية والمؤونة (Kitchen Wand)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 22),
-                          tooltip: 'خزائن الاستلام الذكية 24/7 (Smart Lockers)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Badge(
-                            label: Text('3', style: TextStyle(fontSize: 10, color: Colors.white)),
-                            backgroundColor: AppColors.error,
-                            child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
-                          ),
-                          tooltip: 'الإشعارات والعروض الحصرية',
-                          onPressed: () => NotificationsSheet.show(context),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 22),
-                          tooltip: 'أخصائي التغذية الذكي بالـ AI (Smart Nutritionist)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFDA4AF), size: 22),
-                          tooltip: 'ملحمة وبحريات الديب الفاخرة (Smart Butcher & Fishery)',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
-                            );
-                          },
-                        ),
-                        IconButton(
                           icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 22),
-                          tooltip: 'البحث الصوتي الذكي (Voice AI)',
+                          tooltip: 'البحث الصوتي',
                           onPressed: () => VoiceAssistantModal.show(context),
                         ),
                         Container(
@@ -675,6 +535,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
+
+                // Notifications Button
+                IconButton(
+                  tooltip: 'الإشعارات والعروض',
+                  onPressed: () => NotificationsSheet.show(context),
+                  icon: const Badge(
+                    smallSize: 8,
+                    backgroundColor: AppColors.error,
+                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                  ),
+                ),
+                const SizedBox(width: 8),
 
                 // Aldeeb Pay Wallet Pill
                 InkWell(
@@ -810,6 +682,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   InkWell(
+                    onTap: () => NotificationsSheet.show(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Badge(
+                        smallSize: 8,
+                        backgroundColor: AppColors.error,
+                        child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                  InkWell(
                     onTap: () {
                       Navigator.push(
                         context,
@@ -916,117 +805,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 20),
-                  tooltip: 'قائمتي الذكية للمقاضي',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.eco_rounded, color: AppColors.freshGreen, size: 20),
-                  tooltip: 'مبادرة الديب الخضراء',
-                  onPressed: () => EcoTrackerModal.show(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.live_tv_rounded, color: Colors.redAccent, size: 20),
-                  tooltip: 'الديب لايف',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart_checkout_rounded, color: Colors.teal, size: 20),
-                  tooltip: 'عربة الديب الذكية',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.restaurant_menu_rounded, color: Colors.amber, size: 20),
-                  tooltip: 'بوكسات الوجبات',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MealKitsScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 20),
-                  tooltip: 'ضمان أرخص سعر',
-                  onPressed: () => PriceMatchModal.show(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.local_pharmacy_rounded, color: Color(0xFF34D399), size: 20),
-                  tooltip: 'صيدلية الديب وفاحص SFDA',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PharmacyScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.microwave_rounded, color: Colors.amber, size: 20),
-                  tooltip: 'عصا المطبخ والمؤونة',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.meeting_room_rounded, color: Colors.cyanAccent, size: 20),
-                  tooltip: 'خزائن الاستلام الذكية',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Badge(
-                    label: Text('3', style: TextStyle(fontSize: 10, color: Colors.white)),
-                    backgroundColor: AppColors.error,
-                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
-                  ),
-                  tooltip: 'الإشعارات والتنبيهات',
-                  onPressed: () => NotificationsSheet.show(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.psychology_rounded, color: Color(0xFF34D399), size: 20),
-                  tooltip: 'أخصائي التغذية الذكي',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.kebab_dining_rounded, color: Color(0xFFFDA4AF), size: 20),
-                  tooltip: 'ملحمة وبحريات الديب',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
-                    );
-                  },
-                ),
-                IconButton(
                   icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
-                  tooltip: 'البحث الصوتي الذكي (Voice AI)',
+                  tooltip: 'البحث الصوتي',
                   onPressed: () => VoiceAssistantModal.show(context),
                 ),
                 const SizedBox(width: 4),
@@ -1903,278 +1683,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ===========================================================================
-  // Quick Services & Feature Hub (Single Luxury Horizontal Row)
-  // ===========================================================================
-  Widget _buildQuickServicesHub(BuildContext context) {
-    final services = [
-      {
-        'title': 'ملحمة وبحريات',
-        'subtitle': 'تفصيل وتتبيل',
-        'icon': Icons.kebab_dining_rounded,
-        'gradient': const [Color(0xFFE11D48), Color(0xFF9F1239)],
-        'badge': 'طازج بلدي',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen())),
-      },
-      {
-        'title': 'صيدلية الديب',
-        'subtitle': 'أدوية وفيتامينات',
-        'icon': Icons.medical_services_rounded,
-        'gradient': const [Color(0xFF0D9488), Color(0xFF0F766E)],
-        'badge': 'صيدلي 24/7',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmacyScreen())),
-      },
-      {
-        'title': 'فاحص الأسعار',
-        'subtitle': 'مسح وكاميرا بالـ AI',
-        'icon': Icons.qr_code_scanner_rounded,
-        'gradient': const [Color(0xFF0F172A), Color(0xFF1E293B)],
-        'badge': 'مسح فوري 📷',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen())),
-      },
-      {
-        'title': 'أخصائي AI',
-        'subtitle': 'تغذية وحميات',
-        'icon': Icons.psychology_rounded,
-        'gradient': const [Color(0xFF059669), Color(0xFF047857)],
-        'badge': 'ذكاء اصطناعي',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiNutritionistScreen())),
-      },
-      {
-        'title': 'مجلة العروض',
-        'subtitle': 'تصفح تفاعلي',
-        'icon': Icons.menu_book_rounded,
-        'gradient': const [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-        'badge': 'حسم 50%',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FlyerScreen())),
-      },
-      {
-        'title': 'الديب لايف',
-        'subtitle': 'تسوق مباشر',
-        'icon': Icons.videocam_rounded,
-        'gradient': const [Color(0xFFDC2626), Color(0xFFB91C1C)],
-        'badge': 'مباشر الآن 🔴',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveShoppingScreen())),
-      },
-      {
-        'title': 'خزائن 24/7',
-        'subtitle': 'استلام آمن',
-        'icon': Icons.meeting_room_rounded,
-        'gradient': const [Color(0xFF4F46E5), Color(0xFF4338CA)],
-        'badge': 'بدون انتظار',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen())),
-      },
-      {
-        'title': 'استلام السيارة',
-        'subtitle': 'خلال دقيقتين',
-        'icon': Icons.directions_car_rounded,
-        'gradient': const [Color(0xFFD97706), Color(0xFFB45309)],
-        'badge': 'كيرب سايد',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CurbsidePickupScreen())),
-      },
-      {
-        'title': 'وفر دورياً',
-        'subtitle': 'اشتراك مؤن',
-        'icon': Icons.autorenew_rounded,
-        'gradient': const [Color(0xFF10B981), Color(0xFF059669)],
-        'badge': 'وفر 15%',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionsScreen())),
-      },
-      {
-        'title': 'شراء جماعي',
-        'subtitle': 'مع الجيران',
-        'icon': Icons.groups_rounded,
-        'gradient': const [Color(0xFFBE123C), Color(0xFF9F1239)],
-        'badge': 'وفر 40%',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupDealsScreen())),
-      },
-      {
-        'title': 'عصا المطبخ',
-        'subtitle': 'مسح المؤونة',
-        'icon': Icons.microwave_rounded,
-        'gradient': const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
-        'badge': 'إنترنت الأشياء',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KitchenWandScreen())),
-      },
-      {
-        'title': 'صفر نفايات',
-        'subtitle': 'ركن التخفيض',
-        'icon': Icons.hourglass_top_rounded,
-        'gradient': const [Color(0xFFEA580C), Color(0xFFC2410C)],
-        'badge': 'حتى 70%',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ZeroWasteScreen())),
-      },
-      {
-        'title': 'عربة المتجر',
-        'subtitle': 'كاشير ذاتي',
-        'icon': Icons.shopping_cart_checkout_rounded,
-        'gradient': const [Color(0xFF0891B2), Color(0xFF0E7490)],
-        'badge': 'بلا طوابير',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartCartIoTScreen())),
-      },
-      {
-        'title': 'بوكسات الشيف',
-        'subtitle': 'وجبات جاهزة',
-        'icon': Icons.restaurant_menu_rounded,
-        'gradient': const [Color(0xFFB45309), Color(0xFF92400E)],
-        'badge': 'مقادير مسبقة',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MealKitsScreen())),
-      },
-      {
-        'title': 'ضمان السعر',
-        'subtitle': 'الأرخص دائماً',
-        'icon': Icons.verified_user_rounded,
-        'gradient': const [Color(0xFF059669), Color(0xFF047857)],
-        'badge': 'نعوضك الفرق',
-        'onTap': () => PriceMatchModal.show(context),
-      },
-      {
-        'title': 'قائمة البيت',
-        'subtitle': 'مخطط المقاضي',
-        'icon': Icons.checklist_rounded,
-        'gradient': const [Color(0xFF4F46E5), Color(0xFF3730A3)],
-        'badge': 'مزامنة عائلية',
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroceryListScreen())),
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 3,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'خدمات وتجارب الديب الذكية',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const Spacer(),
-                const Text(
-                  'اسحب للمزيد ←',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 106,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: services.length,
-              separatorBuilder: (ctx, i) => const SizedBox(width: 14),
-              itemBuilder: (ctx, i) {
-                final s = services[i];
-                return InkWell(
-                  onTap: s['onTap'] as VoidCallback,
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    width: 76,
-                    child: Column(
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.topCenter,
-                          children: [
-                            Container(
-                              width: 54,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: s['gradient'] as List<Color>,
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (s['gradient'] as List<Color>).first.withValues(alpha: 0.35),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                s['icon'] as IconData,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                            ),
-                            if (s['badge'] != null)
-                              Positioned(
-                                top: -6,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.88),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.white24, width: 0.5),
-                                  ),
-                                  child: Text(
-                                    s['badge'] as String,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          s['title'] as String,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          s['subtitle'] as String,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
   // Themed Shoppable Shelves & Secondary Banners
   // ===========================================================================
 
