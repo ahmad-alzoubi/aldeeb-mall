@@ -18,6 +18,15 @@ import '../orders/order_tracking_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../customer_service/presentation/customer_service_screen.dart';
+import '../pharmacy/pharmacy_screen.dart';
+import '../lockers/smart_locker_pickup_screen.dart';
+import '../pickup/curbside_pickup_screen.dart';
+import '../kitchen_wand/kitchen_wand_screen.dart';
+import '../ai_nutritionist/ai_nutritionist_screen.dart';
+import '../sustainability/eco_tracker_modal.dart';
+import '../price_match/price_match_modal.dart';
+import '../zero_waste/zero_waste_screen.dart';
+import '../group_buying/group_deals_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -935,7 +944,148 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _divider(settings),
 
-          // 8. خدمة العملاء والشات المباشر (Customer Support & Live Chat)
+          // 8. الصيدلية الرقمية ونظام وصفتي (Pharmacy)
+          _menuItem(
+            icon: Icons.medical_services_rounded,
+            title: 'صيدلية الديب الرقمية ونظام وصفتي',
+            subtitle: 'صرف الوصفات الطبية، فحص التعارضات الدوائية، وإعادة التعبئة',
+            iconColor: const Color(0xFF0D9488),
+            settings: settings,
+            badgeText: 'وصفتي',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PharmacyScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 9. الخزائن الذكية 24/7 (Smart Lockers)
+          _menuItem(
+            icon: Icons.lock_clock_rounded,
+            title: 'الخزائن الذكية وحجرات الاستلام (24/7)',
+            subtitle: 'استلام مبرد ومجمد على مدار الساعة بدون تلامس وبدون انتظار',
+            iconColor: const Color(0xFF6366F1),
+            settings: settings,
+            badgeText: '24/7',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 10. الاستلام من السيارة (Curbside Express)
+          _menuItem(
+            icon: Icons.directions_car_rounded,
+            title: 'الاستلام السريع من السيارة (Curbside Express)',
+            subtitle: 'تصل لمواقف الديب مول ونقوم بتحميل المقاضي لسيارتك خلال دقيقتين',
+            iconColor: const Color(0xFF0284C7),
+            settings: settings,
+            badgeText: 'دقيقتين',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CurbsidePickupScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 11. سوق إنقاذ الطعام والحد من الهدر (Zero Waste)
+          _menuItem(
+            icon: Icons.eco_rounded,
+            title: 'سوق إنقاذ الطعام وحفظ النعمة (Zero Waste)',
+            subtitle: 'أصناف طازجة بخصومات 40% إلى 70% للحد من الهدر الغذائي',
+            iconColor: const Color(0xFF16A34A),
+            settings: settings,
+            badgeText: 'وفر 70%',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ZeroWasteScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 12. صفقات الشراء الجماعي التشاركي (Group Deals)
+          _menuItem(
+            icon: Icons.group_work_rounded,
+            title: 'صفقات الشراء الجماعي مع الجيران والأصدقاء',
+            subtitle: 'انضم لفرق الشراء بالحي ووفر نصف السعر مع توصيل مجاني',
+            iconColor: const Color(0xFFE11D48),
+            settings: settings,
+            badgeText: 'وفر 40%',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GroupDealsScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 11. جرد المطبخ الذكي والمؤونة (Kitchen Wand)
+          _menuItem(
+            icon: Icons.kitchen_rounded,
+            title: 'المؤونة وجرد المطبخ الذكي (Smart Pantry)',
+            subtitle: 'مراقبة استهلاك المواد الأساسية والطلب التلقائي قبل النفاد',
+            iconColor: const Color(0xFFD97706),
+            settings: settings,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 12. أخصائي التغذية الذكي بالذكاء الاصطناعي (AI Nutritionist)
+          _menuItem(
+            icon: Icons.psychology_rounded,
+            title: 'أخصائي التغذية الذكي وتحليل الوجبات',
+            subtitle: 'توصيات غذائية تناسب أهدافك الصحية وحساب السعرات الحرارية',
+            iconColor: const Color(0xFF059669),
+            settings: settings,
+            badgeText: 'AI',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
+          // 13. ضمان مطابقة الأسعار واسترداد الفروقات (Price Match)
+          _menuItem(
+            icon: Icons.verified_rounded,
+            title: 'ضمان أقل سعر ومطابقة أسعار المنافسين',
+            subtitle: 'وجدت سعراً أقل في بنده أو العثيم؟ نعوضك الفرق فوراً في محفظتك',
+            iconColor: const Color(0xFF16A34A),
+            settings: settings,
+            badgeText: 'مضمون',
+            onTap: () => PriceMatchModal.show(context),
+          ),
+          _divider(settings),
+
+          // 14. متتبع الأثر البيئي والصناديق الخضراء (Eco Tracker)
+          _menuItem(
+            icon: Icons.eco_rounded,
+            title: 'الأثر البيئي والصناديق الخضراء المعاد تدويرها',
+            subtitle: 'متابعة مساهمتك في خفض الانبعاثات والحد من الأكياس البلاستيكية',
+            iconColor: const Color(0xFF15803D),
+            settings: settings,
+            onTap: () => EcoTrackerModal.show(context),
+          ),
+          _divider(settings),
+
+          // 15. خدمة العملاء والشات المباشر (Customer Support & Live Chat)
           _menuItem(
             icon: Icons.support_agent_rounded,
             title: 'خدمة العملاء والشات المباشر (24/7)',
@@ -946,7 +1096,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _divider(settings),
 
-          // 9. ربط الحساب بجوجل
+          // 16. ربط الحساب بجوجل
           _menuItem(
             icon: Icons.g_mobiledata_rounded,
             title: 'مزامنة السحاب بحساب Google',

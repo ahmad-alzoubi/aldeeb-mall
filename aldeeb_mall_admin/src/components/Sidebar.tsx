@@ -28,7 +28,15 @@ import {
   Users,
   Calculator,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Beef,
+  Snowflake,
+  Briefcase,
+  Radio,
+  ChefHat,
+  HeartPulse,
+  Scale,
+  Leaf
 } from 'lucide-react';
 import { StaffRole } from '../types';
 import { checkRoleAccess } from '../lib/staffData';
@@ -103,6 +111,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Hub'
     },
     { 
+      id: 'cold_chain', 
+      label: 'سلسلة التبريد وحساسات IoT', 
+      icon: Snowflake, 
+      badge: 'IoT' 
+    },
+    { 
+      id: 'smart_lockers', 
+      label: 'شبكة الخزائن الذكية 24/7', 
+      icon: Lock, 
+      badge: '24/7' 
+    },
+    { 
       id: 'products', 
       label: 'كتالوج المنتجات والباركود', 
       icon: Package 
@@ -113,9 +133,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Layers 
     },
     { 
+      id: 'butcher_operations', 
+      label: 'الملحمة والمسمكة والذبح اليومي', 
+      icon: Beef, 
+      badge: 'طازج' 
+    },
+    { 
+      id: 'meal_kits', 
+      label: 'مطبخ الديب وبوكسات الطهي', 
+      icon: ChefHat, 
+      badge: 'شيف' 
+    },
+    { 
+      id: 'pharmacy', 
+      label: 'الصيدلية الرقمية ونظام وصفتي', 
+      icon: HeartPulse, 
+      badge: 'Rx' 
+    },
+    { 
+      id: 'zero_waste', 
+      label: 'سوق إنقاذ الطعام ومكافحة الهدر', 
+      icon: Leaf, 
+      badge: 'Eco' 
+    },
+    { 
       id: 'suppliers', 
       label: 'الموردون وفواتير الشراء', 
       icon: Building2 
+    },
+    { 
+      id: 'corporate_b2b', 
+      label: 'مبيعات الشركات والتوريد B2B', 
+      icon: Briefcase, 
+      badge: 'B2B' 
+    },
+    { 
+      id: 'marketplace_vendors', 
+      label: 'تجار الماركت بليس المحليين', 
+      icon: Store, 
+      badge: 'Vendor' 
     },
     { 
       id: 'fleet', 
@@ -126,6 +182,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'flash_deals', 
       label: 'عروض الفلاش والتخفيضات', 
       icon: Zap 
+    },
+    { 
+      id: 'live_shopping', 
+      label: 'استوديو التسوق الحي والبث', 
+      icon: Radio, 
+      badge: 'Live' 
+    },
+    { 
+      id: 'price_match', 
+      label: 'ضمان مطابقة الأسعار والفرق', 
+      icon: Scale, 
+      badge: 'Guarantee' 
     },
     { 
       id: 'coupons', 

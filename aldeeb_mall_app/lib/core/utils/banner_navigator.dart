@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/banner_model.dart';
-import '../models/category_model.dart';
 import '../providers/cart_provider.dart';
 import '../providers/mall_provider.dart';
 import '../providers/order_provider.dart';
@@ -21,6 +20,16 @@ import '../../features/scanner/barcode_scanner_screen.dart';
 import '../../features/cart/cart_screen.dart';
 import '../../features/orders/order_tracking_screen.dart';
 import '../../features/navigation/in_store_navigator_screen.dart';
+import '../../features/zero_waste/zero_waste_screen.dart';
+import '../../features/meal_kits/meal_kits_screen.dart';
+import '../../features/butcher/butcher_customizer_screen.dart';
+import '../../features/live_shopping/live_shopping_screen.dart';
+import '../../features/lockers/smart_locker_pickup_screen.dart';
+import '../../features/pickup/curbside_pickup_screen.dart';
+import '../../features/pharmacy/pharmacy_screen.dart';
+import '../../features/kitchen_wand/kitchen_wand_screen.dart';
+import '../../features/price_match/price_match_modal.dart';
+import '../../features/sustainability/eco_tracker_modal.dart';
 
 class BannerNavigator {
   /// Executes the navigation or action associated with a [BannerModel].
@@ -133,9 +142,12 @@ class BannerNavigator {
       case 'deals':
       case 'flash_deals':
       case 'offers':
+        destination = const FlyerScreen();
+        break;
+
       case 'zero_waste':
       case 'food_rescue':
-        destination = const FlyerScreen();
+        destination = const ZeroWasteScreen();
         break;
 
       case 'loyalty':
@@ -157,6 +169,10 @@ class BannerNavigator {
 
       case 'meal_kits':
       case 'recipes_kits':
+      case 'cooking_box':
+        destination = const MealKitsScreen();
+        break;
+
       case 'recipes':
       case 'cooking':
         destination = const RecipesScreen();
@@ -165,18 +181,46 @@ class BannerNavigator {
       case 'butcher':
       case 'meat_cutting':
       case 'meat':
-        final mall = Provider.of<MallProvider>(context, listen: false);
-        final meatCat = mall.categories.firstWhere(
-          (c) => c.slug.contains('meat') || c.nameAr.contains('لحوم') || c.id == 'c3',
-          orElse: () => const CategoryModel(
-            id: 'c3',
-            nameAr: 'اللحوم والدواجن والأسماك',
-            nameEn: 'Fresh Meat & Poultry',
-            slug: 'meat',
-          ),
-        );
-        destination = DepartmentScreen(category: meatCat);
+        destination = const ButcherCustomizerScreen();
         break;
+
+      case 'live_shopping':
+      case 'live':
+      case 'stream':
+        destination = const LiveShoppingScreen();
+        break;
+
+      case 'smart_lockers':
+      case 'lockers':
+      case 'smart_locker':
+        destination = const SmartLockerPickupScreen();
+        break;
+
+      case 'curbside':
+      case 'curbside_pickup':
+      case 'pickup':
+        destination = const CurbsidePickupScreen();
+        break;
+
+      case 'pharmacy':
+      case 'wasfaty':
+        destination = const PharmacyScreen();
+        break;
+
+      case 'kitchen_wand':
+      case 'smart_pantry':
+      case 'pantry':
+        destination = const KitchenWandScreen();
+        break;
+
+      case 'price_match':
+        PriceMatchModal.show(context);
+        return;
+
+      case 'eco_tracker':
+      case 'sustainability':
+        EcoTrackerModal.show(context);
+        return;
 
       case 'subscriptions':
       case 'autoship':

@@ -8,6 +8,8 @@ import '../../core/providers/mall_provider.dart';
 import '../../core/providers/store_settings_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
+import '../nutrition/nutrition_facts_modal.dart';
+import '../price_match/price_match_modal.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
@@ -360,6 +362,72 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Quick Smart Action Chips (Price Match & Nutrition Facts)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => PriceMatchModal.show(context, product: widget.product),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 16),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'ضمان أقل سعر',
+                                    style: TextStyle(
+                                      color: Color(0xFF15803D),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => NutritionFactsModal.show(context, widget.product),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.restaurant_menu_rounded, color: Color(0xFF475569), size: 16),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'القيم الغذائية',
+                                    style: TextStyle(
+                                      color: Color(0xFF334155),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
 

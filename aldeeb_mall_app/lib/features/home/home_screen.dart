@@ -21,6 +21,20 @@ import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
 import '../notifications/notifications_sheet.dart';
 import '../customer_service/presentation/customer_service_screen.dart';
+import '../butcher/butcher_customizer_screen.dart';
+import '../meal_kits/meal_kits_screen.dart';
+import '../zero_waste/zero_waste_screen.dart';
+import '../live_shopping/live_shopping_screen.dart';
+import '../group_buying/group_deals_screen.dart';
+import '../lockers/smart_locker_pickup_screen.dart';
+import '../pickup/curbside_pickup_screen.dart';
+import '../pharmacy/pharmacy_screen.dart';
+import '../ai_nutritionist/ai_nutritionist_screen.dart';
+import '../kitchen_wand/kitchen_wand_screen.dart';
+import '../navigation/in_store_navigator_screen.dart';
+import '../smart_cart_iot/smart_cart_iot_screen.dart';
+import '../sustainability/eco_tracker_modal.dart';
+import '../price_match/price_match_modal.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -218,7 +232,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-
+                // 3. Aldeeb Exclusive Smart Experiences & Services Hub
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildSmartServicesHub(context, isDesktop),
+                  ),
+                ),
 
               // 4. Major Visual Departments Showcase & Interactive Category Explorer
               SliverToBoxAdapter(
@@ -997,6 +1016,303 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Aldeeb Exclusive Smart Experiences & Services Hub
+  // ===========================================================================
+  Widget _buildSmartServicesHub(BuildContext context, bool isDesktop) {
+    final services = [
+      _SmartServiceItem(
+        title: 'الملحمة والمسمكة',
+        subtitle: 'تفصيل وذبح طازج',
+        icon: Icons.outdoor_grill_rounded,
+        badge: 'ذبح حلال',
+        color: const Color(0xFFDC2626),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'بوكسات الشيف',
+        subtitle: 'مقادير موزونة ووصفات',
+        icon: Icons.soup_kitchen_rounded,
+        badge: 'جاهزة للطهي',
+        color: const Color(0xFFD97706),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MealKitsScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'إنقاذ الطعام',
+        subtitle: 'وفر 40% إلى 70%',
+        icon: Icons.eco_rounded,
+        badge: 'Zero Waste',
+        color: const Color(0xFF16A34A),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ZeroWasteScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'التسوق الحي',
+        subtitle: 'بث وتخفيضات تفاعلية',
+        icon: Icons.live_tv_rounded,
+        badge: 'مباشر',
+        color: const Color(0xFFE11D48),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'الشراء الجماعي',
+        subtitle: 'اشترِ مع جيرانك ووفر',
+        icon: Icons.groups_rounded,
+        badge: 'وفر 40%',
+        color: const Color(0xFF7C3AED),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GroupDealsScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'الخزائن الذكية',
+        subtitle: 'استلام مبرد ومجمد 24/7',
+        icon: Icons.lock_clock_rounded,
+        badge: '24/7',
+        color: const Color(0xFF2563EB),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'استلام بالسيارة',
+        subtitle: 'تحميل خلال دقيقتين',
+        icon: Icons.directions_car_rounded,
+        badge: 'Curbside',
+        color: const Color(0xFF0284C7),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CurbsidePickupScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'صيدلية وصفتي',
+        subtitle: 'وصفات وإعادة الصرف',
+        icon: Icons.medical_services_rounded,
+        badge: 'معتمدة',
+        color: const Color(0xFF0D9488),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PharmacyScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'المؤونة الذكية',
+        subtitle: 'جرد المطبخ والثلاجة',
+        icon: Icons.kitchen_rounded,
+        badge: 'Pantry',
+        color: const Color(0xFF9333EA),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'أخصائي التغذية',
+        subtitle: 'خطط وحساب السعرات AI',
+        icon: Icons.psychology_rounded,
+        badge: 'AI Smart',
+        color: const Color(0xFF059669),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AiNutritionistScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'المرشد الداخلي',
+        subtitle: 'خريطة ممرات الهايبر',
+        icon: Icons.map_rounded,
+        badge: 'In-Store',
+        color: const Color(0xFF4F46E5),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const InStoreNavigatorScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'العربة الذكية',
+        subtitle: 'حساسات ومحاسبة IoT',
+        icon: Icons.shopping_cart_checkout_rounded,
+        badge: 'IoT',
+        color: const Color(0xFF0891B2),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
+        ),
+      ),
+      _SmartServiceItem(
+        title: 'ضمان أقل سعر',
+        subtitle: 'مطابقة أسعار المنافسين',
+        icon: Icons.verified_rounded,
+        badge: 'استرداد',
+        color: const Color(0xFF15803D),
+        onTap: () => PriceMatchModal.show(context),
+      ),
+      _SmartServiceItem(
+        title: 'الأثر البيئي',
+        subtitle: 'صناديق خضراء مستدامة',
+        icon: Icons.energy_savings_leaf_rounded,
+        badge: 'Eco',
+        color: const Color(0xFF166534),
+        onTap: () => EcoTrackerModal.show(context),
+      ),
+    ];
+
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.symmetric(vertical: isDesktop ? 16 : 12),
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'تجارب وخدمات الديب مول الحصرية',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '14 خدمة ذكية',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 115,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: services.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final item = services[index];
+                return InkWell(
+                  onTap: item.onTap,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 155,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: item.color.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(item.icon, color: item.color, size: 18),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: item.color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                item.badge,
+                                style: TextStyle(
+                                  color: item.color,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item.subtitle,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2983,4 +3299,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+}
+
+class _SmartServiceItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String badge;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SmartServiceItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.badge,
+    required this.color,
+    required this.onTap,
+  });
 }

@@ -31,6 +31,16 @@ import { ElectronicInvoicePage } from './pages/ElectronicInvoicePage';
 import { StaffManagementPage } from './pages/StaffManagementPage';
 import { AccountingPayrollPage } from './pages/AccountingPayrollPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
+import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
+import { ColdChainPage } from './pages/ColdChainPage';
+import { CorporateB2BPage } from './pages/CorporateB2BPage';
+import { LiveShoppingPage } from './pages/LiveShoppingPage';
+import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
+import { MealKitsPage } from './pages/MealKitsPage';
+import { PharmacyPage } from './pages/PharmacyPage';
+import { PriceMatchPage } from './pages/PriceMatchPage';
+import { SmartLockersPage } from './pages/SmartLockersPage';
+import { ZeroWastePage } from './pages/ZeroWastePage';
 import { 
   INITIAL_STAFF, 
   INITIAL_PAYROLL_TRANSACTIONS, 
@@ -852,6 +862,56 @@ export const App: React.FC = () => {
           title: 'مصمم ومحرر قوالب الفواتير والباركود الإلكتروني', 
           subtitle: 'تخصيص فاتورة الكاشير والطباعة الحرارية، إظهار/إخفاء الحقول، وإعداد الباركود المعتمد' 
         };
+      case 'butcher_operations':
+        return {
+          title: 'إدارة الملحمة والمسمكة والذبح اليومي',
+          subtitle: 'متابعة طلبات تفصيل اللحوم، شهادات الذبح الحلال، وتقطيع وتغليف الأسماك'
+        };
+      case 'cold_chain':
+        return {
+          title: 'سلسلة التبريد وحساسات درجات الحرارة (Cold Chain IoT)',
+          subtitle: 'مراقبة درجات حرارة الثلاجات والمجمدات وسيارات التوصيل اللحظية والتنبيهات الحرجة'
+        };
+      case 'corporate_b2b':
+        return {
+          title: 'مبيعات الشركات والتوريد بالجملة (B2B Portal)',
+          subtitle: 'عقود المطاعم، الفنادق، الكافيهات، الأسعار الخاصة والتسهيلات الائتمانية'
+        };
+      case 'live_shopping':
+        return {
+          title: 'استوديو البث المباشر والتسوق الحي (Live Commerce Studio)',
+          subtitle: 'إدارة غرف البث، المنتجات المعروضة على الهواء، وأكواد الخصم اللحظية'
+        };
+      case 'marketplace_vendors':
+        return {
+          title: 'إدارة تجار الماركت بليس والموردين المحليين (Multi-Vendor)',
+          subtitle: 'تسجيل التجار، عمولات المبيعات، ومطابقة المنتجات مع معايير الجودة'
+        };
+      case 'meal_kits':
+        return {
+          title: 'مطبخ الديب وبوكسات الطهي (Gourmet Meal Kits)',
+          subtitle: 'إدارة وصفات الشيف، مقادير الوجبات الموزونة، وجدول تجهيز بوكسات الطبخ'
+        };
+      case 'pharmacy':
+        return {
+          title: 'إدارة الصيدلية الرقمية ونظام وصفتي (e-Pharmacy & Wasfaty)',
+          subtitle: 'اعتماد الوصفات الطبية، تدقيق التعارضات الدوائية، وإعادة الصرف المزمن'
+        };
+      case 'price_match':
+        return {
+          title: 'ضمان أفضل سعر ومطابقة المنافسين (Price Match & Guarantee)',
+          subtitle: 'مراجعة مطالبات فرق السعر مع العثيم وبنده وكارفور وتعويض المحفظة آلياً'
+        };
+      case 'smart_lockers':
+        return {
+          title: 'شبكة الخزائن الذكية والاستلام 24/7 (Smart Locker Network)',
+          subtitle: 'توزيع الطرود في الحجرات المبردة والمجمدة ومراقبة رموز الاستلام والـ PIN'
+        };
+      case 'zero_waste':
+        return {
+          title: 'سوق إنقاذ الطعام ومكافحة الهدر (Zero Waste & Food Rescue)',
+          subtitle: 'تخفيضات 50-70% على المنتجات قريبة الانتهاء وحساب الأثر البيئي'
+        };
       default:
         return { title: 'الديب مول', subtitle: '' };
     }
@@ -1227,6 +1287,17 @@ export const App: React.FC = () => {
               }}
             />
           )}
+
+          {activeTab === 'butcher_operations' && <ButcherOperationsPage />}
+          {activeTab === 'cold_chain' && <ColdChainPage />}
+          {activeTab === 'corporate_b2b' && <CorporateB2BPage />}
+          {activeTab === 'live_shopping' && <LiveShoppingPage />}
+          {activeTab === 'marketplace_vendors' && <MarketplaceVendorsPage />}
+          {activeTab === 'meal_kits' && <MealKitsPage />}
+          {activeTab === 'pharmacy' && <PharmacyPage />}
+          {activeTab === 'price_match' && <PriceMatchPage />}
+          {activeTab === 'smart_lockers' && <SmartLockersPage />}
+          {activeTab === 'zero_waste' && <ZeroWastePage />}
         </main>
       </div>
     </div>

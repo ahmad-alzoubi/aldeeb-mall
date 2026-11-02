@@ -353,7 +353,8 @@ export function checkRoleAccess(role: StaffRole, sectionId: string): boolean {
     const auditorAllowed = [
       'dashboard', 'analytics', 'forecasting', 'orders', 'operations_tower',
       'fulfillment', 'branches', 'accounting_payroll', 'suppliers', 'audit_logs',
-      'inventory_transfer', 'returns', 'fleet'
+      'inventory_transfer', 'returns', 'fleet', 'cold_chain', 'price_match',
+      'corporate_b2b', 'marketplace_vendors'
     ];
     return auditorAllowed.includes(sectionId);
   }
@@ -363,7 +364,7 @@ export function checkRoleAccess(role: StaffRole, sectionId: string): boolean {
     const accountantAllowed = [
       'dashboard', 'accounting_payroll', 'orders', 'pos_terminal', 
       'suppliers', 'corporate_b2b', 'marketplace_vendors', 'returns',
-      'branches', 'analytics'
+      'branches', 'analytics', 'price_match'
     ];
     return accountantAllowed.includes(sectionId);
   }
@@ -377,7 +378,8 @@ export function checkRoleAccess(role: StaffRole, sectionId: string): boolean {
   if (role === 'branch_manager') {
     const managerAllowed = [
       'dashboard', 'orders', 'fulfillment', 'pos_terminal', 'branches',
-      'inventory_transfer', 'fleet', 'products', 'staff_management', 'support'
+      'inventory_transfer', 'fleet', 'products', 'staff_management', 'support',
+      'butcher_operations', 'cold_chain', 'smart_lockers', 'zero_waste', 'meal_kits'
     ];
     return managerAllowed.includes(sectionId);
   }
