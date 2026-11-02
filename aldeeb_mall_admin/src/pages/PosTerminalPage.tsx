@@ -42,13 +42,83 @@ import { getStoredBranches, getActiveBranchId, setActiveBranchId } from '../lib/
 import { ThermalReceiptView } from '../components/ThermalReceiptView';
 import { useInvoiceSettings } from '../lib/invoiceSettings';
 
+// Shared singleton AudioContext to prevent browser instance exhaustion and audio suspension
+let sharedAudioCtx: AudioContext | null = null;
+const getAudioContext = (): AudioContext | null => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioCtx();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    return sharedAudioCtx;
+  } catch (_) {
+    return null;
+  }
+};
+
+// Cash payment sound using uploaded audio file with instant preloading & Web Audio fallback
+let preloadedPaymentAudio: HTMLAudioElement | null = null;
+const getPaymentAudio = () => {
+  if (typeof window === 'undefined') return null;
+  if (!preloadedPaymentAudio) {
+    try {
+      preloadedPaymentAudio = new Audio(`${import.meta.env.BASE_URL}sounds/cash_payment.mp3`);
+      preloadedPaymentAudio.preload = 'auto';
+    } catch (_) {}
+  }
+  return preloadedPaymentAudio;
+};
+
+// Play Payment Cash Sound (uploaded mp3 with fallback)
+const playPaymentSound = (enabled: boolean = true) => {
+  if (!enabled) return;
+  try {
+    const audio = getPaymentAudio();
+    if (audio) {
+      audio.currentTime = 0;
+      const promise = audio.play();
+      if (promise !== undefined) {
+        promise.catch(() => {
+          playCashRegisterSound(enabled);
+        });
+      }
+      return;
+    }
+  } catch (_) {}
+  playCashRegisterSound(enabled);
+};
+
+// Supermarket barcode scanner beep when adding/moving products to cart ("صوت نقل وإضافة المنتجات")
+const playProductBeep = () => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1400, now);
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  } catch (_) {}
+};
+
 // Synthesize realistic Cash Register & Coin Sound ("Cha-Ching" & Coins Drop)
 const playCashRegisterSound = (enabled: boolean = true) => {
   if (!enabled) return;
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    const ctx = getAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     // Helper: play metallic coin chime
@@ -118,39 +188,38 @@ const playCashRegisterSound = (enabled: boolean = true) => {
 
 // Synthesize pleasant sound effects with Web Audio API
 const playSound = (type: 'beep' | 'success' | 'cash' | 'error', enabled: boolean = true) => {
-  if (!enabled) return;
-  if (type === 'cash') {
-    playCashRegisterSound(enabled);
+  if (type === 'beep') {
+    // صوت نقل وإضافة المنتجات إلى السلة يعمل دائماً باستقرار فوري
+    playProductBeep();
     return;
   }
+  if (type === 'cash') {
+    playPaymentSound(enabled);
+    return;
+  }
+  if (!enabled) return;
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    if (type === 'beep') {
-      osc.frequency.setValueAtTime(1400, ctx.currentTime);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } else if (type === 'success') {
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
     } else if (type === 'error') {
-      osc.frequency.setValueAtTime(250, ctx.currentTime);
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
+      osc.frequency.setValueAtTime(250, now);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
     }
   } catch (_) {}
 };
