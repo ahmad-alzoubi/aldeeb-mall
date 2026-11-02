@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildDesktopTopNav(context, cart, auth, mall, settings),
                 )
               else
-                _buildMobileSliverAppBar(context, auth, mall, settings),
+                _buildMobileSliverAppBar(context, auth, mall, settings, cart),
 
               // 1.2 Global Dynamic Store Announcement Strip
               if (settings.announcementBarText.isNotEmpty)
@@ -306,15 +306,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ],
           ),
-
-          // Floating Smart Cart Bar (Mobile Only - on Desktop it's in the top nav!)
-          if (!isDesktop && cart.itemCount > 0)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _buildFloatingCartBar(cart),
-            ),
         ],
       ),
     );
@@ -627,6 +618,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AuthService auth,
     MallProvider mall,
     StoreSettingsProvider settings,
+    CartProvider cart,
   ) {
     return SliverAppBar(
       floating: true,
@@ -691,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(5),
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
@@ -700,6 +692,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         smallSize: 8,
                         backgroundColor: AppColors.error,
                         child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Badge(
+                        isLabelVisible: cart.itemCount > 0,
+                        label: Text('${cart.itemCount}', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        backgroundColor: AppColors.accent,
+                        child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 18),
                       ),
                     ),
                   ),
@@ -2648,71 +2663,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFloatingCartBar(CartProvider cart) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryLight],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppColors.floatingShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${cart.itemCount}',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${cart.totalAmount.toStringAsFixed(2)} ل.س',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              Text(
-                cart.isFreeDelivery ? 'توصيل مجاني 🛵' : 'تبقّى ${cart.remainingForFreeDelivery.toStringAsFixed(2)} ل.س للمجاني',
-                style: const TextStyle(color: Colors.white70, fontSize: 11),
-              ),
-            ],
-          ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
-              minimumSize: const Size(100, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
-            child: const Row(
-              children: [
-                Text('عرض السلة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_forward_ios_rounded, size: 12),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

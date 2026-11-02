@@ -5,7 +5,6 @@ import '../../core/providers/cart_provider.dart';
 import '../../core/providers/store_settings_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
-import '../cart/widgets/floating_cart_bar.dart';
 import '../category/categories_screen.dart';
 import '../profile/profile_screen.dart';
 import '../recipes/recipes_screen.dart';
@@ -129,48 +128,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (cart.itemCount > 0)
-            const FloatingCartBar(
-              margin: EdgeInsets.fromLTRB(14, 4, 14, 8),
-            ),
-          NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              setState(() => _currentIndex = index);
-            },
-            backgroundColor: Colors.white,
-            elevation: 8,
-            indicatorColor: settings.primaryColor.withValues(alpha: 0.15),
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.storefront_outlined),
-                selectedIcon: Icon(Icons.storefront, color: settings.primaryColor),
-                label: 'الرئيسية',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.grid_view_outlined),
-                selectedIcon: Icon(Icons.grid_view_rounded, color: settings.primaryColor),
-                label: 'الأقسام',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.qr_code_scanner_rounded),
-                selectedIcon: Icon(Icons.camera_alt_rounded, color: settings.primaryColor),
-                label: 'فاحص الأسعار',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.soup_kitchen_outlined),
-                selectedIcon: Icon(Icons.soup_kitchen_rounded, color: settings.primaryColor),
-                label: 'الوصفات',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person, color: settings.primaryColor),
-                label: 'حسابي',
-              ),
-            ],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          setState(() => _currentIndex = index);
+        },
+        backgroundColor: Colors.white,
+        elevation: 8,
+        indicatorColor: settings.primaryColor.withValues(alpha: 0.15),
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront, color: settings.primaryColor),
+            label: 'الرئيسية',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded, color: settings.primaryColor),
+            label: 'الأقسام',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            selectedIcon: Icon(Icons.camera_alt_rounded, color: settings.primaryColor),
+            label: 'فاحص الأسعار',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.soup_kitchen_outlined),
+            selectedIcon: Icon(Icons.soup_kitchen_rounded, color: settings.primaryColor),
+            label: 'الوصفات',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: settings.primaryColor),
+            label: 'حسابي',
           ),
         ],
       ),

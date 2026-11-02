@@ -9,7 +9,6 @@ import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../cart/cart_screen.dart';
-import '../cart/widgets/floating_cart_bar.dart';
 import '../home/widgets/product_card.dart';
 
 class DepartmentScreen extends StatefulWidget {
@@ -361,18 +360,6 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
               ),
             ],
           ),
-
-          // 9. Floating Sticky Cart Bar (When Cart Has Items)
-          if (cart.itemCount > 0)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 8,
-              child: SafeArea(
-                top: false,
-                child: FloatingCartBar(),
-              ),
-            ),
         ],
       ),
     );
