@@ -88,6 +88,14 @@ class SupportTicket {
   }
 
   Map<String, dynamic> toJson() {
+    String isoCreatedAt;
+    try {
+      DateTime.parse(createdAt);
+      isoCreatedAt = createdAt;
+    } catch (_) {
+      isoCreatedAt = DateTime.now().toIso8601String();
+    }
+
     return {
       'id': id,
       'ticket_number': ticketNumber,
@@ -98,7 +106,7 @@ class SupportTicket {
       'category': category,
       'status': status,
       'priority': priority,
-      'created_at': createdAt,
+      'created_at': isoCreatedAt,
       'last_message': lastMessage,
       'messages': messages.map((m) => m.toJson()).toList(),
     };

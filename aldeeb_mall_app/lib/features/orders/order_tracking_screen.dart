@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
+import '../../core/services/supabase_service.dart';
 import '../customer_service/presentation/customer_service_screen.dart';
 import '../customer_service/services/customer_service_service.dart';
 import '../../core/utils/responsive.dart';
@@ -20,10 +21,13 @@ class OrderTrackingScreen extends StatefulWidget {
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   late Duration _remainingEta;
   Timer? _etaTimer;
+  late OrderModel _currentOrder;
+  StreamSubscription? _orderSubscription;
 
   @override
   void initState() {
     super.initState();
+    _currentOrder = widget.order;
     _remainingEta = const Duration(minutes: 11, seconds: 45);
     _etaTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted && _remainingEta.inSeconds > 0) {
@@ -32,11 +36,36 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         });
       }
     });
+
+    // Realtime Supabase Order Tracking
+    final client = SupabaseService().client;
+    if (client != null && _currentOrder.id.isNotEmpty) {
+      _orderSubscription = client
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .eq('id', _currentOrder.id)
+          .listen((data) {
+            if (mounted && data.isNotEmpty) {
+              final row = data.first;
+              final newStatus = row['status']?.toString();
+              if (newStatus != null && newStatus != _currentOrder.status) {
+                setState(() {
+                  _currentOrder = _currentOrder.copyWith(
+                    status: newStatus,
+                    driverName: row['delivery_driver_name']?.toString() ?? _currentOrder.driverName,
+                    driverPhone: row['delivery_driver_phone']?.toString() ?? _currentOrder.driverPhone,
+                  );
+                });
+              }
+            }
+          });
+    }
   }
 
   @override
   void dispose() {
     _etaTimer?.cancel();
+    _orderSubscription?.cancel();
     super.dispose();
   }
 
@@ -48,7 +77,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final order = widget.order;
+    final order = _currentOrder;
 
     return Scaffold(
       backgroundColor: AppColors.background,

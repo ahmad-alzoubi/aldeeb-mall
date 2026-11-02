@@ -94,4 +94,44 @@ class OrderModel {
       driverPhone: json['delivery_driver_phone'] as String?,
     );
   }
+
+  OrderModel copyWith({
+    String? id,
+    String? orderNumber,
+    String? status,
+    String? deliverySlot,
+    String? paymentMethod,
+    String? paymentStatus,
+    double? subtotal,
+    double? deliveryFee,
+    double? discountAmount,
+    int? loyaltyPointsUsed,
+    double? loyaltyDiscount,
+    double? totalAmount,
+    List<CartItemModel>? items,
+    DateTime? createdAt,
+    String? notes,
+    String? driverName,
+    String? driverPhone,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      orderNumber: orderNumber ?? this.orderNumber,
+      status: status ?? this.status,
+      deliverySlot: deliverySlot ?? this.deliverySlot,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      subtotal: subtotal ?? this.subtotal,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
+      discountAmount: discountAmount ?? this.discountAmount,
+      loyaltyPointsUsed: loyaltyPointsUsed ?? this.loyaltyPointsUsed,
+      loyaltyDiscount: loyaltyDiscount ?? this.loyaltyDiscount,
+      totalAmount: totalAmount ?? this.totalAmount,
+      items: items ?? this.items,
+      createdAt: createdAt ?? this.createdAt,
+      notes: notes ?? this.notes,
+      driverName: driverName ?? this.driverName,
+      driverPhone: driverPhone ?? this.driverPhone,
+    );
+  }
 }

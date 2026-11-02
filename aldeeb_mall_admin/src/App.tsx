@@ -487,10 +487,24 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleUpdateOrder = (updatedOrder: Order) => {
+  const handleUpdateOrder = async (updatedOrder: Order) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
     );
+    try {
+      if (updatedOrder.id) {
+        await supabase
+          .from('orders')
+          .update({
+            status: updatedOrder.status,
+            courier_id: updatedOrder.courier_id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', updatedOrder.id);
+      }
+    } catch (e) {
+      console.warn('Could not update order in Supabase:', e);
+    }
   };
 
   const handleUpdateCourier = (updatedCourier: Courier) => {
@@ -557,10 +571,22 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleToggleCategory = (categoryId: string) => {
+  const handleToggleCategory = async (categoryId: string) => {
+    let updatedActive = false;
     setCategories((prev) =>
-      prev.map((c) => (c.id === categoryId ? { ...c, is_active: !c.is_active } : c))
+      prev.map((c) => {
+        if (c.id === categoryId) {
+          updatedActive = !c.is_active;
+          return { ...c, is_active: updatedActive };
+        }
+        return c;
+      })
     );
+    try {
+      await supabase.from('categories').update({ is_active: updatedActive }).eq('id', categoryId);
+    } catch (e) {
+      console.warn('Could not update category in Supabase:', e);
+    }
   };
 
   // Banner Actions (Hero & Middle Secondary)
@@ -591,10 +617,22 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleToggleBanner = (bannerId: string) => {
+  const handleToggleBanner = async (bannerId: string) => {
+    let updatedActive = false;
     setBanners((prev) =>
-      prev.map((b) => (b.id === bannerId ? { ...b, is_active: !b.is_active } : b))
+      prev.map((b) => {
+        if (b.id === bannerId) {
+          updatedActive = !b.is_active;
+          return { ...b, is_active: updatedActive };
+        }
+        return b;
+      })
     );
+    try {
+      await supabase.from('banners').update({ is_active: updatedActive }).eq('id', bannerId);
+    } catch (e) {
+      console.warn('Could not update banner in Supabase:', e);
+    }
   };
 
   // Coupon Actions
@@ -607,10 +645,22 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleToggleCoupon = (couponId: string) => {
+  const handleToggleCoupon = async (couponId: string) => {
+    let updatedActive = false;
     setCoupons((prev) =>
-      prev.map((c) => (c.id === couponId ? { ...c, is_active: !c.is_active } : c))
+      prev.map((c) => {
+        if (c.id === couponId) {
+          updatedActive = !c.is_active;
+          return { ...c, is_active: updatedActive };
+        }
+        return c;
+      })
     );
+    try {
+      await supabase.from('coupons').update({ is_active: updatedActive }).eq('id', couponId);
+    } catch (e) {
+      console.warn('Could not update coupon in Supabase:', e);
+    }
   };
 
   const handleDeleteCoupon = async (couponId: string) => {

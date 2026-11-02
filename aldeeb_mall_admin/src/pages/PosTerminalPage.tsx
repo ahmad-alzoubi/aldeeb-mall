@@ -32,7 +32,9 @@ import {
   ArrowLeftRight,
   TrendingUp,
   Percent,
-  Coins
+  Coins,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category } from '../types';
 import { supabase, initialProducts, initialCategories } from '../lib/supabase';
@@ -40,10 +42,91 @@ import { getStoredBranches, getActiveBranchId, setActiveBranchId } from '../lib/
 import { ThermalReceiptView } from '../components/ThermalReceiptView';
 import { useInvoiceSettings } from '../lib/invoiceSettings';
 
-// Synthesize pleasant sound effects with Web Audio API
-const playSound = (type: 'beep' | 'success' | 'cash' | 'error') => {
+// Synthesize realistic Cash Register & Coin Sound ("Cha-Ching" & Coins Drop)
+const playCashRegisterSound = (enabled: boolean = true) => {
+  if (!enabled) return;
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    // Helper: play metallic coin chime
+    const playCoin = (freq: number, start: number, duration: number, gainVal: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.98, start + duration);
+      gain.gain.setValueAtTime(gainVal, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    // Helper: play bell chime
+    const playBell = (freq: number, start: number, duration: number, gainVal: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(gainVal, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    // Helper: mechanical register click/thud
+    const playClick = (freq: number, start: number, duration: number, gainVal: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, start);
+      osc.frequency.exponentialRampToValueAtTime(80, start + duration);
+      gain.gain.setValueAtTime(gainVal, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    // 1. Mechanical register latch click
+    playClick(240, now, 0.05, 0.15);
+    playClick(160, now + 0.04, 0.06, 0.12);
+
+    // 2. "Cha" - Coin rattle & initial bell strike
+    playBell(1850, now + 0.03, 0.25, 0.18);
+    playCoin(2400, now + 0.05, 0.18, 0.15);
+    playCoin(2850, now + 0.08, 0.22, 0.14);
+
+    // 3. "Ching!" - High crisp register bell ring
+    playBell(3136, now + 0.12, 0.65, 0.28); // High E7 chime
+    playBell(3920, now + 0.14, 0.55, 0.20); // High G7 overtone
+    playCoin(3520, now + 0.16, 0.45, 0.16);
+
+    // 4. Coins jingling into drawer
+    playCoin(2637, now + 0.22, 0.25, 0.14);
+    playCoin(3296, now + 0.28, 0.30, 0.15);
+    playCoin(2093, now + 0.35, 0.35, 0.12);
+  } catch (_) {}
+};
+
+// Synthesize pleasant sound effects with Web Audio API
+const playSound = (type: 'beep' | 'success' | 'cash' | 'error', enabled: boolean = true) => {
+  if (!enabled) return;
+  if (type === 'cash') {
+    playCashRegisterSound(enabled);
+    return;
+  }
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -55,7 +138,7 @@ const playSound = (type: 'beep' | 'success' | 'cash' | 'error') => {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
       osc.start();
       osc.stop(ctx.currentTime + 0.08);
-    } else if (type === 'success' || type === 'cash') {
+    } else if (type === 'success') {
       osc.frequency.setValueAtTime(800, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
@@ -128,6 +211,33 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
   // Shift Management
   const [activeShift, setActiveShift] = useState<PosShift | null>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+
+  // Sound effects toggle with persistent storage
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('pos_sound_enabled');
+      return stored !== null ? stored === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleSound = () => {
+    setIsSoundEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('pos_sound_enabled', String(next));
+      } catch (_) {}
+      if (next) {
+        playSound('cash', true);
+      }
+      return next;
+    });
+  };
+
+  const playPosSound = (type: 'beep' | 'success' | 'cash' | 'error') => {
+    playSound(type, isSoundEnabled);
+  };
 
   // Initialize
   useEffect(() => {
@@ -229,7 +339,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
       handleAddToCart(found);
       setBarcodeInput('');
     } else {
-      playSound('error');
+      playPosSound('error');
       alert(`لم يتم العثور على صنف بالباركود / الرمز: ${query}`);
       setBarcodeInput('');
     }
@@ -237,7 +347,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
 
   // Add Product to Cart
   const handleAddToCart = (product: Product) => {
-    playSound('beep');
+    playPosSound('beep');
     setCart((prev) => {
       const idx = prev.findIndex((item) => item.product_id === product.id);
       if (idx >= 0) {
@@ -291,13 +401,13 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         })
         .filter(Boolean) as PosCartItem[];
     });
-    playSound('beep');
+    playPosSound('beep');
   };
 
   // Remove item
   const handleRemoveItem = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product_id !== productId));
-    playSound('beep');
+    playPosSound('beep');
   };
 
   // Clear Cart
@@ -334,7 +444,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     setCart([]);
     setCustomerName('');
     setCustomerPhone('');
-    playSound('success');
+    playPosSound('success');
     alert(`تم تعليق الفاتورة بنجاح برقم (#${newParked.cart_number}) لخدمة العميل التالي!`);
   };
 
@@ -357,7 +467,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     } catch (_) {}
 
     setIsParkedModalOpen(false);
-    playSound('beep');
+    playPosSound('beep');
   };
 
   // Calculations
@@ -370,7 +480,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     if (!customerPhone.trim()) return;
     setCustomerName('أحمد العتيبي (عميل VIP)');
     setLoyaltyPoints(450);
-    playSound('success');
+    playPosSound('success');
   };
 
   // Open Payment Modal
@@ -383,7 +493,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
 
   // Complete Checkout
   const handleCompletePayment = () => {
-    playSound('cash');
+    playPosSound('cash');
 
     const receiptNum = `RCP-${activeBranch?.code || 'POS'}-${Date.now().toString().slice(-6)}`;
     const tx: PosTransaction = {
@@ -500,9 +610,9 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     if (pinInput === '1234' || pinInput === '0000' || pinInput.length >= 4) {
       setIsLocked(false);
       setPinInput('');
-      playSound('success');
+      playPosSound('success');
     } else {
-      playSound('error');
+      playPosSound('error');
       alert('رمز PIN غير صحيح! الرمز الافتراضي: 1234');
     }
   };
@@ -561,7 +671,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                   if (b) {
                     setActiveBranch(b);
                     setActiveBranchId(b.id);
-                    playSound('beep');
+                    playPosSound('beep');
                   }
                 }}
                 className="bg-transparent text-xs font-black text-blue-700 focus:outline-none cursor-pointer"
@@ -605,6 +715,29 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
           >
             <PauseCircle className="w-4 h-4" />
             <span>معلّقة: {parkedCarts.length}</span>
+          </button>
+
+          {/* Sound Toggle (Mute/Unmute Cashier & Cash SFX) */}
+          <button
+            onClick={toggleSound}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              isSoundEnabled
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-slate-100 text-slate-500 border-slate-200 hover:text-slate-800'
+            }`}
+            title={isSoundEnabled ? 'كتم صوت الكاشير والنقود (Mute)' : 'تشغيل صوت الكاشير والنقود (Unmute)'}
+          >
+            {isSoundEnabled ? (
+              <>
+                <Volume2 className="w-4 h-4 text-emerald-600 animate-pulse" />
+                <span className="hidden lg:inline">صوت النقود: مفعّل</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-4 h-4 text-slate-400" />
+                <span className="hidden lg:inline">الصوت: صامت</span>
+              </>
+            )}
           </button>
 
           {/* Fullscreen Toggle */}
@@ -1062,6 +1195,30 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Sound Effect Toggle Control */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl ${isSoundEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                  {isSoundEnabled ? <Volume2 className="w-4 h-4 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-800">صوت درج النقود وعدّ الكاش</div>
+                  <div className="text-[10px] text-slate-500">تأثير صوتي حقيقي ومحفز عند إتمام الدفع</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={toggleSound}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                  isSoundEnabled
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {isSoundEnabled ? 'مفعّل 🔔' : 'صامت 🔕'}
+              </button>
+            </div>
 
             {/* Confirm Payment Button */}
             <button
