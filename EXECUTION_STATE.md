@@ -42,19 +42,22 @@
 
 ## 2. نتائج الفحص والاختبارات الآلية
 - `flutter analyze`: **No issues found!** (صفر أخطاء وصفر تحذيرات).
-- `flutter test`: نجاح جميع الاختبارات الـ 10 بالكامل (10/10) بنسبة نجاح 100% (`order_placement_test.dart` و `widget_test.dart`).
-- `npm run build`: نجاح بناء TypeScript & Vite في 4.59 ثانية بدون أي تعارض في الأنواع (2185 وحدة تم تحويلها بنجاح).
+- `flutter test`: نجاح جميع الاختبارات الـ 12 بالكامل (12/12) بنسبة نجاح 100% (`order_placement_test.dart` و `widget_test.dart`).
+- `npm run build`: نجاح بناء TypeScript & Vite في 4.39 ثانية بدون أي تعارض في الأنواع (2185 وحدة تم تحويلها بنجاح).
 - `flutter build apk --release`: مبني وموثق وموجود على القرص بحجم 73MB.
 - `flutter build appbundle --release`: مبني وموثق وموجود على القرص بحجم 56.4MB.
 - `flutter build web --release`: مبني وموثق وموجود على القرص في `aldeeb_mall_app/build/web`.
+- `git push origin main`: تم دفع كافة الأكواد والتعديلات إلى مستودع GitHub الرئيسي بنجاح.
 
 ---
 
 ## 3. المعاملة الذرية السحابية والحماية الأمنية (RPC & RLS)
-- تم إعداد وتوثيق دالة `place_order_atomic` في [`supabase/migrations/20261102_002_atomic_order_rpc_and_guest_rls.sql`](file:///Volumes/ssd/Projects/aldeeb_mall/supabase/migrations/20261102_002_atomic_order_rpc_and_guest_rls.sql) ومزامنتها في [`supabase/MASTER_FULL_SCHEMA_DEPLOYMENT.sql`](file:///Volumes/ssd/Projects/aldeeb_mall/supabase/MASTER_FULL_SCHEMA_DEPLOYMENT.sql).
-- تتضمن الدالة:
-  1. قفل الصفوف الحصري `SELECT ... FOR UPDATE` لضمان عدم بيع كميات غير متوفرة.
-  2. التحقق من الهوية ومنع الزوار أو المهاجمين من انتحال معرف مستخدم مسجل (`UNAUTHORIZED`).
-  3. حظر إنشاء مبيعات كاشير وهمية من جهة الزوار المجهولين (`UNAUTHORIZED_POS`).
-  4. التحقق من الأسعار المعتمدة من جدول المنتجات ومنع التلاعب بالأسعار وإعادة احتساب الإجمالي بدقة.
-  5. معالجة التكرار (Idempotency Protection).
+- ✅ **تم تفعيل ونشر الدالة وسياسات الأمان حياً 100% على خادم Supabase السحابي (`ffqjtixxzgmvoxzzmxdy`)**.
+- تم فحصها عبر مكالمات HTTP حقيقية:
+  1. إنشاء طلب تجريبي حقيقي والحصول على معرف الطلب `169b8000-7bf8-478c-ba5c-2e3ff7f6324f`.
+  2. قفل الصفوف الحصري `SELECT ... FOR UPDATE` وخصم المخزون بنجاح.
+  3. حظر انتحال هويات المستخدمين المسجلين (`UNAUTHORIZED`).
+  4. حظر إنشاء مبيعات كاشير لغير الموظفين المسجلين (`UNAUTHORIZED_POS`).
+  5. التصحيح التلقائي لمسودة الأسعار وفرض أسعار الكتالوج المعتمدة.
+  6. حظر ازدواجية الطلبات وتكرار الخصم (`DUPLICATE_ORDER`).
+  7. عزل بيانات الزوار وحظر الاستعلام المفتوح عبر REST لحماية الخصوصية.
