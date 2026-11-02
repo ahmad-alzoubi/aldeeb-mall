@@ -1701,3 +1701,41 @@ CREATE POLICY "Allow accountant and admin insert payroll" ON public.payroll_tran
 
 CREATE POLICY "Allow public read password requests" ON public.password_change_requests
     FOR ALL TO public USING (true);
+
+
+-- =========================================================================
+-- Customer Service & Realtime Support Ticket System
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id TEXT PRIMARY KEY,
+    ticket_number TEXT NOT NULL UNIQUE,
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT DEFAULT '',
+    order_number TEXT,
+    subject TEXT NOT NULL,
+    category TEXT DEFAULT 'general',
+    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+    last_message TEXT DEFAULT '',
+    messages JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON public.support_tickets(status);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_order ON public.support_tickets(order_number);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_created_at ON public.support_tickets(created_at DESC);
+
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public and authenticated users can view support tickets" ON public.support_tickets;
+CREATE POLICY "Public and authenticated users can view support tickets"
+ON public.support_tickets FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "Users and admins can insert and update support tickets" ON public.support_tickets;
+CREATE POLICY "Users and admins can insert and update support tickets"
+ON public.support_tickets FOR ALL
+USING (true)
+WITH CHECK (true);

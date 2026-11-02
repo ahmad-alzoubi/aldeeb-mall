@@ -491,8 +491,12 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         {/* Brand & Branch Selector */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-600/30">
-              <Store className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center overflow-hidden border border-cyan-500/30 shadow-md shadow-cyan-950/20 shrink-0">
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png`}
+                alt="شعار الديب مول DEB"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <span className="text-sm font-black text-slate-900 leading-none block">الديب POS</span>

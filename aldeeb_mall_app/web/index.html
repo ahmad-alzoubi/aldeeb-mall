@@ -26,11 +26,13 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="aldeeb_mall_app">
+  <meta name="apple-mobile-web-app-title" content="الديب مول">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/Icon-192.png"/>
+  <link rel="shortcut icon" href="favicon.png" type="image/png">
 
   <title>الديب مول | Aldeeb Mall</title>
   <link rel="manifest" href="manifest.json">
@@ -57,20 +59,26 @@
       transition: opacity 0.4s ease-out;
     }
     .logo-box {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+      width: 90px;
+      height: 90px;
+      background: #000000;
       border-radius: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 38px;
-      box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5);
+      overflow: hidden;
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 10px 30px -5px rgba(56, 189, 248, 0.45);
       animation: pulse-glow 2s infinite ease-in-out;
     }
+    .logo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
     @keyframes pulse-glow {
-      0%, 100% { transform: scale(1); box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); }
-      50% { transform: scale(1.05); box-shadow: 0 15px 35px 0px rgba(37, 99, 235, 0.7); }
+      0%, 100% { transform: scale(1); box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.35); }
+      50% { transform: scale(1.05); box-shadow: 0 16px 36px 0px rgba(239, 68, 68, 0.5); }
     }
     .brand-title {
       margin-top: 20px;
@@ -100,7 +108,9 @@
 </head>
 <body>
   <div id="loading-splash">
-    <div class="logo-box">🛒</div>
+    <div class="logo-box">
+      <img src="icons/Icon-192.png" alt="شعار الديب مول DEB" />
+    </div>
     <div class="brand-title">الديب مول</div>
     <div class="brand-sub">جاري تجهيز المتجر وتحديث العروض...</div>
     <div class="spinner"></div>

@@ -221,8 +221,12 @@ export const CourierPortalPage: React.FC<CourierPortalPageProps> = ({
       <div className="bg-slate-950 border-b border-slate-800 p-4 sticky top-0 z-30">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-black border border-blue-500/30">
-              <Bike className="w-5 h-5 text-blue-400" />
+            <div className="w-10 h-10 rounded-2xl bg-black flex items-center justify-center overflow-hidden border border-cyan-500/40 shadow-md shrink-0">
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png`}
+                alt="شعار الديب مول DEB"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <h2 className="text-sm font-black text-white flex items-center gap-1.5">

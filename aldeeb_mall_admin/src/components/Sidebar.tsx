@@ -217,8 +217,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div>
         {/* Brand Logo & Name */}
         <div className="p-6 border-b border-slate-800 flex items-center space-x-3 space-x-reverse">
-          <div className="w-12 h-12 bg-gradient-to-tr from-blue-700 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/50">
-            <Store className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center overflow-hidden border border-cyan-500/40 shadow-lg shadow-cyan-950/50 shrink-0">
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="شعار الديب مول DEB"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <h1 className="text-xl font-extrabold tracking-wide text-white flex items-center gap-2">

@@ -2,8 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>نحتاج إلى إذن استخدام الكاميرا لمسح الباركود وفحص أسعار وتفاصيل المنتجات في المتجر</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>نحتاج إلى إذن الميكروفون للبحث الصوتي الذكي عن المنتجات والمقادير</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>نحتاج إلى إذن التعرف على الصوت لتحويل صوتك إلى كلمات للبحث وإضافة الأصناف للسلّة</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.aldeeb.mall</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

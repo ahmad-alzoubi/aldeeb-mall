@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
+import '../customer_service/presentation/customer_service_screen.dart';
+import '../customer_service/services/customer_service_service.dart';
 import '../../core/utils/responsive.dart';
 import '../home/main_navigation_screen.dart';
 
@@ -296,9 +298,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ),
                         IconButton(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('جاري الاتصال بالكابتن: ${order.driverPhone ?? "+971501234567"}')),
-                            );
+                            CustomerServiceService().callPhone(order.driverPhone ?? "+971501234567");
                           },
                           icon: const Icon(Icons.phone, color: AppColors.freshGreen),
                           style: IconButton.styleFrom(
@@ -432,6 +432,52 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
                         ),
                       ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 6. Customer Support Action Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.blue.shade50,
+                      radius: 22,
+                      child: const Icon(Icons.support_agent_rounded, color: Colors.blue, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('هل واجهت مشكلة في الطلب؟', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('تواصل مع خدمة العملاء للمتابعة الفورية والتعويض', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        CustomerServiceScreen.show(
+                          context,
+                          initialOrderNumber: order.orderNumber,
+                          initialCategory: 'order_issue',
+                          initialSubject: 'استفسار أو مشكلة في الطلب #${order.orderNumber}',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      child: const Text('خدمة العملاء', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

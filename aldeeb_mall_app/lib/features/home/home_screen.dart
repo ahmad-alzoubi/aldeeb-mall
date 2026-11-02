@@ -31,6 +31,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PageController _bannerController = PageController();
+  final TextEditingController _searchController = TextEditingController();
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
   late Duration _remainingTime;
@@ -131,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _bannerTimer?.cancel();
     _countdownTimer?.cancel();
     _bannerController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -192,19 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-
-              // 1.5. Quick Commerce Mode Switcher (15-Min Noon Minutes vs Hypermarket)
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _buildDeliveryModeSwitchBar(mall),
-                      if (mall.isExpress15Min) _buildExpressActiveBanner(),
-                    ],
-                  ),
-                ),
-              ),
 
               // 2. Hero Promotional Carousel Section
               SliverToBoxAdapter(
@@ -332,55 +321,76 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Main Top Navigation Bar
-          MaxWidthContainer(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isCompact = width < 1260;
+          final isUltraCompact = width < 1120;
+
+          return MaxWidthContainer(
+            padding: EdgeInsets.symmetric(
+              horizontal: isUltraCompact ? 12 : 20,
+              vertical: 12,
+            ),
             child: Row(
               children: [
                 // Brand Logo
                 InkWell(
                   onTap: () => mall.selectCategory(null),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Icon(Icons.shopping_bag_rounded, color: settings.primaryColor, size: 26),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, st) => Icon(Icons.shopping_bag_rounded, color: settings.primaryColor, size: 24),
+                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             settings.storeNameAr,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: isUltraCompact ? 17 : 19,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                          Text(
-                            settings.storeNameEn,
-                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
+                          if (!isUltraCompact)
+                            Text(
+                              settings.storeNameEn,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 32),
+                SizedBox(width: isUltraCompact ? 10 : (isCompact ? 14 : 20)),
 
                 // Delivery Location Dropdown Chip
                 InkWell(
@@ -390,43 +400,59 @@ class _HomeScreenState extends State<HomeScreen> {
                       MaterialPageRoute(builder: (_) => const AddressBookScreen()),
                     );
                   },
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isUltraCompact ? 8 : 12,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                     ),
-                    child: const Row(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.location_on, color: Colors.white, size: 18),
-                        SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                            Text(
-                              'برج فيوز B، وسط دبي ▼',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ],
+                        const Icon(Icons.location_on, color: Colors.white, size: 17),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: isUltraCompact ? 95 : 130),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'التوصيل إلى',
+                                style: TextStyle(color: Colors.white70, fontSize: 9.5, height: 1.1),
+                              ),
+                              Text(
+                                'برج فيوز B ▼',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11.5,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 24),
+                SizedBox(width: isUltraCompact ? 10 : (isCompact ? 14 : 20)),
 
                 // Large Search Bar (Takes remaining space)
                 Expanded(
                   child: Container(
-                    height: 46,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.06),
@@ -437,56 +463,98 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Row(
                       children: [
-                        const SizedBox(width: 14),
-                        const Icon(Icons.search, color: AppColors.primary, size: 22),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.search, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
+                            controller: _searchController,
                             onChanged: (val) => mall.setSearchQuery(val),
+                            onSubmitted: (val) {
+                              FocusScope.of(context).unfocus();
+                              mall.setSearchQuery(val);
+                            },
+                            textInputAction: TextInputAction.search,
                             decoration: InputDecoration(
-                              hintText: 'ابحث بين أكثر من ${mall.catalogCountText} منتج في الديب مول...',
-                              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                              hintText: isUltraCompact
+                                  ? 'ابحث في المنتجات...'
+                                  : 'ابحث بين أكثر من ${mall.catalogCountText} منتج في الديب مول...',
+                              hintStyle: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
                               contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 16, color: AppColors.textMuted),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        mall.setSearchQuery('');
+                                      },
+                                    )
+                                  : null,
                             ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 22),
+                          icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 20),
                           tooltip: 'المسح الذكي للباركود',
-                          onPressed: () {
-                            Navigator.push(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          onPressed: () async {
+                            final scanned = await Navigator.push<String>(
                               context,
                               MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
                             );
+                            if (scanned != null && scanned.trim().isNotEmpty) {
+                              _searchController.text = scanned.trim();
+                              mall.setSearchQuery(scanned.trim());
+                            }
                           },
                         ),
                         IconButton(
-                          icon: Icon(Icons.mic_none_rounded, color: settings.primaryColor, size: 22),
+                          icon: Icon(Icons.mic_none_rounded, color: settings.primaryColor, size: 20),
                           tooltip: 'البحث الصوتي',
-                          onPressed: () => VoiceAssistantModal.show(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          onPressed: () async {
+                            final voiceQuery = await VoiceAssistantModal.show(context);
+                            if (voiceQuery != null && voiceQuery.trim().isNotEmpty) {
+                              _searchController.text = voiceQuery.trim();
+                              mall.setSearchQuery(voiceQuery.trim());
+                            }
+                          },
                         ),
-                        Container(
-                          margin: const EdgeInsets.all(4),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: settings.primaryColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'بحث',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        if (!isCompact)
+                          InkWell(
+                            onTap: () {
+                              FocusScope.of(context).unfocus();
+                              mall.setSearchQuery(_searchController.text);
+                            },
+                            borderRadius: BorderRadius.circular(7),
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: settings.primaryColor,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'بحث',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          )
+                        else
+                          const SizedBox(width: 6),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 24),
+                SizedBox(width: isUltraCompact ? 8 : (isCompact ? 12 : 18)),
 
                 // Loyalty Points Star Pill
                 InkWell(
@@ -496,87 +564,101 @@ class _HomeScreenState extends State<HomeScreen> {
                       MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
                     );
                   },
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 9 : 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: settings.accentColor,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 4,
                         ),
                       ],
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 20),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 18),
+                        const SizedBox(width: 5),
                         Text(
-                          '${auth.currentUser?.loyaltyPoints ?? 50} نقطة ولاء',
+                          isCompact
+                              ? '${auth.currentUser?.loyaltyPoints ?? 50} نقطة'
+                              : '${auth.currentUser?.loyaltyPoints ?? 50} نقطة ولاء',
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 11.5,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isUltraCompact ? 6 : 8),
 
                 // Notifications Button
                 IconButton(
                   tooltip: 'الإشعارات والعروض',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   onPressed: () => NotificationsSheet.show(context),
                   icon: const Badge(
-                    smallSize: 8,
+                    smallSize: 7,
                     backgroundColor: AppColors.error,
-                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                    child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 21),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isUltraCompact ? 6 : 8),
 
-                // Aldeeb Pay Wallet Pill
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const WalletScreen()),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 18),
-                        SizedBox(width: 6),
-                        Text(
-                          'المحفظة: 150.00 ل.س',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                // Aldeeb Pay Wallet Pill (hidden on ultra compact to guarantee healthy layout, visible on normal)
+                if (!isUltraCompact) ...[
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const WalletScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 9 : 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 16),
+                          const SizedBox(width: 5),
+                          Text(
+                            isCompact ? '150 ل.س' : 'المحفظة: 150.00 ل.س',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                  SizedBox(width: isCompact ? 8 : 12),
+                ],
 
                 // Cart Button with Total
                 ElevatedButton.icon(
@@ -589,23 +671,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Badge(
                     label: Text('${cart.itemCount}'),
                     isLabelVisible: cart.itemCount > 0,
-                    child: const Icon(Icons.shopping_cart_outlined, size: 20),
+                    child: const Icon(Icons.shopping_cart_outlined, size: 18),
                   ),
                   label: Text(
-                    cart.itemCount > 0 ? '${cart.totalAmount.toStringAsFixed(2)} ل.س' : 'السلة',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    cart.itemCount > 0
+                        ? '${cart.totalAmount.toStringAsFixed(2)} ل.س'
+                        : 'السلة',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 12 : 16,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -620,214 +707,254 @@ class _HomeScreenState extends State<HomeScreen> {
     StoreSettingsProvider settings,
     CartProvider cart,
   ) {
+    final isTablet = Responsive.isTablet(context);
+
     return SliverAppBar(
-      floating: true,
+      floating: false,
       pinned: true,
-      elevation: 0,
+      elevation: 1,
       backgroundColor: settings.primaryColor,
-      expandedHeight: 125,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [settings.primaryDarkColor, settings.primaryColor],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
+      automaticallyImplyLeading: false,
+      toolbarHeight: 56,
+      titleSpacing: 12,
+      title: Row(
+        children: [
+          // App Brand Logo DEB
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: const Color(0xFF38BDF8), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 18),
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 40, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          const SizedBox(width: 8),
+
+          // Delivery Location
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddressBookScreen()),
+                );
+              },
+              child: Row(
                 children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AddressBookScreen()),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.location_on, color: Colors.white, size: 18),
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('التوصيل إلى', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                                Text(
-                                  'برج فيوز B، دبي ▼',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(Icons.location_on, color: Colors.white, size: 16),
                   ),
-                  InkWell(
-                    onTap: () => NotificationsSheet.show(context),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Badge(
-                        smallSize: 8,
-                        backgroundColor: AppColors.error,
-                        child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 18),
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Badge(
-                        isLabelVisible: cart.itemCount > 0,
-                        label: Text('${cart.itemCount}', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                        backgroundColor: AppColors.accent,
-                        child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 18),
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: settings.accentColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${auth.currentUser?.loyaltyPoints ?? 50} نقطة',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'التوصيل إلى',
+                          style: TextStyle(color: Colors.white70, fontSize: 9.5, height: 1.1),
+                        ),
+                        Text(
+                          'برج فيوز B، دبي ▼',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            height: 1.2,
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const WalletScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.account_balance_wallet_rounded, color: AppColors.accent, size: 15),
-                          SizedBox(width: 4),
-                          Text(
-                            '150 ل.س',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 6),
+
+          // Loyalty points chip (Compact & neat)
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: settings.accentColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.stars_rounded, color: AppColors.textPrimary, size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    isTablet
+                        ? '${auth.currentUser?.loyaltyPoints ?? 50} نقطة'
+                        : '${auth.currentUser?.loyaltyPoints ?? 50}',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Notifications Button
+          InkWell(
+            onTap: () => NotificationsSheet.show(context),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Badge(
+                smallSize: 7,
+                backgroundColor: AppColors.error,
+                child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 17),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Cart Button
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Badge(
+                isLabelVisible: cart.itemCount > 0,
+                label: Text(
+                  '${cart.itemCount}',
+                  style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                backgroundColor: settings.accentColor,
+                child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 17),
+              ),
+            ),
+          ),
+        ],
       ),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(54),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Container(
-            height: 44,
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: AppColors.cardShadow,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                const SizedBox(width: 12),
-                const Icon(Icons.search, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
+                const Icon(Icons.search, color: AppColors.primary, size: 19),
+                const SizedBox(width: 6),
                 Expanded(
                   child: TextField(
+                    controller: _searchController,
                     onChanged: (val) => mall.setSearchQuery(val),
+                    onSubmitted: (val) {
+                      FocusScope.of(context).unfocus();
+                      mall.setSearchQuery(val);
+                    },
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
-                      hintText: 'ابحث بين أكثر من ${mall.catalogCountText} منتج في الديب مول...',
+                      hintText: 'ابحث بين أكثر من ${mall.catalogCountText} منتج...',
                       hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      isDense: true,
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16, color: AppColors.textMuted),
+                              onPressed: () {
+                                _searchController.clear();
+                                mall.setSearchQuery('');
+                              },
+                            )
+                          : null,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 20),
+                  icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 19),
                   tooltip: 'المسح الذكي للباركود',
-                  onPressed: () {
-                    Navigator.push(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                  onPressed: () async {
+                    final scanned = await Navigator.push<String>(
                       context,
                       MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
                     );
+                    if (scanned != null && scanned.trim().isNotEmpty) {
+                      _searchController.text = scanned.trim();
+                      mall.setSearchQuery(scanned.trim());
+                    }
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 20),
+                  icon: const Icon(Icons.mic_none_rounded, color: AppColors.primary, size: 19),
                   tooltip: 'البحث الصوتي',
-                  onPressed: () => VoiceAssistantModal.show(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                  onPressed: () async {
+                    final voiceQuery = await VoiceAssistantModal.show(context);
+                    if (voiceQuery != null && voiceQuery.trim().isNotEmpty) {
+                      _searchController.text = voiceQuery.trim();
+                      mall.setSearchQuery(voiceQuery.trim());
+                    }
+                  },
                 ),
                 const SizedBox(width: 4),
               ],
@@ -1574,135 +1701,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildDeliveryModeSwitchBar(MallProvider mall) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10, bottom: 4),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // 15-Min Express Option (Noon Minutes / الديب ناو)
-          Expanded(
-            child: InkWell(
-              onTap: () => mall.toggleExpress15Min(true),
-              borderRadius: BorderRadius.circular(10),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: mall.isExpress15Min ? AppColors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.bolt,
-                      size: 18,
-                      color: mall.isExpress15Min ? AppColors.textPrimary : AppColors.textMuted,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'الديب ناو (15 دقيقة)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        color: mall.isExpress15Min ? AppColors.textPrimary : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          // Scheduled / Hypermarket Option
-          Expanded(
-            child: InkWell(
-              onTap: () => mall.toggleExpress15Min(false),
-              borderRadius: BorderRadius.circular(10),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: !mall.isExpress15Min ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.storefront_outlined,
-                      size: 18,
-                      color: !mall.isExpress15Min ? Colors.white : AppColors.textMuted,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'سوبرماركت مجدول',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        color: !mall.isExpress15Min ? Colors.white : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpressActiveBanner() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8, bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.electric_bolt, color: Color(0xFFD97706), size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'وضع التوصيل الفوري فائق السرعة نشط (Noon Minutes / 15-Min)',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF92400E)),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'يتم جمع طلبك فوراً من أقرب مستودع مظلم وتوصيله خلال 15 دقيقة بسيارة مبردة.',
-                  style: TextStyle(fontSize: 10, color: Color(0xFFB45309)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   // Themed Shoppable Shelves & Secondary Banners
   // ===========================================================================
 
@@ -2369,6 +2367,214 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ProductCard(product: produceProducts[index]),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResultsSection(MallProvider mall, BuildContext context, bool isDesktop) {
+    final query = mall.searchQuery.trim();
+    final list = _getFilteredProducts(mall);
+
+    return Container(
+      color: AppColors.background,
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 20 : 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search Banner Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+              boxShadow: AppColors.cardShadow,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          text: 'نتائج البحث عن: ',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '"$query"',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        list.isNotEmpty
+                            ? 'تم العثور على ${list.length} منتج متطابق'
+                            : 'لم نتمكن من العثور على نتائج مطابقة',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: list.isNotEmpty ? AppColors.freshGreen : AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    _searchController.clear();
+                    mall.setSearchQuery('');
+                  },
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                  label: const Text(
+                    'إلغاء البحث',
+                    style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.redAccent.withValues(alpha: 0.08),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Sort Tabs
+          if (list.isNotEmpty) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildSortChip('all', 'الكل ✨'),
+                  const SizedBox(width: 8),
+                  _buildSortChip('top_saving', 'الأعلى توفيراً % 🔥'),
+                  const SizedBox(width: 8),
+                  _buildSortChip('best_seller', 'الأكثر طلباً 🏆'),
+                  const SizedBox(width: 8),
+                  _buildSortChip('low_price', 'الأقل سعراً 💰'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Product Grid
+            Padding(
+              padding: const EdgeInsets.only(bottom: 120),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: Responsive.gridColumns(context),
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: Responsive.productCardAspectRatio(context),
+                ),
+                itemCount: list.length,
+                itemBuilder: (ctx, index) => ProductCard(product: list[index]),
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 120),
+              child: _buildSearchEmptyState(context, mall, query),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchEmptyState(BuildContext context, MallProvider mall, String query) {
+    final suggestions = ['حليب', 'طماطم', 'أرز', 'لحم', 'دجاج', 'عصير', 'زيت', 'تفاح'];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.search_off_rounded, size: 44, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'لم نتمكن من العثور على أي منتج يطابق "$query"',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'تأكد من كتابة الكلمات بشكل صحيح، أو جرّب البحث بكلمات عامة أو اختر من الاقتراحات:',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: suggestions.map((s) {
+              return ActionChip(
+                label: Text(s, style: const TextStyle(fontSize: 11.5)),
+                backgroundColor: AppColors.background,
+                side: const BorderSide(color: AppColors.border),
+                onPressed: () {
+                  _searchController.text = s;
+                  mall.setSearchQuery(s);
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () {
+              _searchController.clear();
+              mall.setSearchQuery('');
+            },
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('العودة لكافة أقسام وعروض المتجر',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],

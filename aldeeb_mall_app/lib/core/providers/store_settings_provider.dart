@@ -107,8 +107,17 @@ class StoreSettingsProvider extends ChangeNotifier {
   String _groceryListSubtitle = 'تنظيم ومزامنة المقاضي العائلية بذكاء';
   String _currency = 'ل.س';
   bool _enableProductBundles = true;
+  String _phone = '+971 50 123 4567';
+  String _whatsapp = '+971 50 123 4567';
+  String _supportEmail = 'support@aldeebmall.com';
+
+  // Dark Mode State
+  bool _isDarkMode = false;
 
   // Getters
+  bool get isDarkMode => _isDarkMode;
+  ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
   Color get primaryColor => _primaryColor;
   Color get primaryDarkColor => _primaryDarkColor;
   Color get secondaryColor => _secondaryColor;
@@ -117,6 +126,15 @@ class StoreSettingsProvider extends ChangeNotifier {
   Color get surfaceColor => _surfaceColor;
   Color get textPrimaryColor => _textPrimaryColor;
   Color get textSecondaryColor => _textSecondaryColor;
+
+  // Adaptive Current Colors based on active theme
+  Color get currentBackground => _isDarkMode ? const Color(0xFF0B0F19) : _backgroundColor;
+  Color get currentSurface => _isDarkMode ? const Color(0xFF1E293B) : _surfaceColor;
+  Color get currentCard => _isDarkMode ? const Color(0xFF1E293B) : _surfaceColor;
+  Color get currentTextPrimary => _isDarkMode ? const Color(0xFFF8FAFC) : _textPrimaryColor;
+  Color get currentTextSecondary => _isDarkMode ? const Color(0xFF94A3B8) : _textSecondaryColor;
+  Color get currentBorder => _isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+  Color get currentDivider => _isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEEF2F6);
 
   String get storeNameAr => _storeNameAr;
   String get storeNameEn => _storeNameEn;
@@ -131,6 +149,9 @@ class StoreSettingsProvider extends ChangeNotifier {
   String get groceryListSubtitle => _groceryListSubtitle;
   String get currency => _currency;
   bool get enableProductBundles => _enableProductBundles;
+  String get phone => _phone;
+  String get whatsapp => _whatsapp;
+  String get supportEmail => _supportEmail;
 
   Timer? _syncTimer;
 
@@ -177,12 +198,16 @@ class StoreSettingsProvider extends ChangeNotifier {
     // 1. Load cached preferences first for zero-delay startup
     try {
       final prefs = await SharedPreferences.getInstance();
+      final isDarkSaved = prefs.getBool('aldeeb_mall_is_dark_mode');
+      if (isDarkSaved != null) {
+        _isDarkMode = isDarkSaved;
+      }
       final jsonStr = prefs.getString(_prefKey);
       if (jsonStr != null) {
         final Map<String, dynamic> data = jsonDecode(jsonStr);
         _applyMap(data);
-        notifyListeners();
       }
+      notifyListeners();
     } catch (_) {}
 
     // 2. Sync from shared backend API
@@ -277,6 +302,9 @@ class StoreSettingsProvider extends ChangeNotifier {
     if (data['groceryListTitle'] != null) _groceryListTitle = data['groceryListTitle'].toString();
     if (data['groceryListSubtitle'] != null) _groceryListSubtitle = data['groceryListSubtitle'].toString();
     if (data['currency'] != null) _currency = data['currency'].toString();
+    if (data['phone'] != null) _phone = data['phone'].toString();
+    if (data['whatsapp'] != null) _whatsapp = data['whatsapp'].toString();
+    if (data['supportEmail'] != null) _supportEmail = data['supportEmail'].toString();
     if (data['enableProductBundles'] != null) {
       _enableProductBundles = data['enableProductBundles'] == true || data['enableProductBundles'] == 'true';
     }
@@ -332,6 +360,9 @@ class StoreSettingsProvider extends ChangeNotifier {
       'groceryListSubtitle': _groceryListSubtitle,
       'currency': _currency,
       'enableProductBundles': _enableProductBundles,
+      'phone': _phone,
+      'whatsapp': _whatsapp,
+      'supportEmail': _supportEmail,
     };
   }
 
@@ -429,7 +460,23 @@ class StoreSettingsProvider extends ChangeNotifier {
     );
   }
 
-  ThemeData get themeData {
+  void toggleDarkMode() {
+    setDarkMode(!_isDarkMode);
+  }
+
+  Future<void> setDarkMode(bool value) async {
+    if (_isDarkMode == value) return;
+    _isDarkMode = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('aldeeb_mall_is_dark_mode', _isDarkMode);
+    } catch (_) {}
+  }
+
+  ThemeData get themeData => _isDarkMode ? darkThemeData : lightThemeData;
+
+  ThemeData get lightThemeData {
     final baseTextTheme = GoogleFonts.cairoTextTheme();
 
     return ThemeData(
@@ -536,6 +583,136 @@ class StoreSettingsProvider extends ChangeNotifier {
           color: AppColors.textMuted,
           fontSize: 14,
         ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: _primaryColor.withValues(alpha: 0.15),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        modalBackgroundColor: Colors.white,
+      ),
+    );
+  }
+
+  ThemeData get darkThemeData {
+    final baseTextTheme = GoogleFonts.cairoTextTheme();
+    const darkBg = Color(0xFF0B0F19);
+    const darkSurface = Color(0xFF1E293B);
+    const darkBorder = Color(0xFF334155);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      primaryColor: _primaryColor,
+      scaffoldBackgroundColor: darkBg,
+      colorScheme: ColorScheme.dark(
+        primary: _primaryColor,
+        secondary: _secondaryColor,
+        surface: darkSurface,
+        error: AppColors.error,
+        onPrimary: Colors.white,
+        onSurface: const Color(0xFFF8FAFC),
+      ),
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: baseTextTheme.displayLarge?.copyWith(
+          color: const Color(0xFFF8FAFC),
+          fontWeight: FontWeight.bold,
+          height: 1.4,
+        ),
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
+          color: const Color(0xFFF8FAFC),
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+          height: 1.4,
+        ),
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
+          color: const Color(0xFFF8FAFC),
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+          height: 1.4,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+          color: const Color(0xFFF8FAFC),
+          fontSize: 15,
+          height: 1.5,
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          color: const Color(0xFF94A3B8),
+          fontSize: 13,
+          height: 1.5,
+        ),
+        labelLarge: baseTextTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: darkSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: darkBorder, width: 1),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: _primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        hintStyle: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 14,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF0F172A),
+        indicatorColor: _primaryColor.withValues(alpha: 0.25),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkSurface,
+        modalBackgroundColor: darkSurface,
       ),
     );
   }

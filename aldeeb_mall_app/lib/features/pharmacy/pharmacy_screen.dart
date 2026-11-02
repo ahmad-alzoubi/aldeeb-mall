@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
+import '../customer_service/presentation/customer_service_screen.dart';
 
 class PharmacyScreen extends StatefulWidget {
   const PharmacyScreen({super.key});
@@ -193,14 +194,13 @@ class _PharmacyScreenState extends State<PharmacyScreen>
         ),
         actions: [
           IconButton(
-            tooltip: 'استشارة صيدلي مناوب',
+            tooltip: 'استشارة صيدلي مناوب 24/7',
             icon: const Icon(Icons.support_agent_rounded),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('جارٍ تحويلك لمحادثة الصيدلي السريري المناوب (د. سارة الشهري)...'),
-                  backgroundColor: Color(0xFF065F46),
-                ),
+              CustomerServiceScreen.show(
+                context,
+                initialCategory: 'pharmacy',
+                initialSubject: 'استشارة صيدلانية مع الصيدلي المناوب',
               );
             },
           ),

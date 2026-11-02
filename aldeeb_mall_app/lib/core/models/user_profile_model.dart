@@ -48,4 +48,26 @@ class UserProfileModel {
       'tier': tier,
     };
   }
+
+  UserProfileModel copyWith({
+    String? id,
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarUrl,
+    String? role,
+    int? loyaltyPoints,
+    String? tier,
+  }) {
+    return UserProfileModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      role: role ?? this.role,
+      loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
+      tier: tier ?? this.tier,
+    );
+  }
 }

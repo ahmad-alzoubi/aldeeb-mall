@@ -38,7 +38,9 @@ class AldeebMallApp extends StatelessWidget {
           return MaterialApp(
             title: '${settings.storeNameAr} | ${settings.storeNameEn}',
             debugShowCheckedModeBanner: false,
-            theme: settings.themeData,
+            theme: settings.lightThemeData,
+            darkTheme: settings.darkThemeData,
+            themeMode: settings.themeMode,
             locale: const Locale('ar', 'AE'),
             builder: (context, child) {
               return Directionality(

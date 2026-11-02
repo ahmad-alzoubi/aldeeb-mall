@@ -6,6 +6,7 @@ import os
 import json
 
 STORE_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'store_settings.json')
+SUPPORT_TICKETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'support_tickets.json')
 
 DEFAULT_SETTINGS = {
     "primaryColor": "#0D47A1",
@@ -42,6 +43,22 @@ def get_current_settings():
         except Exception:
             pass
     return DEFAULT_SETTINGS
+
+def get_current_tickets():
+    if os.path.exists(SUPPORT_TICKETS_FILE):
+        try:
+            with open(SUPPORT_TICKETS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def save_current_tickets(data):
+    try:
+        with open(SUPPORT_TICKETS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        sys.stderr.write(f"Error saving support_tickets.json: {e}\n")
 
 def save_current_settings(data):
     try:
@@ -97,6 +114,17 @@ class RobustHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+
+        if self.path.startswith('/api/support_tickets'):
+            tickets = get_current_tickets()
+            body = json.dumps(tickets, ensure_ascii=False).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -111,6 +139,40 @@ class RobustHandler(http.server.SimpleHTTPRequestHandler):
                     save_current_settings(current)
                 
                 resp = json.dumps({'success': True, 'settings': current}, ensure_ascii=False).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(resp)))
+                self.end_headers()
+                self.wfile.write(resp)
+                return
+            except Exception as e:
+                err_resp = json.dumps({'success': False, 'error': str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(err_resp)))
+                self.end_headers()
+                self.wfile.write(err_resp)
+                return
+
+        if self.path.startswith('/api/support_tickets'):
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                raw_body = self.rfile.read(length).decode('utf-8')
+                payload = json.loads(raw_body)
+                tickets = get_current_tickets()
+                
+                if isinstance(payload, dict) and 'id' in payload:
+                    existing_idx = next((i for i, t in enumerate(tickets) if t.get('id') == payload['id']), -1)
+                    if existing_idx >= 0:
+                        tickets[existing_idx].update(payload)
+                    else:
+                        tickets.insert(0, payload)
+                    save_current_tickets(tickets)
+                elif isinstance(payload, list):
+                    tickets = payload
+                    save_current_tickets(tickets)
+
+                resp = json.dumps({'success': True, 'tickets': tickets}, ensure_ascii=False).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
                 self.send_header('Content-Length', str(len(resp)))

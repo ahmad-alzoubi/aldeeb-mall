@@ -276,16 +276,28 @@ export interface PurchaseOrder {
   notes?: string;
 }
 
+export interface TicketMessageItem {
+  id: string;
+  sender: 'customer' | 'agent' | 'bot' | 'system';
+  sender_name?: string;
+  text: string;
+  timestamp?: string;
+  time?: string;
+}
+
 export interface SupportTicket {
   id: string;
   ticket_number: string;
   customer_name: string;
+  customer_phone?: string;
   order_number?: string;
   subject: string;
+  category?: string;
   status: 'open' | 'in_progress' | 'resolved';
   priority: 'low' | 'medium' | 'high';
   created_at: string;
   last_message: string;
+  messages?: TicketMessageItem[];
 }
 
 
