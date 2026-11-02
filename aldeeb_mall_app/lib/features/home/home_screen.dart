@@ -151,6 +151,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = Provider.of<AuthService>(context);
     final settings = Provider.of<StoreSettingsProvider>(context);
     final isDesktop = Responsive.isDesktop(context);
+    final isSearching = mall.searchQuery.trim().isNotEmpty;
+    if (mall.searchQuery.isEmpty && _searchController.text.isNotEmpty) {
+      _searchController.clear();
+    } else if (mall.searchQuery.isNotEmpty && _searchController.text != mall.searchQuery) {
+      _searchController.text = mall.searchQuery;
+    }
 
     return Scaffold(
       backgroundColor: settings.backgroundColor,
@@ -195,13 +201,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-              // 2. Hero Promotional Carousel Section
-              SliverToBoxAdapter(
-                child: MaxWidthContainer(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildHeroSection(mall, isDesktop),
+              // If currently searching, show dedicated live search results immediately
+              if (isSearching) ...[
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildSearchResultsSection(mall, context, isDesktop),
+                  ),
                 ),
-              ),
+              ] else ...[
+                // 2. Hero Promotional Carousel Section
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildHeroSection(mall, isDesktop),
+                  ),
+                ),
 
 
 
@@ -294,7 +308,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ],
-          ),
+          ],
+        ),
         ],
       ),
     );
