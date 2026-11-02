@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/product_model.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/mall_provider.dart';
+import '../../../core/utils/responsive.dart';
 import '../../product/product_detail_screen.dart';
 import '../../nutrition/nutrition_facts_modal.dart';
 
@@ -26,6 +27,8 @@ class _ProductCardState extends State<ProductCard> {
     final mall = Provider.of<MallProvider>(context);
     final qty = cart.getProductQuantity(widget.product.id);
     final isFav = mall.isFavorite(widget.product.id);
+    final isMobile = Responsive.isMobile(context);
+    final imageHeight = isMobile ? 120.0 : 140.0;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -65,7 +68,7 @@ class _ProductCardState extends State<ProductCard> {
                     ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                       child: Container(
-                        height: 140,
+                        height: imageHeight,
                         width: double.infinity,
                         color: Colors.white,
                         child: CachedNetworkImage(
@@ -225,12 +228,16 @@ class _ProductCardState extends State<ProductCard> {
                               crossAxisAlignment: CrossAxisAlignment.baseline,
                               textBaseline: TextBaseline.alphabetic,
                               children: [
-                                Text(
-                                  '${widget.product.price.toStringAsFixed(2)} ل.س',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primary,
+                                Flexible(
+                                  child: Text(
+                                    '${widget.product.price.toStringAsFixed(2)} ل.س',
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(width: 4),

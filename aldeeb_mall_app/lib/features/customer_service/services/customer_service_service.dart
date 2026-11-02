@@ -158,6 +158,7 @@ class CustomerServiceService {
     // Try Local Cache
     try {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       final str = prefs.getString(_storageKey);
       if (str != null && str.isNotEmpty) {
         final decoded = jsonDecode(str) as List;
@@ -272,6 +273,47 @@ class CustomerServiceService {
     return newTicket;
   }
 
+  // 7.1 Get or Create Live Chat Ticket for Realtime Instant Chat
+  Future<SupportTicket> getOrCreateLiveChatTicket({
+    String customerName = 'عميل الديب مول',
+    String? orderNumber,
+  }) async {
+    final all = await getTickets();
+    final existingIdx = all.indexWhere((t) => t.id == 'tkt-live-chat' || t.category == 'live_chat');
+    if (existingIdx != -1) {
+      return all[existingIdx];
+    }
+
+    final liveTicket = SupportTicket(
+      id: 'tkt-live-chat',
+      ticketNumber: 'CHAT-1001',
+      customerName: customerName,
+      customerPhone: '',
+      orderNumber: orderNumber,
+      subject: 'محادثة حية مباشرة (Live Chat)',
+      category: 'live_chat',
+      status: 'open',
+      priority: 'high',
+      createdAt: 'الآن',
+      lastMessage: 'بدء جلسة محادثة مباشرة جديدة',
+      messages: [
+        TicketMessage(
+          id: 'welcome-1',
+          sender: 'bot',
+          senderName: 'مساعد الديب الذكي',
+          text: 'مرحباً بك في خدمة عملاء الديب مول 🛒✨\nنحن هنا لخدمتك 24/7. اكتب استفسارك وسيقوم فريق الدعم بالرد الفوري عليك.',
+          timestamp: 'الآن',
+        ),
+      ],
+    );
+
+    all.insert(0, liveTicket);
+    await _saveLocal(all);
+    _syncTicketToApi(liveTicket);
+    _syncTicketToSupabase(liveTicket);
+    return liveTicket;
+  }
+
   // 8. Add Message to Ticket
   Future<SupportTicket> addMessageToTicket(
     String ticketId,
@@ -343,8 +385,8 @@ class CustomerServiceService {
       return 'في الديب مول، نلتزم بـ "ضمان الجودة والطزاجة 100%". إذا وصلك أي صنف (خضار، فواكه، لحوم، أو مجمدات) بحالة غير مرضية، يحق لك الاستبدال الفوري أو استرداد المبلغ كرصيد فوري في محفظتك دون أي تعقيد. اضغط على "فتح تذكرة جديدة" مع إرفاق رقم الطلب لتعويضك فوراً.';
     }
 
-    if (lower.contains('دواء') || lower.contains('صيدلية') || lower.contains('صيدلي') || lower.contains('وصفة') || lower.contains('روشتة') || lower.contains('علاج')) {
-      return 'صيدلية الديب مول توفر صيدلياً سريرياً مناوباً على مدار الساعة (د. سارة الشهري). يمكنك تصوير الوصفة الطبية ورفعها، أو طلب الاستشارة الدوائية المباشرة بالاتصال أو عبر الواتساب الطبي المخصص.';
+    if (lower.contains('توصيل') || lower.contains('شحن') || lower.contains('سريع') || lower.contains('اكسبريس') || lower.contains('موعد')) {
+      return 'نوفر خدمة التوصيل الإكسبريس فائق السرعة من أقرب مستودع مظلم إليك خلال 15 إلى 30 دقيقة، مع الحفاظ التام على درجات التبريد للسلسلة الباردة حتى باب منزلك.';
     }
 
     if (lower.contains('نقاط') || lower.contains('ولاء') || lower.contains('كوبون') || lower.contains('خصم') || lower.contains('رصيد') || lower.contains('محفظة')) {

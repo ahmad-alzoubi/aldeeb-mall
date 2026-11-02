@@ -24,9 +24,11 @@ class Responsive {
 
   static double productCardAspectRatio(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    if (width >= 1100) return 0.72;
-    if (width >= 650) return 0.68;
-    return 0.65;
+    if (width >= 1400) return 0.74;
+    if (width >= 1100) return 0.70;
+    if (width >= 750) return 0.65;
+    if (width >= 390) return 0.58;
+    return 0.55;
   }
 
   static const double maxContentWidth = 1320.0;

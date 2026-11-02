@@ -1,0 +1,88 @@
+[
+  {
+    "id": "tkt-1",
+    "ticket_number": "TKT-4412",
+    "customer_name": "فاطمة المنصوري",
+    "customer_phone": "+971501234567",
+    "order_number": "DEEB-8843",
+    "subject": "طلب إضافة صنف إضافي مع الطلب قبل خروج المندوب",
+    "category": "order_issue",
+    "status": "open",
+    "priority": "high",
+    "created_at": "منذ 10 دقائق",
+    "last_message": "مرحباً، هل يمكن إضافة عبوة بيض بلدي إلى طلبي إذا كان لا يزال قيد التجهيز؟",
+    "messages": [
+      {
+        "id": "m-1",
+        "sender": "customer",
+        "sender_name": "فاطمة المنصوري",
+        "text": "مرحباً، هل يمكن إضافة عبوة بيض بلدي إلى طلبي إذا كان لا يزال قيد التجهيز؟",
+        "timestamp": "10:42 ص"
+      },
+      {
+        "id": "m-2",
+        "sender": "agent",
+        "sender_name": "فريق خدمة العملاء",
+        "text": "أهلاً بك أختي فاطمة! تم التحقق وطلبك لا يزال في مرحلة التجهيز في المستودع المظلم. جاري إضافة الصنف فوراً.",
+        "timestamp": "10:44 ص"
+      }
+    ]
+  },
+  {
+    "id": "tkt-2",
+    "ticket_number": "TKT-4410",
+    "customer_name": "خالد السعدي",
+    "customer_phone": "+971559876543",
+    "order_number": "DEEB-8844",
+    "subject": "استفسار عن موعد وصول الكابتن لبرج مارينا كراون",
+    "category": "delivery",
+    "status": "in_progress",
+    "priority": "medium",
+    "created_at": "منذ 25 دقيقة",
+    "last_message": "الكابتن محمد في الطريق ويصلك خلال 7 دقائق بالضبط.",
+    "messages": [
+      {
+        "id": "m-3",
+        "sender": "customer",
+        "sender_name": "خالد السعدي",
+        "text": "السلام عليكم، كم المتبقي على وصول طلب الغداء؟",
+        "timestamp": "10:15 ص"
+      },
+      {
+        "id": "m-4",
+        "sender": "agent",
+        "sender_name": "فريق العمليات والدعم",
+        "text": "وعليكم السلام ورحمة الله، الكابتن محمد في الطريق وموقعه يبعد 1.2 كم، يصلك خلال 7 دقائق بالضبط.",
+        "timestamp": "10:18 ص"
+      }
+    ]
+  },
+  {
+    "id": "tkt-3",
+    "ticket_number": "TKT-4401",
+    "customer_name": "أحمد الزعبي",
+    "customer_phone": "+971508889900",
+    "subject": "استفسار عن تحويل نقاط ولاء العضوية الذهبية لكوبون خصم",
+    "category": "general",
+    "status": "resolved",
+    "priority": "low",
+    "created_at": "أمس",
+    "last_message": "تم تفعيل كود الخصم في حسابك بقيمة 25 ل.س، تسوق ممتع!",
+    "messages": [
+      {
+        "id": "m-5",
+        "sender": "customer",
+        "sender_name": "أحمد الزعبي",
+        "text": "كيف يمكنني استبدال رصيد نقاط الولاء برصيد محفظة؟",
+        "timestamp": "أمس 04:30 م"
+      },
+      {
+        "id": "m-6",
+        "sender": "agent",
+        "sender_name": "مشرف الدعم الفني",
+        "text": "تم تفعيل كود الخصم في حسابك بقيمة 25 ل.س، تسوق ممتع!",
+        "timestamp": "أمس 04:35 م"
+      }
+    ]
+  }
+]

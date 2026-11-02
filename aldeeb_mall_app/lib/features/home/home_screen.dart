@@ -20,6 +20,7 @@ import '../address/address_book_screen.dart';
 import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
 import '../notifications/notifications_sheet.dart';
+import '../customer_service/presentation/customer_service_screen.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -305,6 +306,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: MaxWidthContainer(
                     child: _buildAllProductsSection(mall, context, isDesktop),
                   ),
+                ),
+
+                // Bottom Safe Spacing for Mobile Navigation Bar
+                SliverToBoxAdapter(
+                  child: SizedBox(height: isDesktop ? 40 : 85),
                 ),
               ],
             ],
@@ -863,6 +869,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 6),
 
+          // Live Customer Support Button (24/7)
+          InkWell(
+            onTap: () => CustomerServiceScreen.show(context),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 18),
+            ),
+          ),
+          const SizedBox(width: 6),
+
           // Cart Button
           InkWell(
             onTap: () {
@@ -1000,40 +1021,49 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'أقسام الهايبرماركت الكبرى',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
+                          const SizedBox(width: 8),
+                          const Flexible(
+                            child: Text(
+                              'أقسام الهايبرماركت الكبرى',
+                              style: TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'اختر القسم لتصفح آلاف الأصناف الطازجة والموثوقة بأفضل الأسعار',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      const Text(
+                        'اختر القسم لتصفح آلاف الأصناف الطازجة والموثوقة بأفضل الأسعار',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 if (selId != null)
                   TextButton.icon(
                     onPressed: () {
@@ -1135,26 +1165,52 @@ class _HomeScreenState extends State<HomeScreen> {
                             CachedNetworkImage(
                               imageUrl: cat.imageUrl!,
                               fit: BoxFit.cover,
-                              placeholder: (ctx, url) => Container(color: Colors.grey.shade100),
+                              placeholder: (ctx, url) => Container(
+                                color: Color(int.parse(meta['color']!)).withValues(alpha: 0.15),
+                              ),
+                              errorWidget: (ctx, url, err) => Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(int.parse(meta['color']!)).withValues(alpha: 0.85),
+                                      Color(int.parse(meta['color']!)).withValues(alpha: 0.5),
+                                    ],
+                                    begin: Alignment.topRight,
+                                    end: Alignment.bottomLeft,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Icon(Icons.category_rounded, size: 36, color: Colors.white.withValues(alpha: 0.7)),
+                                ),
+                              ),
                             )
                           else
                             Container(
-                              color: Color(int.parse(meta['color']!)).withValues(alpha: 0.1),
-                              child: const Center(
-                                child: Icon(Icons.shopping_basket, size: 40, color: AppColors.primary),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(int.parse(meta['color']!)).withValues(alpha: 0.85),
+                                    Color(int.parse(meta['color']!)).withValues(alpha: 0.5),
+                                  ],
+                                  begin: Alignment.topRight,
+                                  end: Alignment.bottomLeft,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(Icons.category_rounded, size: 36, color: Colors.white.withValues(alpha: 0.7)),
                               ),
                             ),
 
-                          // Dark Gradient Overlay for readability
+                          // Dark Gradient Overlay for text readability
                           Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  Colors.black.withValues(alpha: 0.15),
-                                  Colors.black.withValues(alpha: 0.45),
-                                  Colors.black.withValues(alpha: 0.88),
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.25),
+                                  Colors.black.withValues(alpha: 0.78),
                                 ],
                                 stops: const [0.0, 0.45, 1.0],
                               ),
@@ -1957,36 +2013,45 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'عروض لا تفوّت - صفقات خاطفة! 🔥',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
-                        ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'عروض لا تفوّت - صفقات خاطفة! 🔥',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'أسعار نارية تنفد سريعاً، أضفها لسلتك فوراً',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        'أسعار نارية تنفد سريعاً، أضفها لسلتك فوراً',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -2037,36 +2102,45 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7),
-                      borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.new_releases_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.new_releases_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'وصل حديثاً إلى الديب مول ✨',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
-                        ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'وصل حديثاً إلى الديب مول ✨',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'أحدث الأصناف والنكهات والمستلزمات في فروعنا',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        'أحدث الأصناف والنكهات والمستلزمات في فروعنا',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -2117,36 +2191,45 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7C3AED),
-                      borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7C3AED),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.discount_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.discount_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'خصومات كبرى وتوفير العائلة 🛍️',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
-                        ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'خصومات كبرى وتوفير العائلة 🛍️',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'وفر أكثر مع العبوات الاقتصادية وأكبر نسب خصم',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        'وفر أكثر مع العبوات الاقتصادية وأكبر نسب خصم',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -2608,29 +2691,36 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    mall.selectedCategoryId != null
-                        ? 'منتجات ${mall.categories.firstWhere((c) => c.id == mall.selectedCategoryId, orElse: () => mall.categories.first).nameAr}'
-                        : 'كافة منتجات الهايبرماركت',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        mall.selectedCategoryId != null
+                            ? 'منتجات ${mall.categories.firstWhere((c) => c.id == mall.selectedCategoryId, orElse: () => mall.categories.first).nameAr}'
+                            : 'كافة منتجات الهايبرماركت',
+                        style: const TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -2796,17 +2886,24 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'مشترياتك المعتادة (اشترِ مجدداً في 5 ثوانٍ)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                  ),
-                ],
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'مشترياتك المعتادة (اشترِ مجدداً في 5 ثوانٍ)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              Text(
+              const SizedBox(width: 8),
+              const Text(
                 'طلب سريع',
                 style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
               ),

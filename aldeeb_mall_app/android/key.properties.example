@@ -1,0 +1,9 @@
+# Example production keystore configuration for Aldeeb Mall Android release
+# Copy this file to "key.properties" in this directory (android/key.properties)
+# and replace with your actual keystore credentials.
+#
+# DO NOT commit the real key.properties or .jks file to public version control!
+keyAlias=aldeeb_upload_key
+keyPassword=YOUR_SECURE_KEY_PASSWORD
+storeFile=app/aldeeb_release.keystore
+storePassword=YOUR_SECURE_STORE_PASSWORD

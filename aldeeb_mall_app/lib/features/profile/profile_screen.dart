@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
@@ -17,8 +16,8 @@ import '../loyalty/loyalty_screen.dart';
 import '../notifications/notifications_sheet.dart';
 import '../orders/order_tracking_screen.dart';
 import '../subscriptions/subscriptions_screen.dart';
-import '../voice/voice_assistant_modal.dart';
 import '../wallet/wallet_screen.dart';
+import '../customer_service/presentation/customer_service_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -936,14 +935,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _divider(settings),
 
-          // 8. خدمة العملاء وواتساب الديب مول (Customer Support & WhatsApp)
+          // 8. خدمة العملاء والشات المباشر (Customer Support & Live Chat)
           _menuItem(
             icon: Icons.support_agent_rounded,
-            title: 'خدمة العملاء وواتساب الديب مول (24/7)',
-            subtitle: '${settings.phone} • واتساب واتصال فوري ومساعد صوتي',
+            title: 'خدمة العملاء والشات المباشر (24/7)',
+            subtitle: '${settings.phone} • شات حي وتذاكر دعم ومتابعة فورية',
             iconColor: AppColors.freshGreen,
             settings: settings,
-            onTap: () => _showCustomerSupportSheet(context, settings),
+            onTap: () => CustomerServiceScreen.show(context),
           ),
           _divider(settings),
 
@@ -1299,147 +1298,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Customer Support Sheet (WhatsApp, Call, AI Assistant)
+  // 7. Helpers: Sample Order Tracking
   // ---------------------------------------------------------------------------
-  void _showCustomerSupportSheet(BuildContext context, StoreSettingsProvider settings) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: settings.currentCard,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: settings.currentBorder),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: settings.currentTextSecondary.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.freshGreen.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.support_agent_rounded, color: AppColors.freshGreen, size: 24),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'مركز خدمة عملاء ${settings.storeNameAr}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: settings.currentTextPrimary,
-                      ),
-                    ),
-                    Text(
-                      'متاحون على مدار الساعة 24/7 لخدمتكم والإجابة عن استفساراتكم',
-                      style: TextStyle(fontSize: 11, color: settings.currentTextSecondary),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // WhatsApp Direct Action
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: AppColors.freshGreen.withValues(alpha: 0.4)),
-              ),
-              tileColor: AppColors.freshGreen.withValues(alpha: 0.08),
-              leading: const Icon(Icons.chat_bubble_rounded, color: AppColors.freshGreen),
-              title: const Text('محادثة واتساب فورية مباشرة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: Text(settings.whatsapp, style: const TextStyle(fontSize: 11)),
-              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.freshGreen),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                final cleanPhone = settings.whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
-                _launchExternalUrl(context, 'https://wa.me/$cleanPhone');
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Phone Call Action
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: settings.primaryColor.withValues(alpha: 0.3)),
-              ),
-              tileColor: settings.primaryColor.withValues(alpha: 0.06),
-              leading: Icon(Icons.phone_in_talk_rounded, color: settings.primaryColor),
-              title: const Text('اتصال هاتفي مباشر بالكول سنتر', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: Text(settings.phone, style: const TextStyle(fontSize: 11)),
-              trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: settings.primaryColor),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                final cleanPhone = settings.phone.replaceAll(RegExp(r'[^0-9+]'), '');
-                _launchExternalUrl(context, 'tel:$cleanPhone');
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Voice & AI Smart Assistant
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: settings.accentColor.withValues(alpha: 0.4)),
-              ),
-              tileColor: settings.accentColor.withValues(alpha: 0.08),
-              leading: Icon(Icons.mic_rounded, color: settings.accentColor),
-              title: const Text('التحدث مع المساعد الذكي الصوتي للديب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('ابحث بصوتك عن أي منتج أو استفسر عن طلبك', style: TextStyle(fontSize: 11)),
-              trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: settings.accentColor),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                VoiceAssistantModal.show(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 7. Helpers: URL Launcher & Sample Order Tracking
-  // ---------------------------------------------------------------------------
-  Future<void> _launchExternalUrl(BuildContext context, String urlStr) async {
-    try {
-      final uri = Uri.parse(urlStr);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && context.mounted) {
-        await launchUrl(uri);
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('التواصل عبر: $urlStr'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
-    }
-  }
 
   void _openSampleOrderTracking(BuildContext context) {
     final sampleOrder = OrderModel(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -48,6 +49,7 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
   final ScrollController _chatScrollController = ScrollController();
   final List<TicketMessage> _liveChatMessages = [];
   bool _isTyping = false;
+  Timer? _pollTimer;
 
   // Tickets State
   List<SupportTicket> _tickets = [];
@@ -61,61 +63,93 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
     _initLiveChat();
     _loadTickets();
 
-    if (widget.initialCategory != null || widget.initialOrderNumber != null) {
+    // Periodic Realtime Background Sync (Free & Instant across tabs and devices)
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        _syncIncomingMessages();
+      }
+    });
+
+    if (widget.initialOrderNumber != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (widget.initialCategory == 'pharmacy') {
-          _handlePharmacyQuickStart();
-        } else if (widget.initialOrderNumber != null) {
-          _handleOrderQuickStart(widget.initialOrderNumber!);
-        }
+        _handleOrderQuickStart(widget.initialOrderNumber!);
       });
     }
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _tabController.dispose();
     _chatController.dispose();
     _chatScrollController.dispose();
     super.dispose();
   }
 
-  void _initLiveChat() {
-    _liveChatMessages.add(
-      TicketMessage(
-        id: 'welcome-1',
-        sender: 'bot',
-        senderName: 'مساعد الديب الذكي',
-        text:
-            'مرحباً بك في مركز خدمة عملاء الديب مول 🛒✨\nنحن هنا لخدمتك 24/7. يمكنك الاستفسار عن طلباتك، سياسة الضمان والاسترجاع، أو طلب استشارة صيدلانية فورية.',
-        timestamp: 'الآن',
-      ),
+  Future<void> _initLiveChat() async {
+    final liveTicket = await _service.getOrCreateLiveChatTicket(
+      orderNumber: widget.initialOrderNumber,
     );
-  }
-
-  void _handlePharmacyQuickStart() {
+    if (!mounted) return;
     setState(() {
-      _liveChatMessages.add(
-        TicketMessage(
-          id: 'pharmacy-req',
-          sender: 'customer',
-          senderName: 'أنا',
-          text: 'أرغب في استشارة صيدلي مناوب حول وصفة طبية.',
-          timestamp: 'الآن',
-        ),
-      );
-      _liveChatMessages.add(
-        TicketMessage(
-          id: 'pharmacy-rep',
-          sender: 'agent',
-          senderName: 'د. سارة الشهري (صيدلانية سريرية)',
-          text:
-              'أهلاً بك عميلنا العزيز! معك د. سارة من صيدلية الديب مول. تفضل بسؤالك عن الجرعات أو الأدوية البديلة، كما يمكنك رفع صورة الوصفة الطبية عبر الواتساب الطبي المباشر وسأقوم بمراجعتها فوراً.',
-          timestamp: 'الآن',
-        ),
-      );
+      _liveChatMessages.clear();
+      if (liveTicket.messages.isNotEmpty) {
+        _liveChatMessages.addAll(liveTicket.messages);
+      } else {
+        _liveChatMessages.add(
+          TicketMessage(
+            id: 'welcome-1',
+            sender: 'bot',
+            senderName: 'مساعد الديب الذكي',
+            text:
+                'مرحباً بك في مركز خدمة عملاء الديب مول 🛒✨\nنحن هنا لخدمتك 24/7. يمكنك الاستفسار عن طلباتك، سياسة الضمان والاسترجاع، ومتابعة شحناتك.',
+            timestamp: 'الآن',
+          ),
+        );
+      }
     });
     _scrollToBottom();
+  }
+
+  Future<void> _syncIncomingMessages() async {
+    try {
+      final data = await _service.getTickets();
+      if (!mounted) return;
+
+      final liveTkt = data.firstWhere(
+        (t) => t.id == 'tkt-live-chat' || t.category == 'live_chat',
+        orElse: () => data.isNotEmpty ? data.first : SupportTicket(
+          id: 'dummy',
+          ticketNumber: '0',
+          customerName: '',
+          subject: '',
+          status: 'open',
+          priority: 'low',
+          createdAt: '',
+          lastMessage: '',
+        ),
+      );
+
+      bool hasNew = false;
+      if (liveTkt.id == 'tkt-live-chat' && liveTkt.messages.isNotEmpty) {
+        final existingIds = _liveChatMessages.map((m) => m.id).toSet();
+        for (final m in liveTkt.messages) {
+          if (!existingIds.contains(m.id)) {
+            _liveChatMessages.add(m);
+            hasNew = true;
+          }
+        }
+      }
+
+      setState(() {
+        _tickets = data;
+        _isLoadingTickets = false;
+      });
+
+      if (hasNew) {
+        _scrollToBottom();
+      }
+    } catch (_) {}
   }
 
   void _handleOrderQuickStart(String orderNum) {
@@ -166,14 +200,15 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
     });
   }
 
-  void _sendLiveChatMessage(String text) {
-    if (text.trim().isEmpty) return;
+  void _sendLiveChatMessage(String text) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
 
     final userMsg = TicketMessage(
       id: 'usr-${DateTime.now().millisecondsSinceEpoch}',
       sender: 'customer',
       senderName: 'أنا',
-      text: text.trim(),
+      text: clean,
       timestamp: 'الآن',
     );
 
@@ -184,23 +219,39 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
     _chatController.clear();
     _scrollToBottom();
 
-    // Generate smart contextual AI response after brief delay
-    Future.delayed(const Duration(milliseconds: 800), () {
+    // 1. Sync user message to local cache and Supabase backend immediately
+    _service.addMessageToTicket(
+      'tkt-live-chat',
+      clean,
+      sender: 'customer',
+      senderName: 'العميل',
+    );
+
+    // 2. Generate smart instant AI assistant response if within 700ms
+    Future.delayed(const Duration(milliseconds: 700), () async {
       if (!mounted) return;
-      final replyText = _service.getSmartAiResponse(text, orderNumber: widget.initialOrderNumber);
+      final replyText = _service.getSmartAiResponse(clean, orderNumber: widget.initialOrderNumber);
+      final botMsg = TicketMessage(
+        id: 'bot-${DateTime.now().millisecondsSinceEpoch}',
+        sender: 'agent',
+        senderName: 'فريق خدمة العملاء',
+        text: replyText,
+        timestamp: 'الآن',
+      );
+
       setState(() {
         _isTyping = false;
-        _liveChatMessages.add(
-          TicketMessage(
-            id: 'bot-${DateTime.now().millisecondsSinceEpoch}',
-            sender: 'agent',
-            senderName: 'فريق خدمة العملاء',
-            text: replyText,
-            timestamp: 'الآن',
-          ),
-        );
+        _liveChatMessages.add(botMsg);
       });
       _scrollToBottom();
+
+      // Persist agent response to ticket
+      await _service.addMessageToTicket(
+        'tkt-live-chat',
+        replyText,
+        sender: 'agent',
+        senderName: 'فريق خدمة العملاء',
+      );
     });
   }
 
@@ -489,7 +540,7 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
             children: [
               _buildSuggestionChip('🚚 أين وصل طلبي الآن؟'),
               _buildSuggestionChip('🛡️ ما هي سياسة الاسترجاع والضمان؟'),
-              _buildSuggestionChip('💊 استشارة صيدلانية مع د. سارة'),
+              _buildSuggestionChip('❄️ كيف تضمنون السلسلة الباردة؟'),
               _buildSuggestionChip('⭐ كيف أحول نقاط المكافآت؟'),
               _buildSuggestionChip('🕒 ما هي مواعيد العمل والتوصيل؟'),
             ],
@@ -999,9 +1050,9 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
               'يمكنك فوراً فتح تذكرة دعم مع تحديد رقم الطلب أو التحدث عبر الواتساب المباشر، وسيتم تعويضك إما بمنتج بديل فوري مع كابتن إكسبريس أو استرجاع القيمة لمحفظتك.',
         ),
         _buildFaqAccordion(
-          title: 'كيف أتواصل مع صيدلية الديب مول المناوبة؟',
+          title: 'كيف تضمنون جودة الخضار والفواكه واللحوم؟',
           body:
-              'نوفر صيدلية متكاملة مع صيدلي سريري مرخص على مدار 24 ساعة. اضغط على أيقونة المحادثة الحية أو اتصل مباشرة بالخط الساخن واطلب تحويلك للصيدلية.',
+              'تخضع منتجاتنا لفحص دقيق ومستمر عند الاستلام من المزارع المحلية، وتُحفظ في غرف تبريد تخضع لرقابة حرارية دقيقة حتى تسليمها لك.',
         ),
         _buildFaqAccordion(
           title: 'كيف أحصل على التوصيل المجاني؟',
@@ -1099,7 +1150,7 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen>
                         _buildCatChoice('quality', 'جودة المنتجات', selectedCategory, (v) {
                           setSheetState(() => selectedCategory = v);
                         }),
-                        _buildCatChoice('pharmacy', 'استشارة صيدلية', selectedCategory, (v) {
+                        _buildCatChoice('freshness', 'طزاجة وتبريد', selectedCategory, (v) {
                           setSheetState(() => selectedCategory = v);
                         }),
                         _buildCatChoice('general', 'استفسار عام', selectedCategory, (v) {

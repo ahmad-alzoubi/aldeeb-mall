@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Headset, 
   Send, 
@@ -13,13 +13,53 @@ import {
   AlertCircle,
   RefreshCw,
   Tag,
-  Check
+  Check,
+  Radio,
+  Volume2
 } from 'lucide-react';
 import { SupportTicket, TicketMessageItem } from '../types';
+import { supabase, initialSupportTickets } from '../lib/supabase';
 
 interface SupportPageProps {
   tickets?: SupportTicket[];
 }
+
+const STORAGE_KEY_WEB = 'aldeeb_support_tickets_v1';
+const STORAGE_KEY_FLUTTER = 'flutter.aldeeb_support_tickets_v1';
+
+// Soft, pleasant audio chime using browser Web Audio API (100% Free, Zero Assets)
+const playSupportNotificationSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    
+    // Tone 1
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now); // D5
+    gain1.gain.setValueAtTime(0.12, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.25);
+
+    // Tone 2
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.12); // A5
+    gain2.gain.setValueAtTime(0.16, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.45);
+  } catch (_) {}
+};
 
 export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsTickets }) => {
   const [tickets, setTickets] = useState<SupportTicket[]>(initialPropsTickets || []);
@@ -28,31 +68,134 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastKnownMsgCountRef = useRef<number>(0);
 
-  // 1. Fetch tickets from LAN backend API / local endpoint
-  const fetchTickets = async () => {
+  // Helper to persist across web and flutter storage
+  const persistTicketsLocally = useCallback((updated: SupportTicket[]) => {
+    try {
+      const raw = JSON.stringify(updated);
+      localStorage.setItem(STORAGE_KEY_WEB, raw);
+      localStorage.setItem(STORAGE_KEY_FLUTTER, raw);
+      window.dispatchEvent(new Event('storage'));
+    } catch (_) {}
+  }, []);
+
+  // 1. Fetch tickets from LocalStorage -> Supabase -> LAN backend API
+  const fetchTickets = useCallback(async (silent = true) => {
+    if (!silent) setIsRefreshing(true);
+    let loaded: SupportTicket[] = [];
+
+    // Step A: Load from browser LocalStorage (Instant cross-tab sync with Flutter web)
+    try {
+      const fltStr = localStorage.getItem(STORAGE_KEY_FLUTTER) || localStorage.getItem(STORAGE_KEY_WEB);
+      if (fltStr) {
+        const parsed = JSON.parse(fltStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loaded = parsed.map((t: any) => ({
+            id: t.id,
+            ticket_number: t.ticket_number || t.ticketNumber || 'TKT-0000',
+            customer_name: t.customer_name || t.customerName || 'عميل الديب مول',
+            customer_phone: t.customer_phone || t.customerPhone,
+            order_number: t.order_number || t.orderNumber,
+            subject: t.subject || 'استفسار دعم',
+            category: t.category || 'general',
+            status: t.status || 'open',
+            priority: t.priority || 'medium',
+            created_at: t.created_at || t.createdAt || 'الآن',
+            last_message: t.last_message || t.lastMessage || '',
+            messages: Array.isArray(t.messages)
+              ? t.messages.map((m: any) => ({
+                  id: m.id,
+                  sender: m.sender,
+                  sender_name: m.sender_name || m.senderName,
+                  text: m.text,
+                  time: m.time || m.timestamp,
+                  timestamp: m.timestamp || m.time,
+                }))
+              : [],
+          }));
+        }
+      }
+    } catch (_) {}
+
+    // Step B: Try Supabase Database if connected
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('support_tickets')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          // Merge or adopt Supabase tickets
+          const dbTickets: SupportTicket[] = data.map((t: any) => ({
+            id: t.id,
+            ticket_number: t.ticket_number,
+            customer_name: t.customer_name,
+            customer_phone: t.customer_phone,
+            order_number: t.order_number,
+            subject: t.subject,
+            category: t.category,
+            status: t.status,
+            priority: t.priority,
+            created_at: t.created_at,
+            last_message: t.last_message,
+            messages: Array.isArray(t.messages) ? t.messages : [],
+          }));
+          loaded = dbTickets;
+        }
+      }
+    } catch (_) {}
+
+    // Step C: Try LAN API fallback
     try {
       const res = await fetch('/api/support_tickets');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          setTickets(data);
-          if (!selectedTicketId) {
-            setSelectedTicketId(data[0].id);
-          }
+          loaded = data;
         }
       }
-    } catch (_) {
-      // Fallback to initial props tickets
-    }
-  };
+    } catch (_) {}
 
+    // Step D: Default Seed fallback if empty
+    if (loaded.length === 0) {
+      loaded = initialPropsTickets || initialSupportTickets;
+      persistTicketsLocally(loaded);
+    }
+
+    // Step E: Sound notification for incoming customer message
+    const totalMsgs = loaded.reduce((acc, t) => acc + (t.messages?.length || 1), 0);
+    if (lastKnownMsgCountRef.current > 0 && totalMsgs > lastKnownMsgCountRef.current) {
+      if (soundEnabled) {
+        playSupportNotificationSound();
+      }
+    }
+    lastKnownMsgCountRef.current = totalMsgs;
+
+    setTickets(loaded);
+    if (!silent) setTimeout(() => setIsRefreshing(false), 400);
+  }, [initialPropsTickets, persistTicketsLocally, soundEnabled]);
+
+  // Initial load and periodic polling every 2.5 seconds (Instant free realtime)
   useEffect(() => {
-    fetchTickets();
-    const interval = setInterval(fetchTickets, 3500);
-    return () => clearInterval(interval);
-  }, []);
+    fetchTickets(false);
+    const interval = setInterval(() => fetchTickets(true), 2500);
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY_FLUTTER || e.key === STORAGE_KEY_WEB || !e.key) {
+        fetchTickets(true);
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageEvent);
+    };
+  }, [fetchTickets]);
 
   useEffect(() => {
     if (!selectedTicketId && tickets.length > 0) {
@@ -77,7 +220,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
     return matchesStatus && matchesSearch;
   });
 
-  // 2. Send reply & sync to backend
+  // 2. Send reply & sync to localStorage, Supabase, and API
   const handleSendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!replyText.trim() || !selectedTicket) return;
@@ -105,18 +248,24 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
     const updatedTickets = tickets.map((t) => t.id === updatedTicket.id ? updatedTicket : t);
     setTickets(updatedTickets);
     setReplyText('');
+    persistTicketsLocally(updatedTickets);
 
-    // Push to API
+    // Push to Supabase if connected
+    try {
+      if (supabase) {
+        await supabase.from('support_tickets').upsert(updatedTicket);
+      }
+    } catch (_) {}
+
+    // Push to LAN API
     try {
       await fetch('/api/support_tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: json_payload(updatedTicket)
+        body: JSON.stringify(updatedTicket)
       });
     } catch (_) {}
   };
-
-  const json_payload = (obj: any) => JSON.stringify(obj);
 
   // 3. Update Status
   const handleStatusChange = async (newStatus: 'open' | 'in_progress' | 'resolved') => {
@@ -143,8 +292,12 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
 
     const updatedTickets = tickets.map((t) => t.id === updatedTicket.id ? updatedTicket : t);
     setTickets(updatedTickets);
+    persistTicketsLocally(updatedTickets);
 
     try {
+      if (supabase) {
+        await supabase.from('support_tickets').upsert(updatedTicket);
+      }
       await fetch('/api/support_tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,20 +334,34 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
                 <Headset className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 text-sm">مكتب خدمة العملاء الحي</h3>
-                <span className="text-[11px] text-slate-400">مزامنة حية مع تطبيق المتجر</span>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-slate-800 text-sm">مكتب خدمة العملاء الحي</h3>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    مباشر
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400">مزامنة لحظية مجانية مع تطبيق المتجر</span>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setIsRefreshing(true);
-                fetchTickets().finally(() => setTimeout(() => setIsRefreshing(false), 500));
-              }}
-              className={`p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
-              title="تحديث القائمة"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`p-1.5 rounded-lg text-xs transition-all ${
+                  soundEnabled ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:bg-slate-100'
+                }`}
+                title={soundEnabled ? 'التنبيهات الصوتية مفعلة' : 'التنبيهات الصوتية معطلة'}
+              >
+                <Volume2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => fetchTickets(false)}
+                className={`p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                title="تحديث القائمة"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Search bar */}
@@ -435,7 +602,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ tickets: initialPropsT
                 'طلبك مع الكابتن وفي الطريق ويصلك خلال دقائق!',
                 'تم فحص الشحنة وتغليفها بأعلى معايير السلسلة الباردة.',
                 'تم تعويضك بكوبون خصم 20% على طلبك القادم واعتذارنا الشديد.',
-                'تم ربطك بالصيدلي السريري المناوب في صيدلية الديب مول.',
+                'تم تحويل استفسارك لمشرف الجودة وسيتم التواصل معك هاتفياً.',
               ].map((macro, idx) => (
                 <button
                   key={idx}
