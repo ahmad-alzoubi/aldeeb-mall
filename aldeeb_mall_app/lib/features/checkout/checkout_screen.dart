@@ -494,6 +494,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     builder: (_) => OrderTrackingScreen(order: order),
                   ),
                 );
+              } else {
+                final err = orderProv.lastOrderError ?? '';
+                String errorMsg = '⚠️ تعذر تأكيد الطلب، يرجى التحقق من اتصال الإنترنت ومراجعة البيانات والمحاولة مجدداً.';
+                if (err.contains('INSUFFICIENT_STOCK')) {
+                  errorMsg = '⚠️ عذراً، نفدت الكمية المتاحة في المخزون لأحد الأصناف المطلوبة.';
+                } else if (err.contains('DUPLICATE_ORDER')) {
+                  errorMsg = '⚠️ تم إرسال هذا الطلب مسبقاً لمنع تكرار الخصم.';
+                } else if (err.contains('EMPTY_ITEMS')) {
+                  errorMsg = '⚠️ السلة فارغة، يرجى إضافة منتجات أولاً.';
+                } else if (err.contains('UNAUTHORIZED_POS')) {
+                  errorMsg = '⚠️ طلبات الكاشير ونقاط البيع تتطلب تسجيل دخول موظف معتمد.';
+                } else if (err.contains('UNAUTHORIZED')) {
+                  errorMsg = '⚠️ غير مصرح: يرجى تسجيل الدخول بحسابك للمتابعة.';
+                }
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.red.shade700,
+                    behavior: SnackBarBehavior.floating,
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            errorMsg,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               }
             },
       child: orderProv.isPlacingOrder

@@ -358,14 +358,20 @@ CREATE POLICY "Users can view and manage their own addresses"
 -- 7. Orders Policies
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
-CREATE POLICY "Users can view their own orders"
+DROP POLICY IF EXISTS "Users and guests can view orders" ON public.orders;
+CREATE POLICY "Users and guests can view orders"
     ON public.orders FOR SELECT
-    USING ((SELECT auth.uid()) = user_id OR public.is_admin());
+    USING (((SELECT auth.uid()) IS NOT NULL AND (SELECT auth.uid()) = user_id) OR public.is_admin());
 
 DROP POLICY IF EXISTS "Users can create their own orders" ON public.orders;
-CREATE POLICY "Users can create their own orders"
+DROP POLICY IF EXISTS "Users and guests can create orders" ON public.orders;
+CREATE POLICY "Users and guests can create orders"
     ON public.orders FOR INSERT
-    WITH CHECK ((SELECT auth.uid()) = user_id OR public.is_admin());
+    WITH CHECK (
+        ((SELECT auth.uid()) IS NOT NULL AND (SELECT auth.uid()) = user_id)
+        OR (user_id IS NULL AND (delivery_slot IS NULL OR NOT (delivery_slot ILIKE '%كاشير%' OR delivery_slot ILIKE '%pos%')))
+        OR public.is_admin()
+    );
 
 DROP POLICY IF EXISTS "Admins can update orders" ON public.orders;
 CREATE POLICY "Admins can update orders"
@@ -376,25 +382,37 @@ CREATE POLICY "Admins can update orders"
 -- 8. Order Items Policies
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Users can view items in their orders" ON public.order_items;
-CREATE POLICY "Users can view items in their orders"
+DROP POLICY IF EXISTS "Users and guests can view order items" ON public.order_items;
+CREATE POLICY "Users and guests can view order items"
     ON public.order_items FOR SELECT
     USING (
         EXISTS (
-            SELECT 1 FROM public.orders
-            WHERE orders.id = order_items.order_id
-            AND (orders.user_id = (SELECT auth.uid()) OR public.is_admin())
+            SELECT 1 FROM public.orders o
+            WHERE o.id = order_items.order_id
+            AND (
+                o.user_id = (SELECT auth.uid())
+                OR public.is_admin()
+            )
         )
+        OR public.is_admin()
     );
 
 DROP POLICY IF EXISTS "Users can insert items for their own orders" ON public.order_items;
-CREATE POLICY "Users can insert items for their own orders"
+DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
+DROP POLICY IF EXISTS "Users and guests can create order items" ON public.order_items;
+CREATE POLICY "Users and guests can create order items"
     ON public.order_items FOR INSERT
     WITH CHECK (
         EXISTS (
-            SELECT 1 FROM public.orders
-            WHERE orders.id = order_items.order_id
-            AND (orders.user_id = (SELECT auth.uid()) OR public.is_admin())
+            SELECT 1 FROM public.orders o
+            WHERE o.id = order_items.order_id
+            AND (
+                o.user_id = (SELECT auth.uid())
+                OR o.user_id IS NULL
+                OR public.is_admin()
+            )
         )
+        OR public.is_admin()
     );
 
 -- ------------------------------------------------------------------------------
@@ -628,6 +646,221 @@ CREATE TRIGGER on_order_status_updated
     BEFORE UPDATE ON public.orders
     FOR EACH ROW EXECUTE FUNCTION public.handle_order_status_change();
 
+-- ------------------------------------------------------------------------------
+-- 3. Atomic Order Placement RPC Function (ACID Transaction, Stock Verification, Idempotency, Identity Hardening & Price Protection)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.place_order_atomic(
+    p_order_number text,
+    p_user_id uuid,
+    p_delivery_slot text,
+    p_payment_method text,
+    p_subtotal numeric,
+    p_delivery_fee numeric,
+    p_discount_amount numeric,
+    p_loyalty_points_used int,
+    p_loyalty_discount numeric,
+    p_total_amount numeric,
+    p_notes text,
+    p_items jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_caller_id uuid;
+    v_effective_user_id uuid;
+    v_is_admin boolean;
+    v_order_id uuid;
+    v_item jsonb;
+    v_product_id uuid;
+    v_qty numeric;
+    v_db_price numeric;
+    v_db_stock numeric;
+    v_unit_price numeric;
+    v_line_total numeric;
+    v_calc_subtotal numeric := 0;
+    v_effective_subtotal numeric;
+    v_effective_total numeric;
+    v_result jsonb;
+BEGIN
+    -- Step 1: Caller Identity & Privilege Verification
+    v_caller_id := auth.uid();
+    v_is_admin := public.is_admin();
+
+    IF v_caller_id IS NOT NULL THEN
+        -- Authenticated user: order must be bound to their verified identity
+        v_effective_user_id := v_caller_id;
+    ELSIF v_is_admin THEN
+        -- Staff/Admin placing order on behalf of customer
+        v_effective_user_id := p_user_id;
+    ELSE
+        -- Anonymous guest checkout: strictly forbid impersonating a registered user account
+        IF p_user_id IS NOT NULL THEN
+            RAISE EXCEPTION 'UNAUTHORIZED: Anonymous callers cannot assign orders to registered user accounts';
+        END IF;
+        v_effective_user_id := NULL;
+    END IF;
+
+    -- Block Anonymous callers from creating Cashier/POS in-store orders
+    IF (p_delivery_slot ILIKE '%كاشير%' OR p_delivery_slot ILIKE '%pos%') AND v_caller_id IS NULL AND NOT v_is_admin THEN
+        RAISE EXCEPTION 'UNAUTHORIZED_POS: In-store POS cashier orders must be placed by authenticated staff';
+    END IF;
+
+    -- Step 2: Idempotency Protection - Prevent double-submission
+    IF EXISTS (SELECT 1 FROM public.orders WHERE order_number = p_order_number) THEN
+        RAISE EXCEPTION 'DUPLICATE_ORDER: Order with number % already exists', p_order_number;
+    END IF;
+
+    -- Step 3: Validate Items Payload
+    IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'EMPTY_ITEMS: Cannot place an order without items';
+    END IF;
+
+    -- Step 4: Validate Stock & Atomic Row Locking & Price Verification
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_qty := (v_item->>'quantity')::numeric;
+        IF v_qty <= 0 THEN
+            RAISE EXCEPTION 'INVALID_QUANTITY: Quantity must be greater than zero';
+        END IF;
+
+        IF (v_item->>'product_id') IS NOT NULL AND (v_item->>'product_id') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+            v_product_id := (v_item->>'product_id')::uuid;
+
+            SELECT price, stock_quantity INTO v_db_price, v_db_stock
+            FROM public.products
+            WHERE id = v_product_id
+            FOR UPDATE;
+
+            IF FOUND THEN
+                IF v_db_stock < v_qty THEN
+                    RAISE EXCEPTION 'INSUFFICIENT_STOCK: Only % units available for product %', v_db_stock, v_product_id;
+                END IF;
+
+                -- Decrement stock and update sales count atomically
+                UPDATE public.products
+                SET stock_quantity = stock_quantity - v_qty,
+                    sales_count = COALESCE(sales_count, 0) + v_qty
+                WHERE id = v_product_id;
+
+                -- Authoritative catalog price to prevent client price tampering
+                v_unit_price := v_db_price;
+            ELSE
+                v_unit_price := COALESCE((v_item->>'unit_price')::numeric, 0);
+            END IF;
+        ELSE
+            v_unit_price := COALESCE((v_item->>'unit_price')::numeric, 0);
+        END IF;
+
+        v_line_total := round(v_unit_price * v_qty, 2);
+        v_calc_subtotal := v_calc_subtotal + v_line_total;
+    END LOOP;
+
+    -- Step 5: Anti-Price Tampering Reconciliation
+    IF v_calc_subtotal > 0 AND abs(p_subtotal - v_calc_subtotal) > 1.0 THEN
+        -- Correct the subtotal and total using authoritative catalog prices
+        v_effective_subtotal := v_calc_subtotal;
+        v_effective_total := round(v_calc_subtotal + COALESCE(p_delivery_fee, 0) - COALESCE(p_discount_amount, 0) - COALESCE(p_loyalty_discount, 0), 2);
+        IF v_effective_total < 0 THEN
+            v_effective_total := 0;
+        END IF;
+    ELSE
+        v_effective_subtotal := p_subtotal;
+        v_effective_total := p_total_amount;
+    END IF;
+
+    -- Step 6: Insert Order Header
+    INSERT INTO public.orders (
+        order_number,
+        user_id,
+        status,
+        delivery_slot,
+        payment_method,
+        payment_status,
+        subtotal,
+        delivery_fee,
+        discount_amount,
+        loyalty_points_used,
+        loyalty_discount,
+        total_amount,
+        notes
+    ) VALUES (
+        p_order_number,
+        v_effective_user_id,
+        'pending',
+        COALESCE(p_delivery_slot, 'خلال 45 دقيقة'),
+        p_payment_method,
+        'pending',
+        v_effective_subtotal,
+        p_delivery_fee,
+        p_discount_amount,
+        COALESCE(p_loyalty_points_used, 0),
+        COALESCE(p_loyalty_discount, 0),
+        v_effective_total,
+        p_notes
+    )
+    RETURNING id INTO v_order_id;
+
+    -- Step 7: Insert Order Items with Authoritative Unit Prices
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_product_id := NULL;
+        v_unit_price := COALESCE((v_item->>'unit_price')::numeric, 0);
+
+        IF (v_item->>'product_id') IS NOT NULL AND (v_item->>'product_id') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+            v_product_id := (v_item->>'product_id')::uuid;
+            SELECT price INTO v_db_price FROM public.products WHERE id = v_product_id;
+            IF FOUND THEN
+                v_unit_price := v_db_price;
+            END IF;
+        END IF;
+
+        v_qty := (v_item->>'quantity')::numeric;
+        v_line_total := round(v_unit_price * v_qty, 2);
+
+        INSERT INTO public.order_items (
+            order_id,
+            product_id,
+            product_name_ar,
+            product_name_en,
+            product_image,
+            unit,
+            unit_price,
+            quantity,
+            total_price
+        ) VALUES (
+            v_order_id,
+            v_product_id,
+            COALESCE(v_item->>'product_name_ar', 'صنف تسوق'),
+            COALESCE(v_item->>'product_name_en', 'Grocery Item'),
+            COALESCE(v_item->>'product_image', ''),
+            COALESCE(v_item->>'unit', 'piece'),
+            v_unit_price,
+            v_qty,
+            v_line_total
+        );
+    END LOOP;
+
+    -- Step 8: Return Created Order JSON
+    SELECT jsonb_build_object(
+        'id', o.id,
+        'order_number', o.order_number,
+        'status', o.status,
+        'subtotal', o.subtotal,
+        'total_amount', o.total_amount,
+        'created_at', o.created_at
+    ) INTO v_result
+    FROM public.orders o
+    WHERE o.id = v_order_id;
+
+    RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.place_order_atomic TO anon, authenticated;
+
 -- 3. Stored Procedure: Validate Coupon
 CREATE OR REPLACE FUNCTION public.validate_coupon(
     p_code TEXT,
@@ -707,16 +940,16 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 2. Insert Subcategories
 INSERT INTO public.subcategories (id, category_id, name_ar, name_en, slug, sort_order) VALUES
-('sc000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'فواكه طازجة', 'Fresh Fruits', 'fruits', 1),
-('sc000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'خضار ورقية وجذرية', 'Vegetables', 'vegetables', 2),
-('sc000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002', 'حليب ولبن رائب', 'Milk & Laban', 'milk-laban', 1),
-('sc000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000002', 'أجبان وزبدة وقشطة', 'Cheese & Butter', 'cheese-butter', 2),
-('sc000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000003', 'دواجن طازجة ومجمدة', 'Fresh Poultry', 'poultry', 1),
-('sc000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000003', 'لحوم بقر وضأن', 'Beef & Mutton', 'red-meat', 2),
-('sc000000-0000-0000-0000-000000000007', 'c0000000-0000-0000-0000-000000000004', 'خبز وتوست طازج', 'Bread & Buns', 'bread-toast', 1),
-('sc000000-0000-0000-0000-000000000008', 'c0000000-0000-0000-0000-000000000005', 'مياه معدنية طبيعية', 'Mineral Water', 'water', 1),
-('sc000000-0000-0000-0000-000000000009', 'c0000000-0000-0000-0000-000000000005', 'عصائر طازجة وطبيعية', 'Fresh Juices', 'juices', 2),
-('sc000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000008', 'مساحيق ومنعمات الغسيل', 'Laundry Care', 'laundry', 1)
+('ba000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'فواكه طازجة', 'Fresh Fruits', 'fruits', 1),
+('ba000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'خضار ورقية وجذرية', 'Vegetables', 'vegetables', 2),
+('ba000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002', 'حليب ولبن رائب', 'Milk & Laban', 'milk-laban', 1),
+('ba000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000002', 'أجبان وزبدة وقشطة', 'Cheese & Butter', 'cheese-butter', 2),
+('ba000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000003', 'دواجن طازجة ومجمدة', 'Fresh Poultry', 'poultry', 1),
+('ba000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000003', 'لحوم بقر وضأن', 'Beef & Mutton', 'red-meat', 2),
+('ba000000-0000-0000-0000-000000000007', 'c0000000-0000-0000-0000-000000000004', 'خبز وتوست طازج', 'Bread & Buns', 'bread-toast', 1),
+('ba000000-0000-0000-0000-000000000008', 'c0000000-0000-0000-0000-000000000005', 'مياه معدنية طبيعية', 'Mineral Water', 'water', 1),
+('ba000000-0000-0000-0000-000000000009', 'c0000000-0000-0000-0000-000000000005', 'عصائر طازجة وطبيعية', 'Fresh Juices', 'juices', 2),
+('ba000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000008', 'مساحيق ومنعمات الغسيل', 'Laundry Care', 'laundry', 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Insert Products
@@ -727,9 +960,9 @@ INSERT INTO public.products (
 ) VALUES
 -- Fruits & Veg
 (
-    'p0000000-0000-0000-0000-000000000001',
+    'a0000000-0000-0000-0000-000000000001',
     'c0000000-0000-0000-0000-000000000001',
-    'sc000000-0000-0000-0000-000000000001',
+    'ba000000-0000-0000-0000-000000000001',
     '629100000001',
     'موز فلبيني ممتاز كافنديش طازج',
     'Fresh Premium Cavendish Bananas',
@@ -742,9 +975,9 @@ INSERT INTO public.products (
     true, true, 4.9, 1280
 ),
 (
-    'p0000000-0000-0000-0000-000000000002',
+    'a0000000-0000-0000-0000-000000000002',
     'c0000000-0000-0000-0000-000000000001',
-    'sc000000-0000-0000-0000-000000000001',
+    'ba000000-0000-0000-0000-000000000001',
     '629100000002',
     'تفاح رويال جالا إيطالي فاخر',
     'Italian Royal Gala Apples',
@@ -757,9 +990,9 @@ INSERT INTO public.products (
     true, false, 4.8, 920
 ),
 (
-    'p0000000-0000-0000-0000-000000000003',
+    'a0000000-0000-0000-0000-000000000003',
     'c0000000-0000-0000-0000-000000000001',
-    'sc000000-0000-0000-0000-000000000002',
+    'ba000000-0000-0000-0000-000000000002',
     '629100000003',
     'طماطم مزارع محلية طازجة قطاف اليوم',
     'Fresh Local Vine Tomatoes',
@@ -774,9 +1007,9 @@ INSERT INTO public.products (
 
 -- Dairy & Eggs
 (
-    'p0000000-0000-0000-0000-000000000004',
+    'a0000000-0000-0000-0000-000000000004',
     'c0000000-0000-0000-0000-000000000002',
-    'sc000000-0000-0000-0000-000000000003',
+    'ba000000-0000-0000-0000-000000000003',
     '629100000004',
     'حليب المراعي طازج كامل الدسم 2 لتر',
     'Almarai Fresh Full Fat Milk 2L',
@@ -789,9 +1022,9 @@ INSERT INTO public.products (
     true, true, 4.9, 2100
 ),
 (
-    'p0000000-0000-0000-0000-000000000005',
+    'a0000000-0000-0000-0000-000000000005',
     'c0000000-0000-0000-0000-000000000002',
-    'sc000000-0000-0000-0000-000000000004',
+    'ba000000-0000-0000-0000-000000000004',
     '629100000005',
     'جبنة بوك كاسات بيضاء كريمية 500 غرام',
     'Puck Cream Cheese Spread 500g',
@@ -806,9 +1039,9 @@ INSERT INTO public.products (
 
 -- Meat & Poultry
 (
-    'p0000000-0000-0000-0000-000000000006',
+    'a0000000-0000-0000-0000-000000000006',
     'c0000000-0000-0000-0000-000000000003',
-    'sc000000-0000-0000-0000-000000000005',
+    'ba000000-0000-0000-0000-000000000005',
     '629100000006',
     'دجاج التنمية طازج مبرد 1000 غرام',
     'Tanmiah Fresh Chilled Whole Chicken 1000g',
@@ -823,9 +1056,9 @@ INSERT INTO public.products (
 
 -- Bakery
 (
-    'p0000000-0000-0000-0000-000000000007',
+    'a0000000-0000-0000-0000-000000000007',
     'c0000000-0000-0000-0000-000000000004',
-    'sc000000-0000-0000-0000-000000000007',
+    'ba000000-0000-0000-0000-000000000007',
     '629100000007',
     'خبز كرواسان فرنسي طازج بالزبدة (4 قطع)',
     'Fresh Butter French Croissants (Pack of 4)',
@@ -840,9 +1073,9 @@ INSERT INTO public.products (
 
 -- Beverages
 (
-    'p0000000-0000-0000-0000-000000000008',
+    'a0000000-0000-0000-0000-000000000008',
     'c0000000-0000-0000-0000-000000000005',
-    'sc000000-0000-0000-0000-000000000008',
+    'ba000000-0000-0000-0000-000000000008',
     '629100000008',
     'مياه معدنية العين كرتون (24 عبوة × 500 مل)',
     'Al Ain Mineral Water Carton (24 x 500ml)',
@@ -857,9 +1090,9 @@ INSERT INTO public.products (
 
 -- Cleaning & Household
 (
-    'p0000000-0000-0000-0000-000000000009',
+    'a0000000-0000-0000-0000-000000000009',
     'c0000000-0000-0000-0000-000000000008',
-    'sc000000-0000-0000-0000-000000000010',
+    'ba000000-0000-0000-0000-000000000010',
     '629100000009',
     'مسحوق غسيل تايد الأصلي الأوتوماتيكي 5 كجم',
     'Tide Original Automatic Washing Powder 5kg',
@@ -912,9 +1145,9 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 5. Insert Coupons
 INSERT INTO public.coupons (id, code, discount_type, discount_value, min_order_amount, max_discount, usage_limit, is_active) VALUES
-('cp000000-0000-0000-0000-000000000001', 'ALDEEB10', 'percentage', 10.00, 50.00, 30.00, 1000, true),
-('cp000000-0000-0000-0000-000000000002', 'SAVE20', 'percentage', 20.00, 120.00, 50.00, 500, true),
-('cp000000-0000-0000-0000-000000000003', 'WELCOME15', 'fixed', 15.00, 75.00, 15.00, 2000, true)
+('ca000000-0000-0000-0000-000000000001', 'ALDEEB10', 'percentage', 10.00, 50.00, 30.00, 1000, true),
+('ca000000-0000-0000-0000-000000000002', 'SAVE20', 'percentage', 20.00, 120.00, 50.00, 500, true),
+('ca000000-0000-0000-0000-000000000003', 'WELCOME15', 'fixed', 15.00, 75.00, 15.00, 2000, true)
 ON CONFLICT (id) DO NOTHING;
 -- ==============================================================================
 -- الديب مول (Aldeeb Mall) - Banners Management & Dynamic In-App Navigation
@@ -963,7 +1196,7 @@ INSERT INTO public.banners (
     'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
     'side_top',
     'product',
-    'p0000000-0000-0000-0000-000000000003',
+    'a0000000-0000-0000-0000-000000000003',
     '3.75 د.أ / كجم',
     '#EF4444',
     1,
@@ -1204,9 +1437,9 @@ INSERT INTO public.products (
     id, category_id, barcode, name_ar, name_en, description_ar, brand, price, original_price, discount_percent, unit, weight_step, stock_quantity, images, is_featured, is_daily_deal, rating, sales_count
 ) VALUES
 (
-    'p0000000-0000-0000-0000-000000000008',
+    'a0000000-0000-0000-0000-000000000014',
     'c0000000-0000-0000-0000-000000000005',
-    '629100000008',
+    '629100000014',
     'تمور خلاص الأحساء فاخرة ملكية 1 كجم',
     'Royal Khalas Premium Dates 1kg',
     'تمور خلاص سعودية منتقاة حبة بحبة، معبأة بعناية وحلوة المذاق وغنية بالألياف الطبيعية.',
@@ -1217,9 +1450,9 @@ INSERT INTO public.products (
     true, false, 5.0, 1420
 ),
 (
-    'p0000000-0000-0000-0000-000000000009',
+    'a0000000-0000-0000-0000-000000000015',
     'c0000000-0000-0000-0000-000000000006',
-    '629100000009',
+    '629100000015',
     'شامبو لوريال إلفيف للشعر الجاف 400 مل',
     'L''Oreal Elvive Extraordinary Oil Shampoo 400ml',
     'شامبو مغذي بزيوت الزهور النادرة لتغذية الشعر من الجذور حتى الأطراف ولمعان لا يضاهى.',
@@ -1230,9 +1463,9 @@ INSERT INTO public.products (
     true, false, 4.8, 760
 ),
 (
-    'p0000000-0000-0000-0000-000000000010',
+    'a0000000-0000-0000-0000-000000000016',
     'c0000000-0000-0000-0000-000000000007',
-    '629100000010',
+    '629100000016',
     'مسحوق غسيل أريال أوتوماتيك للغسالات 5 كجم',
     'Ariel Automatic Laundry Detergent 5kg',
     'مسحوق غسيل المركز يزيل أصعب البقع من أول غسلة ويمنح الملابس انتعاشاً يدوم طويلاً.',
@@ -1243,9 +1476,9 @@ INSERT INTO public.products (
     true, true, 4.9, 1890
 ),
 (
-    'p0000000-0000-0000-0000-000000000011',
+    'a0000000-0000-0000-0000-000000000017',
     'c0000000-0000-0000-0000-000000000008',
-    '629100000011',
+    '629100000017',
     'أرز بسمتي الشعلان سيلا فاخر 5 كجم',
     'Al Shalan Basmati Sella Rice 5kg',
     'أرز بسمتي أبيض حبة طويلة ونكهة أصيلة، مثالي للكبسة والأطباق الخليجية والمناسف.',
@@ -1256,9 +1489,9 @@ INSERT INTO public.products (
     true, true, 4.9, 2200
 ),
 (
-    'p0000000-0000-0000-0000-000000000012',
+    'a0000000-0000-0000-0000-000000000018',
     'c0000000-0000-0000-0000-000000000009',
-    '629100000012',
+    '629100000018',
     'طعام قطط ويلاس دجاج وتونة وخضار 1.5 كجم',
     'Whiskas Adult Cat Food Chicken & Tuna 1.5kg',
     'وجبة متوازنة ومحببة للقطط غنية بالبروتينات وأوميغا 3 لدعم صحة الفرو والمناعة.',
@@ -1269,9 +1502,9 @@ INSERT INTO public.products (
     false, false, 4.7, 420
 ),
 (
-    'p0000000-0000-0000-0000-000000000013',
+    'a0000000-0000-0000-0000-000000000019',
     'c0000000-0000-0000-0000-000000000011',
-    '629100000013',
+    '629100000019',
     'قلاية هوائية رقمية فيليبس XXL بدون زيت 7.2 لتر',
     'Philips Digital Airfryer XXL 7.2L',
     'قلاية صحية بدون زيت بتقنية الهواء الساخن السريع وسعة عائلية مع شاشة لمس وبرامج متعددة.',
@@ -1284,6 +1517,7 @@ INSERT INTO public.products (
 ON CONFLICT (id) DO UPDATE SET 
   name_ar = EXCLUDED.name_ar,
   price = EXCLUDED.price,
+  original_price = EXCLUDED.original_price,
   discount_percent = EXCLUDED.discount_percent;
 -- ==============================================================================
 -- Migration: 20261031_006_vip_subscriptions_and_rewards_catalog.sql

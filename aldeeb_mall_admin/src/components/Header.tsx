@@ -40,6 +40,7 @@ interface HeaderProps {
   activeBranchId?: string;
   onSwitchBranch?: (branchId: string) => void;
   isBranchSwitching?: boolean;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -58,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeBranchId = 'all',
   onSwitchBranch,
   isBranchSwitching = false,
+  onLogout = () => {},
 }) => {
   const { isHelpModeActive, toggleHelpMode } = useHelp();
   // Live shift countdown state
@@ -460,6 +462,20 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Logout Button */}
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>تسجيل الخروج من النظام</span>
+                  </button>
                 </div>
               </div>
             </>

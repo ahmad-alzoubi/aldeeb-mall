@@ -117,12 +117,28 @@ class MallProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  static bool _matchesCategory(String itemCatId, String queryCatId) {
+    if (itemCatId == queryCatId) return true;
+    const map = {
+      'c1': 'c0000000-0000-0000-0000-000000000001',
+      'c2': 'c0000000-0000-0000-0000-000000000002',
+      'c3': 'c0000000-0000-0000-0000-000000000003',
+      'c4': 'c0000000-0000-0000-0000-000000000004',
+      'c5': 'c0000000-0000-0000-0000-000000000005',
+      'c6': 'c0000000-0000-0000-0000-000000000006',
+      'c7': 'c0000000-0000-0000-0000-000000000007',
+      'c8': 'c0000000-0000-0000-0000-000000000008',
+      'c9': 'c0000000-0000-0000-0000-000000000009',
+    };
+    return map[itemCatId] == queryCatId || map[queryCatId] == itemCatId;
+  }
+
   // Filtered Products
   List<ProductModel> get filteredProducts {
     var list = List<ProductModel>.from(_products);
 
     if (_selectedCategoryId != null) {
-      list = list.where((p) => p.categoryId == _selectedCategoryId).toList();
+      list = list.where((p) => p.categoryId == _selectedCategoryId || (p.categoryId != null && _matchesCategory(p.categoryId!, _selectedCategoryId!))).toList();
     }
 
     if (_selectedDietaryFilter != null) {

@@ -7,10 +7,12 @@ class OrderProvider extends ChangeNotifier {
   final List<OrderModel> _orders = [];
   OrderModel? _currentTrackedOrder;
   bool _isPlacingOrder = false;
+  String? _lastOrderError;
 
   List<OrderModel> get orders => [..._orders];
   OrderModel? get currentTrackedOrder => _currentTrackedOrder;
   bool get isPlacingOrder => _isPlacingOrder;
+  String? get lastOrderError => _lastOrderError;
 
   OrderProvider() {
     _initSampleOrders();
@@ -67,6 +69,7 @@ class OrderProvider extends ChangeNotifier {
     String? notes,
   }) async {
     _isPlacingOrder = true;
+    _lastOrderError = null;
     notifyListeners();
 
     try {
@@ -83,6 +86,7 @@ class OrderProvider extends ChangeNotifier {
         deliverySlot: deliverySlot,
         paymentMethod: paymentMethod,
         notes: notes,
+        items: items,
       );
 
       final fullOrder = OrderModel(
@@ -110,6 +114,7 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
       return fullOrder;
     } catch (e) {
+      _lastOrderError = e.toString();
       _isPlacingOrder = false;
       notifyListeners();
       return null;

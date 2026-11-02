@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/supabase_constants.dart';
 import '../models/category_model.dart';
@@ -5,6 +6,7 @@ import '../models/product_model.dart';
 import '../models/banner_model.dart';
 import '../models/coupon_model.dart';
 import '../models/order_model.dart';
+import '../models/cart_item_model.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -52,6 +54,39 @@ class SupabaseService {
     return _defaultCategories;
   }
 
+  // Canonical ID mapping between legacy short identifiers and Supabase UUIDs
+  static String mapCategoryIdToCanonical(String catId) {
+    const map = {
+      'c1': 'c0000000-0000-0000-0000-000000000001',
+      'c2': 'c0000000-0000-0000-0000-000000000002',
+      'c3': 'c0000000-0000-0000-0000-000000000003',
+      'c4': 'c0000000-0000-0000-0000-000000000004',
+      'c5': 'c0000000-0000-0000-0000-000000000005',
+      'c6': 'c0000000-0000-0000-0000-000000000006',
+      'c7': 'c0000000-0000-0000-0000-000000000007',
+      'c8': 'c0000000-0000-0000-0000-000000000008',
+      'c9': 'c0000000-0000-0000-0000-000000000009',
+    };
+    return map[catId] ?? catId;
+  }
+
+  static bool _matchesCategory(String? itemCatId, String queryCatId) {
+    if (itemCatId == null) return false;
+    if (itemCatId == queryCatId) return true;
+    const map = {
+      'c1': 'c0000000-0000-0000-0000-000000000001',
+      'c2': 'c0000000-0000-0000-0000-000000000002',
+      'c3': 'c0000000-0000-0000-0000-000000000003',
+      'c4': 'c0000000-0000-0000-0000-000000000004',
+      'c5': 'c0000000-0000-0000-0000-000000000005',
+      'c6': 'c0000000-0000-0000-0000-000000000006',
+      'c7': 'c0000000-0000-0000-0000-000000000007',
+      'c8': 'c0000000-0000-0000-0000-000000000008',
+      'c9': 'c0000000-0000-0000-0000-000000000009',
+    };
+    return map[itemCatId] == queryCatId || map[queryCatId] == itemCatId;
+  }
+
   // 2. Fetch Products
   Future<List<ProductModel>> getProducts({String? categoryId, bool? isDailyDeal, bool? isFeatured}) async {
     if (_isInitialized && client != null) {
@@ -62,7 +97,8 @@ class SupabaseService {
             .eq('is_active', true);
 
         if (categoryId != null) {
-          query = query.eq('category_id', categoryId);
+          final canonical = mapCategoryIdToCanonical(categoryId);
+          query = query.or('category_id.eq.$canonical,category_id.eq.$categoryId');
         }
         if (isDailyDeal == true) {
           query = query.eq('is_daily_deal', true);
@@ -80,7 +116,7 @@ class SupabaseService {
 
     var list = List<ProductModel>.from(_defaultProducts);
     if (categoryId != null) {
-      list = list.where((p) => p.categoryId == categoryId).toList();
+      list = list.where((p) => p.categoryId == categoryId || _matchesCategory(p.categoryId, categoryId)).toList();
     }
     if (isDailyDeal == true) {
       list = list.where((p) => p.isDailyDeal).toList();
@@ -138,7 +174,48 @@ class SupabaseService {
     return null;
   }
 
-  // 5. Place Order
+  // 5. Normalizer for payment method to match SQL CHECK constraint:
+  // CHECK (payment_method IN ('cod', 'card_on_delivery', 'card', 'loyalty_points', 'apple_pay'))
+  String _normalizePaymentMethod(String method) {
+    final clean = method.trim().toLowerCase();
+    if (clean == 'cod' ||
+        clean == 'card_on_delivery' ||
+        clean == 'card' ||
+        clean == 'loyalty_points' ||
+        clean == 'apple_pay') {
+      return clean;
+    }
+    if (clean.contains('محفظة') ||
+        clean.contains('نقاط') ||
+        clean.contains('wallet') ||
+        clean.contains('points') ||
+        clean.contains('loyalty')) {
+      return 'loyalty_points';
+    }
+    if (clean.contains('apple') || clean.contains('آبل') || clean.contains('ابل')) {
+      return 'apple_pay';
+    }
+    // Check delivery payment methods (card on delivery vs cash on delivery)
+    if (clean.contains('عند الباب') ||
+        clean.contains('عند الاستلام') ||
+        clean.contains('on delivery')) {
+      if (clean.contains('نقداً') || clean.contains('كاش') || clean.contains('cash')) {
+        return 'cod';
+      }
+      return 'card_on_delivery';
+    }
+    if (clean.contains('بطاقة') ||
+        clean.contains('مدى') ||
+        clean.contains('ائتمان') ||
+        clean.contains('card') ||
+        clean.contains('visa') ||
+        clean.contains('mastercard')) {
+      return 'card';
+    }
+    return 'cod';
+  }
+
+  // 6. Place Order (Atomic transaction via RPC or resilient table insert)
   Future<OrderModel> createOrder({
     required String orderNumber,
     required double subtotal,
@@ -150,9 +227,132 @@ class SupabaseService {
     required String deliverySlot,
     required String paymentMethod,
     String? notes,
+    List<CartItemModel> items = const [],
   }) async {
-    final newOrder = OrderModel(
-      id: 'ord-${DateTime.now().millisecondsSinceEpoch}',
+    String generatedId = 'ord-${DateTime.now().millisecondsSinceEpoch}';
+    final normalizedPayment = _normalizePaymentMethod(paymentMethod);
+
+    final itemsPayload = items.map((item) {
+      final p = item.product;
+      final isUuid = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(p.id);
+
+      return {
+        'product_id': isUuid ? p.id : null,
+        'product_name_ar': p.nameAr,
+        'product_name_en': p.nameEn,
+        'product_image': p.images.isNotEmpty ? p.images.first : '',
+        'unit': p.unit,
+        'unit_price': p.price,
+        'quantity': item.quantity,
+        'total_price': item.totalPrice,
+      };
+    }).toList();
+
+    if (_isInitialized && client != null) {
+      try {
+        final userId = client!.auth.currentUser?.id;
+        final isValidUuid = userId != null &&
+            RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+                .hasMatch(userId);
+
+        // Attempt 1: Call atomic database transaction RPC place_order_atomic
+        try {
+          final rpcResponse = await client!.rpc('place_order_atomic', params: {
+            'p_order_number': orderNumber,
+            'p_user_id': isValidUuid ? userId : null,
+            'p_delivery_slot': deliverySlot,
+            'p_payment_method': normalizedPayment,
+            'p_subtotal': subtotal,
+            'p_delivery_fee': deliveryFee,
+            'p_discount_amount': discountAmount,
+            'p_loyalty_points_used': loyaltyPointsUsed,
+            'p_loyalty_discount': loyaltyDiscount,
+            'p_total_amount': totalAmount,
+            'p_notes': notes,
+            'p_items': itemsPayload,
+          });
+
+          if (rpcResponse != null && rpcResponse['id'] != null) {
+            generatedId = rpcResponse['id'].toString();
+            return OrderModel(
+              id: generatedId,
+              orderNumber: orderNumber,
+              status: 'pending',
+              deliverySlot: deliverySlot,
+              paymentMethod: paymentMethod,
+              subtotal: subtotal,
+              deliveryFee: deliveryFee,
+              discountAmount: discountAmount,
+              loyaltyPointsUsed: loyaltyPointsUsed,
+              loyaltyDiscount: loyaltyDiscount,
+              totalAmount: totalAmount,
+              createdAt: DateTime.now(),
+              notes: notes,
+              driverName: 'مندوب التوصيل السريع',
+              driverPhone: '+966501112233',
+              items: items,
+            );
+          }
+        } catch (rpcErr) {
+          debugPrint('⚠️ place_order_atomic RPC attempt info: $rpcErr');
+          final errStr = rpcErr.toString();
+          if (errStr.contains('DUPLICATE_ORDER') ||
+              errStr.contains('INSUFFICIENT_STOCK') ||
+              errStr.contains('UNAUTHORIZED') ||
+              errStr.contains('EMPTY_ITEMS') ||
+              errStr.contains('INVALID_QUANTITY')) {
+            rethrow;
+          }
+          // Proceed to direct table insert fallback
+        }
+
+        // Attempt 2: Direct REST table insert
+        final orderPayload = {
+          'order_number': orderNumber,
+          'user_id': isValidUuid ? userId : null,
+          'status': 'pending',
+          'delivery_slot': deliverySlot,
+          'payment_method': normalizedPayment,
+          'payment_status': 'pending',
+          'subtotal': subtotal,
+          'delivery_fee': deliveryFee,
+          'discount_amount': discountAmount,
+          'loyalty_points_used': loyaltyPointsUsed,
+          'loyalty_discount': loyaltyDiscount,
+          'total_amount': totalAmount,
+          'notes': notes,
+        };
+
+        final response = await client!
+            .from(SupabaseConstants.ordersTable)
+            .insert(orderPayload)
+            .select('id')
+            .maybeSingle();
+
+        if (response != null && response['id'] != null) {
+          generatedId = response['id'] as String;
+
+          if (items.isNotEmpty) {
+            final orderItemsData = itemsPayload.map((it) => {
+              ...it,
+              'order_id': generatedId,
+            }).toList();
+
+            await client!.from(SupabaseConstants.orderItemsTable).insert(orderItemsData);
+          }
+        } else {
+          throw Exception('فشل إنشاء الطلب في قاعدة البيانات السحابية (استجابة فارغة).');
+        }
+      } catch (e) {
+        debugPrint('🛑 Supabase createOrder failure: $e');
+        rethrow; // Do NOT disguise backend failure as success!
+      }
+    }
+
+    return OrderModel(
+      id: generatedId,
       orderNumber: orderNumber,
       status: 'pending',
       deliverySlot: deliverySlot,
@@ -167,31 +367,8 @@ class SupabaseService {
       notes: notes,
       driverName: 'أحمد مندوب الديب مول',
       driverPhone: '+971509876543',
+      items: items,
     );
-
-    if (_isInitialized && client != null) {
-      try {
-        final userId = client!.auth.currentUser?.id;
-        await client!.from(SupabaseConstants.ordersTable).insert({
-          'order_number': orderNumber,
-          'user_id': userId,
-          'status': 'pending',
-          'delivery_slot': deliverySlot,
-          'payment_method': paymentMethod,
-          'subtotal': subtotal,
-          'delivery_fee': deliveryFee,
-          'discount_amount': discountAmount,
-          'loyalty_points_used': loyaltyPointsUsed,
-          'loyalty_discount': loyaltyDiscount,
-          'total_amount': totalAmount,
-          'notes': notes,
-        });
-      } catch (e) {
-        // Log silently
-      }
-    }
-
-    return newOrder;
   }
 
   // ===========================================================================

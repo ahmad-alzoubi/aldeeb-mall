@@ -45,7 +45,7 @@ INSERT INTO public.banners (
     'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
     'side_top',
     'product',
-    'p0000000-0000-0000-0000-000000000003',
+    'a0000000-0000-0000-0000-000000000003',
     '3.75 د.أ / كجم',
     '#EF4444',
     1,

@@ -294,6 +294,23 @@ class _SmartCartIoTScreenState extends State<SmartCartIoTScreen> {
       ),
       body: Column(
         children: [
+          // Pilot Indicator Banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: const Color(0xFFFEF3C7),
+            child: const Row(
+              children: [
+                Icon(Icons.science_rounded, size: 16, color: Color(0xFFB45309)),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'نظام تجريبي (IoT Pilot): مخصص للمتسوقين داخل فروع الديب مول المجهزة بحساسات العربات الذكية والكاشير الذاتي.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFB45309), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Telemetry Status Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

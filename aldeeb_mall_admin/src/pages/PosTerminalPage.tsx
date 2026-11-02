@@ -35,7 +35,7 @@ import {
   Coins
 } from 'lucide-react';
 import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category } from '../types';
-import { initialProducts, initialCategories } from '../lib/supabase';
+import { supabase, initialProducts, initialCategories } from '../lib/supabase';
 import { getStoredBranches, getActiveBranchId, setActiveBranchId } from '../lib/branchesData';
 import { ThermalReceiptView } from '../components/ThermalReceiptView';
 import { useInvoiceSettings } from '../lib/invoiceSettings';
@@ -429,6 +429,44 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         localStorage.setItem(`pos_shift_${activeBranch?.id || 'default'}`, JSON.stringify(updatedShift));
       } catch (_) {}
     }
+
+    // Sync POS Transaction with Supabase Orders & Order Items
+    (async () => {
+      try {
+        const isUuid = (id?: string) => !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+        const { data } = await supabase
+          .from('orders')
+          .insert({
+            order_number: receiptNum,
+            status: 'delivered',
+            delivery_slot: `كاشير مباشر - ${activeBranch?.name_ar || 'الفرع الرئيسي'}`,
+            payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
+            payment_status: 'paid',
+            subtotal: subtotal - taxAmount,
+            delivery_fee: 0,
+            total_amount: grandTotal,
+            notes: `نقطة بيع POS • الكاشير: ${cashierName} • العميل: ${customerName || 'عميل نقدي'}`,
+          })
+          .select('id')
+          .maybeSingle();
+
+        if (data?.id && cart.length > 0) {
+          const itemsPayload = cart.map((item) => ({
+            order_id: data.id,
+            product_id: isUuid(item.product_id) ? item.product_id : null,
+            product_name_ar: item.name_ar,
+            product_name_en: item.name_en || item.name_ar,
+            unit: item.unit || 'piece',
+            unit_price: item.price,
+            quantity: item.quantity,
+            total_price: item.total || item.price * item.quantity,
+          }));
+          await supabase.from('order_items').insert(itemsPayload);
+        }
+      } catch (e) {
+        console.warn('POS order sync note:', e);
+      }
+    })();
 
     setCurrentTransaction(tx);
     setIsPaymentModalOpen(false);

@@ -30,6 +30,7 @@ import { InvoiceDesignerPage } from './pages/InvoiceDesignerPage';
 import { ElectronicInvoicePage } from './pages/ElectronicInvoicePage';
 import { StaffManagementPage } from './pages/StaffManagementPage';
 import { AccountingPayrollPage } from './pages/AccountingPayrollPage';
+import { AdminLoginPage } from './pages/AdminLoginPage';
 import { 
   INITIAL_STAFF, 
   INITIAL_PAYROLL_TRANSACTIONS, 
@@ -46,6 +47,7 @@ import {
   setActiveBranchId
 } from './lib/branchContext';
 import { 
+  supabase,
   initialOrders, 
   initialProducts, 
   initialCategories, 
@@ -173,9 +175,44 @@ export const App: React.FC = () => {
 
   // Staff, Roles, Permissions & Shift System
   const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
-  const [currentUser, setCurrentUser] = useState<StaffMember>(INITIAL_STAFF[0]);
+  const [currentUser, setCurrentUser] = useState<StaffMember>(() => {
+    if (typeof window !== 'undefined') {
+      const savedId = localStorage.getItem('aldeeb_admin_user_id');
+      if (savedId) {
+        const found = INITIAL_STAFF.find(s => s.id === savedId);
+        if (found) return found;
+      }
+    }
+    return INITIAL_STAFF[0];
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('aldeeb_admin_auth') === 'true';
+    }
+    return false;
+  });
   const [payrollTransactions, setPayrollTransactions] = useState<PayrollTransaction[]>(INITIAL_PAYROLL_TRANSACTIONS);
   const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(INITIAL_PASSWORD_REQUESTS);
+
+  const handleLogin = (staff: StaffMember) => {
+    setCurrentUser(staff);
+    setIsAuthenticated(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aldeeb_admin_auth', 'true');
+      localStorage.setItem('aldeeb_admin_user_id', staff.id);
+    }
+    if (staff.role === 'cashier') {
+      setActiveTab('pos_terminal');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('aldeeb_admin_auth');
+      localStorage.removeItem('aldeeb_admin_user_id');
+    }
+  };
 
   // Branch-isolated reactive views
   const visibleOrders = filterOrdersByBranch(orders, activeBranchId);
@@ -243,12 +280,211 @@ export const App: React.FC = () => {
     }
   };
 
+  // Synchronize Core Datasets with Supabase Cloud
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCloudData = async () => {
+      try {
+        // 1. Products
+        const { data: dbProducts } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (isMounted && dbProducts && dbProducts.length > 0) {
+          const mappedProducts: Product[] = dbProducts.map((p: any) => ({
+            id: p.id,
+            name_ar: p.name_ar,
+            name_en: p.name_en || p.name_ar,
+            brand: p.brand || 'طازج',
+            category_id: p.category_id,
+            barcode: p.barcode,
+            price: Number(p.price),
+            original_price: p.original_price ? Number(p.original_price) : Number(p.price),
+            discount_percent: p.discount_percent || 0,
+            unit: p.unit || 'piece',
+            weight_step: Number(p.weight_step || 1.0),
+            stock_quantity: Number(p.stock_quantity || 0),
+            images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=400&q=80'],
+            is_featured: !!p.is_featured,
+            is_daily_deal: !!p.is_daily_deal,
+            rating: Number(p.rating || 4.8),
+            sales_count: Number(p.sales_count || 0),
+            bundle_enabled: !!p.bundle_enabled,
+            bundle_discount_percent: p.bundle_discount_percent,
+            bundle_title: p.bundle_title,
+            bundle_product_ids: p.bundle_product_ids,
+            branch_id: p.branch_id,
+            branch_name: p.branch_name,
+            is_draft: !!p.is_draft,
+            cost_price: p.cost_price ? Number(p.cost_price) : undefined,
+            status: p.status || 'published',
+          }));
+          setProducts(mappedProducts);
+        }
+
+        // 2. Categories
+        const { data: dbCategories } = await supabase
+          .from('categories')
+          .select('*')
+          .order('sort_order', { ascending: true });
+
+        if (isMounted && dbCategories && dbCategories.length > 0) {
+          const mappedCats: Category[] = dbCategories.map((c: any) => ({
+            id: c.id,
+            name_ar: c.name_ar,
+            name_en: c.name_en || c.name_ar,
+            slug: c.slug || 'category',
+            icon_name: c.icon_name || 'shopping_basket',
+            image_url: c.image_url,
+            sort_order: Number(c.sort_order || 1),
+            is_active: c.is_active !== false,
+            show_title: c.show_title !== false,
+            group_tag: c.group_tag,
+            item_count: c.item_count ? Number(c.item_count) : undefined,
+          }));
+          setCategories(mappedCats);
+        }
+
+        // 3. Banners
+        const { data: dbBanners } = await supabase
+          .from('banners')
+          .select('*')
+          .order('sort_order', { ascending: true });
+
+        if (isMounted && dbBanners && dbBanners.length > 0) {
+          setBanners(dbBanners as Banner[]);
+        }
+
+        // 4. Coupons
+        const { data: dbCoupons } = await supabase
+          .from('coupons')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (isMounted && dbCoupons && dbCoupons.length > 0) {
+          setCoupons(dbCoupons as Coupon[]);
+        }
+
+        // 5. Orders (with items)
+        const { data: dbOrders } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .order('created_at', { ascending: false });
+
+        if (isMounted && dbOrders && dbOrders.length > 0) {
+          const mappedOrders: Order[] = dbOrders.map((o: any) => ({
+            id: o.id,
+            order_number: o.order_number,
+            customer_name: o.customer_name || 'عميل الديب مول',
+            customer_phone: o.customer_phone || '+971 50 123 4567',
+            customer_address: o.notes || o.delivery_slot || 'عنوان التوصيل',
+            status: o.status,
+            delivery_slot: o.delivery_slot || 'توصيل فوري',
+            payment_method: o.payment_method || 'cod',
+            subtotal: Number(o.subtotal || 0),
+            delivery_fee: Number(o.delivery_fee || 0),
+            discount_amount: Number(o.discount_amount || 0),
+            loyalty_discount: Number(o.loyalty_discount || 0),
+            total_amount: Number(o.total_amount || 0),
+            created_at: o.created_at || new Date().toISOString(),
+            notes: o.notes,
+            items: (o.order_items || []).map((it: any) => ({
+              id: it.id,
+              product_name_ar: it.product_name_ar,
+              product_name_en: it.product_name_en || it.product_name_ar,
+              product_image: it.product_image,
+              unit_price: Number(it.unit_price || 0),
+              quantity: Number(it.quantity || 1),
+              unit: it.unit || 'piece',
+              total_price: Number(it.total_price || 0),
+            })),
+            branch_id: o.branch_id || 'b-ruh-01',
+          }));
+          setOrders(mappedOrders);
+        }
+      } catch (err) {
+        console.warn('⚠️ Supabase data sync note:', err);
+      }
+    };
+
+    loadCloudData();
+
+    // Setup Realtime Subscription for incoming orders
+    const ordersChannel = supabase
+      .channel('admin_realtime_orders')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, async (payload) => {
+        try {
+          const newOrderId = payload.new.id;
+          const { data: fullOrder } = await supabase
+            .from('orders')
+            .select('*, order_items(*)')
+            .eq('id', newOrderId)
+            .maybeSingle();
+
+          if (fullOrder && isMounted) {
+            const mapped: Order = {
+              id: fullOrder.id,
+              order_number: fullOrder.order_number,
+              customer_name: fullOrder.customer_name || 'عميل الديب مول',
+              customer_phone: fullOrder.customer_phone || '+971 50 123 4567',
+              customer_address: fullOrder.notes || fullOrder.delivery_slot || 'عنوان التوصيل',
+              status: fullOrder.status,
+              delivery_slot: fullOrder.delivery_slot || 'توصيل فوري',
+              payment_method: fullOrder.payment_method || 'cod',
+              subtotal: Number(fullOrder.subtotal || 0),
+              delivery_fee: Number(fullOrder.delivery_fee || 0),
+              discount_amount: Number(fullOrder.discount_amount || 0),
+              loyalty_discount: Number(fullOrder.loyalty_discount || 0),
+              total_amount: Number(fullOrder.total_amount || 0),
+              created_at: fullOrder.created_at || new Date().toISOString(),
+              notes: fullOrder.notes,
+              items: (fullOrder.order_items || []).map((it: any) => ({
+                id: it.id,
+                product_name_ar: it.product_name_ar,
+                product_name_en: it.product_name_en || it.product_name_ar,
+                product_image: it.product_image,
+                unit_price: Number(it.unit_price || 0),
+                quantity: Number(it.quantity || 1),
+                unit: it.unit || 'piece',
+                total_price: Number(it.total_price || 0),
+              })),
+              branch_id: fullOrder.branch_id || 'b-ruh-01',
+            };
+
+            setOrders((prev) => [mapped, ...prev.filter(o => o.id !== mapped.id)]);
+            playOrderChime();
+          }
+        } catch (e) {
+          console.warn('Realtime order arrival notice:', e);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(ordersChannel);
+    };
+  }, []);
+
   // Status & Order Updater
-  const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
     playOrderChime();
+
+    try {
+      if (orderId && orderId.length > 10) {
+        await supabase
+          .from('orders')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', orderId);
+      }
+    } catch (e) {
+      console.warn('Could not update order status in Supabase:', e);
+    }
   };
 
   const handleUpdateOrder = (updatedOrder: Order) => {
@@ -264,31 +500,61 @@ export const App: React.FC = () => {
   };
 
   // Product Actions
-  const handleAddProduct = (newProduct: Product) => {
+  const handleAddProduct = async (newProduct: Product) => {
     setProducts((prev) => [newProduct, ...prev]);
+    try {
+      await supabase.from('products').insert(newProduct);
+    } catch (e) {
+      console.warn('Could not save product to Supabase:', e);
+    }
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = async (updatedProduct: Product) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
     );
+    try {
+      await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
+    } catch (e) {
+      console.warn('Could not update product in Supabase:', e);
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
+    try {
+      await supabase.from('products').delete().eq('id', productId);
+    } catch (e) {
+      console.warn('Could not delete product in Supabase:', e);
+    }
   };
 
   // Category Actions
-  const handleAddCategory = (newCategory: Category) => {
+  const handleAddCategory = async (newCategory: Category) => {
     setCategories((prev) => [...prev, newCategory]);
+    try {
+      await supabase.from('categories').insert(newCategory);
+    } catch (e) {
+      console.warn('Could not save category to Supabase:', e);
+    }
   };
 
-  const handleUpdateCategory = (updatedCat: Category) => {
+  const handleUpdateCategory = async (updatedCat: Category) => {
     setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+    try {
+      await supabase.from('categories').update(updatedCat).eq('id', updatedCat.id);
+    } catch (e) {
+      console.warn('Could not update category in Supabase:', e);
+    }
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
+  const handleDeleteCategory = async (categoryId: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+    try {
+      await supabase.from('categories').delete().eq('id', categoryId);
+    } catch (e) {
+      console.warn('Could not delete category in Supabase:', e);
+    }
   };
 
   const handleToggleCategory = (categoryId: string) => {
@@ -298,16 +564,31 @@ export const App: React.FC = () => {
   };
 
   // Banner Actions (Hero & Middle Secondary)
-  const handleAddBanner = (newBanner: Banner) => {
+  const handleAddBanner = async (newBanner: Banner) => {
     setBanners((prev) => [newBanner, ...prev]);
+    try {
+      await supabase.from('banners').insert(newBanner);
+    } catch (e) {
+      console.warn('Could not save banner to Supabase:', e);
+    }
   };
 
-  const handleUpdateBanner = (updatedBanner: Banner) => {
+  const handleUpdateBanner = async (updatedBanner: Banner) => {
     setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+    try {
+      await supabase.from('banners').update(updatedBanner).eq('id', updatedBanner.id);
+    } catch (e) {
+      console.warn('Could not update banner in Supabase:', e);
+    }
   };
 
-  const handleDeleteBanner = (bannerId: string) => {
+  const handleDeleteBanner = async (bannerId: string) => {
     setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+    try {
+      await supabase.from('banners').delete().eq('id', bannerId);
+    } catch (e) {
+      console.warn('Could not delete banner in Supabase:', e);
+    }
   };
 
   const handleToggleBanner = (bannerId: string) => {
@@ -317,8 +598,13 @@ export const App: React.FC = () => {
   };
 
   // Coupon Actions
-  const handleAddCoupon = (newCoupon: Coupon) => {
+  const handleAddCoupon = async (newCoupon: Coupon) => {
     setCoupons((prev) => [newCoupon, ...prev]);
+    try {
+      await supabase.from('coupons').insert(newCoupon);
+    } catch (e) {
+      console.warn('Could not save coupon to Supabase:', e);
+    }
   };
 
   const handleToggleCoupon = (couponId: string) => {
@@ -327,8 +613,13 @@ export const App: React.FC = () => {
     );
   };
 
-  const handleDeleteCoupon = (couponId: string) => {
+  const handleDeleteCoupon = async (couponId: string) => {
     setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+    try {
+      await supabase.from('coupons').delete().eq('id', couponId);
+    } catch (e) {
+      console.warn('Could not delete coupon in Supabase:', e);
+    }
   };
 
   // Flash Deals Actions
@@ -529,6 +820,15 @@ export const App: React.FC = () => {
     );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <AdminLoginPage
+        staffList={staffList}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
   if (activeTab === 'pos_terminal') {
     return (
       <PosTerminalPage
@@ -631,6 +931,7 @@ export const App: React.FC = () => {
           activeBranchId={activeBranchId}
           onSwitchBranch={handleSwitchBranch}
           isBranchSwitching={isBranchSwitching}
+          onLogout={handleLogout}
         />
 
         <main className="p-8 flex-1 overflow-y-auto">
