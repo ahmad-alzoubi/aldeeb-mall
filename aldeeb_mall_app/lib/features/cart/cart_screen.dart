@@ -500,15 +500,20 @@ class _CartScreenState extends State<CartScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: AppColors.success, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'تم تفعيل: ${cart.appliedCoupon!.code} (-${cart.couponDiscount.toStringAsFixed(2)} ل.س)',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
-                    ),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'تم تفعيل: ${cart.appliedCoupon!.code} (-${cart.couponDiscount.toStringAsFixed(2)} ل.س)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: AppColors.error, size: 20),

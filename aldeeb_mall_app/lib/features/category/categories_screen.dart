@@ -41,6 +41,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final mall = Provider.of<MallProvider>(context);
     final isDesktop = Responsive.isDesktop(context);
     final isTablet = Responsive.isTablet(context);
+    final isMobile = Responsive.isMobile(context);
 
     // Filter categories based on search and group
     final categories = mall.categories.where((cat) {
@@ -149,14 +150,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildViewModeOption(
-                                title: 'صورة مع عنوان',
+                                title: isMobile ? 'عناوين' : 'صورة مع عنوان',
                                 icon: Icons.view_agenda_outlined,
                                 isSelected: mall.categoryDisplayMode == CategoryDisplayMode.withTitle,
                                 onTap: () => mall.setCategoryDisplayMode(CategoryDisplayMode.withTitle),
                               ),
                               const SizedBox(width: 4),
                               _buildViewModeOption(
-                                title: 'صورة فقط',
+                                title: isMobile ? 'صور' : 'صورة فقط',
                                 icon: Icons.grid_view_rounded,
                                 isSelected: mall.categoryDisplayMode == CategoryDisplayMode.imageOnly,
                                 onTap: () => mall.setCategoryDisplayMode(CategoryDisplayMode.imageOnly),
@@ -164,19 +165,23 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
 
                         // Jump to Product Catalog Link
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const CatalogScreen()),
-                            );
-                          },
-                          icon: const Icon(Icons.shopping_bag_outlined, size: 16, color: AppColors.primary),
-                          label: const Text(
-                            'تصفح كقائمة أصناف ←',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        Flexible(
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                              );
+                            },
+                            icon: const Icon(Icons.shopping_bag_outlined, size: 16, color: AppColors.primary),
+                            label: Text(
+                              isMobile ? 'الأصناف ←' : 'تصفح كقائمة أصناف ←',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       ],
@@ -239,7 +244,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           mainAxisSpacing: 14,
                           crossAxisSpacing: 14,
                           childAspectRatio: mall.categoryDisplayMode == CategoryDisplayMode.withTitle
-                              ? 0.78
+                              ? (isMobile ? 0.72 : 0.78)
                               : 0.95,
                         ),
                         itemCount: categories.length,

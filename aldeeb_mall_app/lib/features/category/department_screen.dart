@@ -295,29 +295,36 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: theme.primaryColor,
-                              borderRadius: BorderRadius.circular(2),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _selectedSubcategory != null && _selectedSubcategory != 'الكل'
-                                ? 'أصناف: $_selectedSubcategory'
-                                : 'كافة أصناف ${widget.category.nameAr}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _selectedSubcategory != null && _selectedSubcategory != 'الكل'
+                                    ? 'أصناف: $_selectedSubcategory'
+                                    : 'كافة أصناف ${widget.category.nameAr}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
