@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Banner, Category, Product, Coupon } from '../types';
+import { generateUUID, ensureUUID } from '../lib/uuidUtils';
 
 interface BannersPageProps {
   banners: Banner[];
@@ -174,7 +175,7 @@ export const BannersPage: React.FC<BannersPageProps> = ({
     }
 
     const payload: Banner = {
-      id: editingBanner ? editingBanner.id : `b_${Date.now()}`,
+      id: editingBanner ? ensureUUID(editingBanner.id) : generateUUID(),
       title_ar: titleAr.trim(),
       title_en: titleEn.trim() || titleAr.trim(),
       subtitle_ar: subtitleAr.trim() || undefined,

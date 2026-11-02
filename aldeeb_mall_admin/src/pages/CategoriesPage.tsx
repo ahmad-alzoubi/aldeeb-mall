@@ -15,6 +15,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { Category } from '../types';
+import { generateUUID, ensureUUID } from '../lib/uuidUtils';
 
 interface CategoriesPageProps {
   categories: Category[];
@@ -104,6 +105,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
     if (editingCategory && onUpdateCategory) {
       const updated: Category = {
         ...editingCategory,
+        id: ensureUUID(editingCategory.id),
         name_ar: nameAr,
         name_en: nameEn || nameAr,
         slug: slug.trim() || nameEn.toLowerCase().replace(/\s+/g, '-') || editingCategory.slug,
@@ -115,7 +117,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
       showToast('تم تعديل بيانات وخيارات عرض القسم بنجاح!');
     } else {
       const newCat: Category = {
-        id: `c-${Date.now()}`,
+        id: generateUUID(),
         name_ar: nameAr,
         name_en: nameEn || nameAr,
         slug: slug.trim() || nameEn.toLowerCase().replace(/\s+/g, '-') || `category-${Date.now()}`,

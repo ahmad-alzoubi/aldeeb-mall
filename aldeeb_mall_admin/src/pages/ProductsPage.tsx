@@ -19,6 +19,7 @@ import { Product, Category } from '../types';
 import { lookupBarcodeOpenFoodFacts, ScannedProductResult } from '../lib/openFoodFacts';
 import { MediaUploadManager } from '../components/common/MediaUploadManager';
 import { BundleProductPicker } from '../components/common/BundleProductPicker';
+import { generateUUID, ensureUUID, toCanonicalCategoryId } from '../lib/uuidUtils';
 
 interface ProductsPageProps {
   products: Product[];
@@ -164,11 +165,12 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     if (editingProduct && onUpdateProduct) {
       const updatedProd: Product = {
         ...editingProduct,
+        id: ensureUUID(editingProduct.id),
         name_ar: nameAr,
         name_en: nameEn || nameAr,
         brand,
         barcode: barcode || editingProduct.barcode,
-        category_id: categoryId,
+        category_id: toCanonicalCategoryId(categoryId),
         price: Number(price),
         original_price: Number(originalPrice),
         discount_percent: discountPercent,
@@ -186,12 +188,12 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       onUpdateProduct(updatedProd);
     } else {
       const newProd: Product = {
-        id: `p-${Date.now()}`,
+        id: generateUUID(),
         name_ar: nameAr,
         name_en: nameEn || nameAr,
         brand,
         barcode: barcode || `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-        category_id: categoryId,
+        category_id: toCanonicalCategoryId(categoryId),
         price: Number(price),
         original_price: Number(originalPrice),
         discount_percent: discountPercent,

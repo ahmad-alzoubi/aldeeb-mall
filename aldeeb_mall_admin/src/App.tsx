@@ -105,6 +105,17 @@ import {
   PasswordChangeRequest,
   Branch
 } from './types';
+import { 
+  generateUUID, 
+  ensureUUID, 
+  toCanonicalCategoryId 
+} from './lib/uuidUtils';
+import { 
+  CheckCircle2, 
+  AlertTriangle, 
+  Info, 
+  X as CloseIcon 
+} from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -145,11 +156,49 @@ export const App: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Core Datasets
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
+  // Persistent Local Storage Keys & Helpers
+  const STORAGE_KEYS = {
+    PRODUCTS: 'aldeeb_admin_products_v5',
+    CATEGORIES: 'aldeeb_admin_categories_v5',
+    COUPONS: 'aldeeb_admin_coupons_v5',
+    BANNERS: 'aldeeb_admin_banners_v5',
+    ORDERS: 'aldeeb_admin_orders_v5',
+  };
+
+  const getCachedData = <T,>(key: string, fallback: T[]): T[] => {
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn(`Failed to read cache for ${key}:`, e);
+    }
+    return fallback;
+  };
+
+  // Sync Notification Banner State
+  const [syncNotification, setSyncNotification] = useState<{
+    message: string;
+    type: 'success' | 'warning' | 'info';
+    id: number;
+  } | null>(null);
+
+  const showSyncNotification = (message: string, type: 'success' | 'warning' | 'info' = 'info') => {
+    const id = Date.now();
+    setSyncNotification({ message, type, id });
+    setTimeout(() => {
+      setSyncNotification((current) => (current?.id === id ? null : current));
+    }, 8000);
+  };
+
+  // Core Datasets with Multi-Tier LocalStorage & Supabase Integration
+  const [orders, setOrders] = useState<Order[]>(() => getCachedData(STORAGE_KEYS.ORDERS, initialOrders));
+  const [products, setProducts] = useState<Product[]>(() => getCachedData(STORAGE_KEYS.PRODUCTS, initialProducts));
+  const [categories, setCategories] = useState<Category[]>(() => getCachedData(STORAGE_KEYS.CATEGORIES, initialCategories));
+  const [coupons, setCoupons] = useState<Coupon[]>(() => getCachedData(STORAGE_KEYS.COUPONS, initialCoupons));
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [darkStores] = useState<DarkStore[]>(initialDarkStores);
   const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
@@ -167,7 +216,7 @@ export const App: React.FC = () => {
   const [rewardCoupons, setRewardCoupons] = useState<RewardCoupon[]>(initialRewardCoupons);
   const [rewardProducts, setRewardProducts] = useState<RewardProduct[]>(initialRewardProducts);
   const [subscriptionActivities, setSubscriptionActivities] = useState<SubscriptionActivityLog[]>(initialSubscriptionActivity);
-  const [banners, setBanners] = useState<Banner[]>(initialBanners);
+  const [banners, setBanners] = useState<Banner[]>(() => getCachedData(STORAGE_KEYS.BANNERS, initialBanners));
 
   // Multi-branch dataset
   const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
@@ -331,7 +380,15 @@ export const App: React.FC = () => {
             cost_price: p.cost_price ? Number(p.cost_price) : undefined,
             status: p.status || 'published',
           }));
-          setProducts(mappedProducts);
+          setProducts((prev) => {
+            const cloudIds = new Set(mappedProducts.map((p) => p.id));
+            const localCustom = prev.filter((p) => !cloudIds.has(p.id));
+            const merged = [...localCustom, ...mappedProducts];
+            try {
+              localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
 
         // 2. Categories
@@ -354,7 +411,15 @@ export const App: React.FC = () => {
             group_tag: c.group_tag,
             item_count: c.item_count ? Number(c.item_count) : undefined,
           }));
-          setCategories(mappedCats);
+          setCategories((prev) => {
+            const cloudIds = new Set(mappedCats.map((c) => c.id));
+            const localCustom = prev.filter((c) => !cloudIds.has(c.id));
+            const merged = [...localCustom, ...mappedCats];
+            try {
+              localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
 
         // 3. Banners
@@ -364,7 +429,15 @@ export const App: React.FC = () => {
           .order('sort_order', { ascending: true });
 
         if (isMounted && dbBanners && dbBanners.length > 0) {
-          setBanners(dbBanners as Banner[]);
+          setBanners((prev) => {
+            const cloudIds = new Set(dbBanners.map((b: any) => b.id));
+            const localCustom = prev.filter((b) => !cloudIds.has(b.id));
+            const merged = [...localCustom, ...(dbBanners as Banner[])];
+            try {
+              localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
 
         // 4. Coupons
@@ -374,7 +447,15 @@ export const App: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (isMounted && dbCoupons && dbCoupons.length > 0) {
-          setCoupons(dbCoupons as Coupon[]);
+          setCoupons((prev) => {
+            const cloudIds = new Set(dbCoupons.map((c: any) => c.id));
+            const localCustom = prev.filter((c) => !cloudIds.has(c.id));
+            const merged = [...localCustom, ...(dbCoupons as Coupon[])];
+            try {
+              localStorage.setItem(STORAGE_KEYS.COUPONS, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
 
         // 5. Orders (with items)
@@ -412,7 +493,15 @@ export const App: React.FC = () => {
             })),
             branch_id: o.branch_id || 'b-ruh-01',
           }));
-          setOrders(mappedOrders);
+          setOrders((prev) => {
+            const cloudIds = new Set(mappedOrders.map((o) => o.id));
+            const localCustom = prev.filter((o) => !cloudIds.has(o.id));
+            const merged = [...localCustom, ...mappedOrders];
+            try {
+              localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
       } catch (err) {
         console.warn('⚠️ Supabase data sync note:', err);
@@ -480,17 +569,26 @@ export const App: React.FC = () => {
 
   // Status & Order Updater
   const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
+    setOrders((prev) => {
+      const updated = prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
+      try {
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     playOrderChime();
 
     try {
       if (orderId && orderId.length > 10) {
-        await supabase
+        const { error } = await supabase
           .from('orders')
           .update({ status: newStatus, updated_at: new Date().toISOString() })
           .eq('id', orderId);
+        if (error) {
+          console.warn('⚠️ Supabase order update warning:', error.message);
+        } else {
+          showSyncNotification(`✅ تم تحديث حالة الطلب إلى "${newStatus}" في السحابة والمتجر!`, 'success');
+        }
       }
     } catch (e) {
       console.warn('Could not update order status in Supabase:', e);
@@ -498,12 +596,17 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateOrder = async (updatedOrder: Order) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-    );
+    setOrders((prev) => {
+      const updated = prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+      try {
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       if (updatedOrder.id) {
-        await supabase
+        const { error } = await supabase
           .from('orders')
           .update({
             status: updatedOrder.status,
@@ -511,6 +614,11 @@ export const App: React.FC = () => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', updatedOrder.id);
+        if (error) {
+          console.warn('⚠️ Supabase order update warning:', error.message);
+        } else {
+          showSyncNotification('✅ تم تحديث بيانات الطلب بنجاح في السحابة!', 'success');
+        }
       }
     } catch (e) {
       console.warn('Could not update order in Supabase:', e);
@@ -523,75 +631,251 @@ export const App: React.FC = () => {
     );
   };
 
-  // Product Actions
+  // Product Actions with Multi-Tier LocalStorage & Supabase Integration
   const handleAddProduct = async (newProduct: Product) => {
-    setProducts((prev) => [newProduct, ...prev]);
+    const sanitizedCatId = toCanonicalCategoryId(newProduct.category_id);
+    const validId = ensureUUID(newProduct.id);
+
+    const sanitizedProduct: Product = {
+      ...newProduct,
+      id: validId,
+      category_id: sanitizedCatId,
+    };
+
+    // 1. Immediately persist in local React state and Browser LocalStorage
+    setProducts((prev) => {
+      const updated = [sanitizedProduct, ...prev.filter((p) => p.id !== sanitizedProduct.id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // 2. Prepare payload aligned 100% with Supabase products table schema
+    const supabasePayload = {
+      id: sanitizedProduct.id,
+      category_id: sanitizedProduct.category_id,
+      barcode: sanitizedProduct.barcode || `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+      name_ar: sanitizedProduct.name_ar,
+      name_en: sanitizedProduct.name_en || sanitizedProduct.name_ar,
+      description_ar: sanitizedProduct.name_ar,
+      description_en: sanitizedProduct.name_en || sanitizedProduct.name_ar,
+      brand: sanitizedProduct.brand || 'الديب مول',
+      price: Number(sanitizedProduct.price),
+      original_price: Number(sanitizedProduct.original_price || sanitizedProduct.price),
+      discount_percent: Number(sanitizedProduct.discount_percent || 0),
+      unit: sanitizedProduct.unit || 'piece',
+      weight_step: Number(sanitizedProduct.weight_step || 1.0),
+      stock_quantity: Number(sanitizedProduct.stock_quantity || 0),
+      images: Array.isArray(sanitizedProduct.images) && sanitizedProduct.images.length > 0
+        ? sanitizedProduct.images
+        : ['https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=400&q=80'],
+      is_featured: !!sanitizedProduct.is_featured,
+      is_daily_deal: !!sanitizedProduct.is_daily_deal,
+      rating: Number(sanitizedProduct.rating || 4.9),
+      sales_count: Number(sanitizedProduct.sales_count || 0),
+      bundle_enabled: !!sanitizedProduct.bundle_enabled,
+      bundle_discount_percent: Number(sanitizedProduct.bundle_discount_percent || 0),
+      bundle_title: sanitizedProduct.bundle_title || null,
+      bundle_product_ids: sanitizedProduct.bundle_product_ids || [],
+      is_active: true,
+    };
+
+    // 3. Attempt Supabase Cloud write
     try {
-      await supabase.from('products').insert(newProduct);
-    } catch (e) {
-      console.warn('Could not save product to Supabase:', e);
+      const { error } = await supabase.from('products').insert(supabasePayload);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud product insert warning (42501/RLS):', error.message);
+        showSyncNotification(
+          `💾 تم حفظ المنتج "${sanitizedProduct.name_ar}" محلياً في المتصفح! (تنبيه: للمزامنة مع السحابة، يرجى تشغيل FIX_ADMIN_RLS.sql في Supabase)`,
+          'warning'
+        );
+      } else {
+        showSyncNotification(`✅ تم حفظ ونشر المنتج "${sanitizedProduct.name_ar}" بنجاح في السحابة والمتجر!`, 'success');
+      }
+    } catch (e: any) {
+      console.warn('Supabase product sync network error:', e);
+      showSyncNotification(`💾 تم حفظ المنتج "${sanitizedProduct.name_ar}" محلياً في المتصفح.`, 'info');
     }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
-    );
+    const sanitizedCatId = toCanonicalCategoryId(updatedProduct.category_id);
+    const validId = ensureUUID(updatedProduct.id);
+
+    const sanitizedProduct: Product = {
+      ...updatedProduct,
+      id: validId,
+      category_id: sanitizedCatId,
+    };
+
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === sanitizedProduct.id ? sanitizedProduct : p));
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    const supabasePayload = {
+      category_id: sanitizedProduct.category_id,
+      barcode: sanitizedProduct.barcode,
+      name_ar: sanitizedProduct.name_ar,
+      name_en: sanitizedProduct.name_en || sanitizedProduct.name_ar,
+      brand: sanitizedProduct.brand,
+      price: Number(sanitizedProduct.price),
+      original_price: Number(sanitizedProduct.original_price || sanitizedProduct.price),
+      discount_percent: Number(sanitizedProduct.discount_percent || 0),
+      unit: sanitizedProduct.unit,
+      weight_step: Number(sanitizedProduct.weight_step || 1.0),
+      stock_quantity: Number(sanitizedProduct.stock_quantity || 0),
+      images: sanitizedProduct.images,
+      is_featured: !!sanitizedProduct.is_featured,
+      is_daily_deal: !!sanitizedProduct.is_daily_deal,
+      bundle_enabled: !!sanitizedProduct.bundle_enabled,
+      bundle_discount_percent: Number(sanitizedProduct.bundle_discount_percent || 0),
+      bundle_title: sanitizedProduct.bundle_title || null,
+      bundle_product_ids: sanitizedProduct.bundle_product_ids || [],
+      updated_at: new Date().toISOString(),
+    };
+
     try {
-      await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
+      const { error } = await supabase.from('products').update(supabasePayload).eq('id', sanitizedProduct.id);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud product update warning:', error.message);
+        showSyncNotification(`💾 تم تحديث بيانات المنتج "${sanitizedProduct.name_ar}" محلياً.`, 'warning');
+      } else {
+        showSyncNotification(`✅ تم تحديث بيانات المنتج "${sanitizedProduct.name_ar}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not update product in Supabase:', e);
+      console.warn('Supabase product update error:', e);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== productId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('products').delete().eq('id', productId);
+      const { error } = await supabase.from('products').delete().eq('id', productId);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud product delete warning:', error.message);
+      } else {
+        showSyncNotification('✅ تم حذف المنتج بنجاح من السحابة والمتجر!', 'success');
+      }
     } catch (e) {
-      console.warn('Could not delete product in Supabase:', e);
+      console.warn('Supabase delete product error:', e);
     }
   };
 
-  // Category Actions
+  // Category Actions with Multi-Tier Persistence
   const handleAddCategory = async (newCategory: Category) => {
-    setCategories((prev) => [...prev, newCategory]);
+    const validId = ensureUUID(newCategory.id);
+    const sanitizedCat: Category = { ...newCategory, id: validId };
+
+    setCategories((prev) => {
+      const updated = [...prev, sanitizedCat];
+      try {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('categories').insert(newCategory);
+      const { error } = await supabase.from('categories').insert({
+        id: sanitizedCat.id,
+        name_ar: sanitizedCat.name_ar,
+        name_en: sanitizedCat.name_en || sanitizedCat.name_ar,
+        slug: sanitizedCat.slug,
+        icon_name: sanitizedCat.icon_name || 'shopping_basket',
+        image_url: sanitizedCat.image_url,
+        sort_order: sanitizedCat.sort_order || 1,
+        is_active: sanitizedCat.is_active !== false,
+      });
+      if (error) {
+        console.warn('⚠️ Supabase Cloud category insert warning:', error.message);
+        showSyncNotification(`💾 تم حفظ القسم "${sanitizedCat.name_ar}" محلياً.`, 'warning');
+      } else {
+        showSyncNotification(`✅ تم نشر القسم "${sanitizedCat.name_ar}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not save category to Supabase:', e);
+      console.warn('Supabase category insert error:', e);
     }
   };
 
   const handleUpdateCategory = async (updatedCat: Category) => {
-    setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+    const validId = ensureUUID(updatedCat.id);
+    const sanitizedCat: Category = { ...updatedCat, id: validId };
+
+    setCategories((prev) => {
+      const updated = prev.map((c) => (c.id === sanitizedCat.id ? sanitizedCat : c));
+      try {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('categories').update(updatedCat).eq('id', updatedCat.id);
+      const { error } = await supabase.from('categories').update({
+        name_ar: sanitizedCat.name_ar,
+        name_en: sanitizedCat.name_en || sanitizedCat.name_ar,
+        slug: sanitizedCat.slug,
+        image_url: sanitizedCat.image_url,
+        sort_order: sanitizedCat.sort_order,
+        is_active: sanitizedCat.is_active,
+      }).eq('id', sanitizedCat.id);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud category update warning:', error.message);
+      } else {
+        showSyncNotification(`✅ تم تحديث القسم "${sanitizedCat.name_ar}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not update category in Supabase:', e);
+      console.warn('Supabase category update error:', e);
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== categoryId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('categories').delete().eq('id', categoryId);
+      const { error } = await supabase.from('categories').delete().eq('id', categoryId);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud category delete warning:', error.message);
+      } else {
+        showSyncNotification('✅ تم حذف القسم بنجاح من السحابة والمتجر!', 'success');
+      }
     } catch (e) {
-      console.warn('Could not delete category in Supabase:', e);
+      console.warn('Supabase category delete error:', e);
     }
   };
 
   const handleToggleCategory = async (categoryId: string) => {
     let updatedActive = false;
-    setCategories((prev) =>
-      prev.map((c) => {
+    setCategories((prev) => {
+      const updated = prev.map((c) => {
         if (c.id === categoryId) {
           updatedActive = !c.is_active;
           return { ...c, is_active: updatedActive };
         }
         return c;
-      })
-    );
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       await supabase.from('categories').update({ is_active: updatedActive }).eq('id', categoryId);
     } catch (e) {
@@ -599,45 +883,120 @@ export const App: React.FC = () => {
     }
   };
 
-  // Banner Actions (Hero & Middle Secondary)
+  // Banner Actions with Multi-Tier Persistence
   const handleAddBanner = async (newBanner: Banner) => {
-    setBanners((prev) => [newBanner, ...prev]);
+    const validId = ensureUUID(newBanner.id);
+    const sanitizedBanner: Banner = { ...newBanner, id: validId };
+
+    setBanners((prev) => {
+      const updated = [sanitizedBanner, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('banners').insert(newBanner);
+      const { error } = await supabase.from('banners').insert({
+        id: sanitizedBanner.id,
+        title_ar: sanitizedBanner.title_ar,
+        title_en: sanitizedBanner.title_en,
+        subtitle_ar: sanitizedBanner.subtitle_ar,
+        subtitle_en: sanitizedBanner.subtitle_en,
+        image_url: sanitizedBanner.image_url,
+        slot: sanitizedBanner.slot,
+        target_type: sanitizedBanner.target_type,
+        target_id: sanitizedBanner.target_id,
+        badge_ar: sanitizedBanner.badge_ar,
+        badge_color: sanitizedBanner.badge_color,
+        sort_order: sanitizedBanner.sort_order,
+        is_active: sanitizedBanner.is_active,
+      });
+      if (error) {
+        console.warn('⚠️ Supabase Cloud banner insert warning:', error.message);
+        showSyncNotification(`💾 تم حفظ البانر "${sanitizedBanner.title_ar}" محلياً.`, 'warning');
+      } else {
+        showSyncNotification(`✅ تم نشر البانر "${sanitizedBanner.title_ar}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not save banner to Supabase:', e);
+      console.warn('Supabase banner insert error:', e);
     }
   };
 
   const handleUpdateBanner = async (updatedBanner: Banner) => {
-    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+    const validId = ensureUUID(updatedBanner.id);
+    const sanitizedBanner: Banner = { ...updatedBanner, id: validId };
+
+    setBanners((prev) => {
+      const updated = prev.map((b) => (b.id === sanitizedBanner.id ? sanitizedBanner : b));
+      try {
+        localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('banners').update(updatedBanner).eq('id', updatedBanner.id);
+      const { error } = await supabase.from('banners').update({
+        title_ar: sanitizedBanner.title_ar,
+        title_en: sanitizedBanner.title_en,
+        subtitle_ar: sanitizedBanner.subtitle_ar,
+        subtitle_en: sanitizedBanner.subtitle_en,
+        image_url: sanitizedBanner.image_url,
+        slot: sanitizedBanner.slot,
+        target_type: sanitizedBanner.target_type,
+        target_id: sanitizedBanner.target_id,
+        badge_ar: sanitizedBanner.badge_ar,
+        badge_color: sanitizedBanner.badge_color,
+        sort_order: sanitizedBanner.sort_order,
+        is_active: sanitizedBanner.is_active,
+      }).eq('id', sanitizedBanner.id);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud banner update warning:', error.message);
+      } else {
+        showSyncNotification(`✅ تم تحديث البانر "${sanitizedBanner.title_ar}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not update banner in Supabase:', e);
+      console.warn('Supabase banner update error:', e);
     }
   };
 
   const handleDeleteBanner = async (bannerId: string) => {
-    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+    setBanners((prev) => {
+      const updated = prev.filter((b) => b.id !== bannerId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('banners').delete().eq('id', bannerId);
+      const { error } = await supabase.from('banners').delete().eq('id', bannerId);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud banner delete warning:', error.message);
+      } else {
+        showSyncNotification('✅ تم حذف البانر بنجاح من السحابة والمتجر!', 'success');
+      }
     } catch (e) {
-      console.warn('Could not delete banner in Supabase:', e);
+      console.warn('Supabase banner delete error:', e);
     }
   };
 
   const handleToggleBanner = async (bannerId: string) => {
     let updatedActive = false;
-    setBanners((prev) =>
-      prev.map((b) => {
+    setBanners((prev) => {
+      const updated = prev.map((b) => {
         if (b.id === bannerId) {
           updatedActive = !b.is_active;
           return { ...b, is_active: updatedActive };
         }
         return b;
-      })
-    );
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       await supabase.from('banners').update({ is_active: updatedActive }).eq('id', bannerId);
     } catch (e) {
@@ -645,27 +1004,59 @@ export const App: React.FC = () => {
     }
   };
 
-  // Coupon Actions
+  // Coupon Actions with Multi-Tier Persistence
   const handleAddCoupon = async (newCoupon: Coupon) => {
-    setCoupons((prev) => [newCoupon, ...prev]);
+    const validId = ensureUUID(newCoupon.id);
+    const sanitizedCoupon: Coupon = { ...newCoupon, id: validId };
+
+    setCoupons((prev) => {
+      const updated = [sanitizedCoupon, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.COUPONS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('coupons').insert(newCoupon);
+      const { error } = await supabase.from('coupons').insert({
+        id: sanitizedCoupon.id,
+        code: sanitizedCoupon.code,
+        discount_type: sanitizedCoupon.discount_type,
+        discount_value: sanitizedCoupon.discount_value,
+        min_order_amount: sanitizedCoupon.min_order_amount,
+        max_discount: sanitizedCoupon.max_discount || null,
+        usage_limit: sanitizedCoupon.usage_limit || null,
+        times_used: 0,
+        expires_at: sanitizedCoupon.expires_at || null,
+        is_active: sanitizedCoupon.is_active,
+      });
+      if (error) {
+        console.warn('⚠️ Supabase Cloud coupon insert warning:', error.message);
+        showSyncNotification(`💾 تم حفظ كود الخصم "${sanitizedCoupon.code}" محلياً.`, 'warning');
+      } else {
+        showSyncNotification(`✅ تم تفعيل كود الخصم "${sanitizedCoupon.code}" في السحابة والمتجر!`, 'success');
+      }
     } catch (e) {
-      console.warn('Could not save coupon to Supabase:', e);
+      console.warn('Supabase coupon insert error:', e);
     }
   };
 
   const handleToggleCoupon = async (couponId: string) => {
     let updatedActive = false;
-    setCoupons((prev) =>
-      prev.map((c) => {
+    setCoupons((prev) => {
+      const updated = prev.map((c) => {
         if (c.id === couponId) {
           updatedActive = !c.is_active;
           return { ...c, is_active: updatedActive };
         }
         return c;
-      })
-    );
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.COUPONS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       await supabase.from('coupons').update({ is_active: updatedActive }).eq('id', couponId);
     } catch (e) {
@@ -674,9 +1065,21 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteCoupon = async (couponId: string) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+    setCoupons((prev) => {
+      const updated = prev.filter((c) => c.id !== couponId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.COUPONS, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await supabase.from('coupons').delete().eq('id', couponId);
+      const { error } = await supabase.from('coupons').delete().eq('id', couponId);
+      if (error) {
+        console.warn('⚠️ Supabase Cloud coupon delete warning:', error.message);
+      } else {
+        showSyncNotification('✅ تم حذف كود الخصم بنجاح من السحابة والمتجر!', 'success');
+      }
     } catch (e) {
       console.warn('Could not delete coupon in Supabase:', e);
     }
@@ -1043,6 +1446,37 @@ export const App: React.FC = () => {
           isBranchSwitching={isBranchSwitching}
           onLogout={handleLogout}
         />
+
+        {/* Sync Status Banner */}
+        {syncNotification && (
+          <div
+            className={`mx-8 mt-4 p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-sm transition-all duration-300 ${
+              syncNotification.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : syncNotification.type === 'warning'
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-blue-50 border-blue-200 text-blue-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {syncNotification.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              ) : syncNotification.type === 'warning' ? (
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              ) : (
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              )}
+              <span className="text-xs md:text-sm font-bold">{syncNotification.message}</span>
+            </div>
+            <button
+              onClick={() => setSyncNotification(null)}
+              className="p-1 rounded-lg hover:bg-black/5 text-slate-500 transition-colors"
+              title="إغلاق التنبيه"
+            >
+              <CloseIcon className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <main className="p-8 flex-1 overflow-y-auto">
           {activeTab === 'staff_management' && (

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Coupon } from '../types';
 import { logAuditEvent } from '../lib/auditLogger';
+import { generateUUID } from '../lib/uuidUtils';
 
 interface CouponsPageProps {
   coupons: Coupon[];
@@ -52,7 +53,7 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
     if (!code.trim()) return;
 
     const newCoupon: Coupon = {
-      id: `cp-${Date.now()}`,
+      id: generateUUID(),
       code: code.trim().toUpperCase(),
       discount_type: discountType,
       discount_value: Number(discountValue),

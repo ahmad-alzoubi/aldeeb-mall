@@ -29,6 +29,7 @@
 | `aldeeb_mall_admin/src/pages/PharmacyPage.tsx` | Digital pharmacy, Wasfaty integration & drug safety | React, State, Prescription queue | 100% Complete & Verified |
 | `aldeeb_mall_admin/src/pages/PriceMatchPage.tsx` | Competitor price matching & automated wallet refund | React, State, Scraper claims | 100% Complete & Verified |
 | `aldeeb_mall_admin/src/pages/SmartLockersPage.tsx` | Smart temperature-controlled locker network (24/7) | React, State, Locker telemetry | 100% Complete & Verified |
+| `aldeeb_mall_admin/src/lib/uuidUtils.ts` | UUID v4 & Canonical Category normalizer | RFC4122 generator, canonical category map | 100% Complete & Verified |
 | `aldeeb_mall_admin/src/pages/ZeroWastePage.tsx` | Zero-waste clearance & food rescue discount hub | React, State, Carbon savings | 100% Complete & Verified |
 | `supabase/migrations/` | PostgreSQL Schemas, Functions & RLS | PostgREST, Auth, Realtime | 100% Complete & Verified |
 
@@ -42,6 +43,10 @@
 | **Add to Cart Button** (`product_detail_screen.dart`) | `addToCart(product, qty)` | Checks stock availability; button shows micro-bounce state | `CartProvider.addItem(product, qty)` | Mutates in-memory cart store & persists to local cache; displays SnackBar toast |
 | **Apply Coupon Button** (`cart_screen.dart`) | `applyCoupon(code)` | Checks empty string; sets `isValidatingCoupon = true` | `CartProvider.validateAndApplyCoupon(code)` | Checks `coupons` table in Supabase; updates discount percentage & displays success banner |
 | **POS Charge Button** (`PosTerminalPage.tsx`) | `handleProcessPayment(method)` | Checks non-empty cart, payment tender; sets `isProcessing = true` | Supabase `orders.insert` + `order_items.insert` | Inserts completed POS order (`delivered`), updates inventory, triggers receipt print, resets register |
+| **Add/Edit Product Button** (`ProductsPage.tsx`) | `handleSubmit(e)` | Validates name_ar, generates RFC4122 UUID, normalizes category UUID | `App.handleAddProduct()` / `handleUpdateProduct()` | Multi-tier persistence: persists to localStorage cache instantly + upserts into Supabase `products` table + renders Sync Toast |
+| **Add/Edit Category Button** (`CategoriesPage.tsx`) | `handleSubmit(e)` | Validates name_ar, generates UUID v4 | `App.handleAddCategory()` / `handleUpdateCategory()` | Persists to localStorage cache + upserts into Supabase `categories` table + renders feedback |
+| **Add/Edit Banner Button** (`BannersPage.tsx`) | `handleSave(e)` | Validates title_ar, image_url, generates UUID | `App.handleAddBanner()` / `handleUpdateBanner()` | Persists to localStorage cache + upserts into Supabase `banners` table |
+| **Create Coupon Button** (`CouponsPage.tsx`) | `handleCreate(e)` | Validates uppercase code, discount value | `App.handleAddCoupon()` | Persists to localStorage cache + inserts into Supabase `coupons` table + audit log |
 | **Admin Login Button** (`AdminLoginPage.tsx`) | `handleLogin(e)` | Validates email format & password length; sets `loading = true` | `supabase.auth.signInWithPassword()` | Verifies user role from `profiles` table; redirects to `/` on success or renders alert toast |
 
 ---
@@ -103,6 +108,7 @@
 | **TSK-12** | `GEMINI.md`, `~/.gemini/config/GEMINI.md` | Integrate Constitution of Ironclad Full-Stack Protocol | Installed skill & global rules across all projects | Resolved |
 | **TSK-13 / FINAL-01** | `App.tsx`, `Sidebar.tsx`, `staffData.ts` | 10 unlinked Admin pages restored and wired | Fully routed in Sidebar and `<main>`, RBAC verified, built cleanly in 3.50s | Resolved |
 | **TSK-14 / FINAL-02** | `home_screen.dart`, `profile_screen.dart`, `product_detail_screen.dart`, `banner_navigator.dart` | 14 customer features restored and surfaced | Built Smart Services Hub on Home & Profile, added PriceMatch/Nutrition on PDP, 0 analyzer issues, 12/12 tests | Resolved |
+| **TSK-15 / BUG-07** | `ProductsPage.tsx`, `CategoriesPage.tsx`, `BannersPage.tsx`, `CouponsPage.tsx`, `App.tsx`, `uuidUtils.ts`, `FIX_RLS_POLICIES_FOR_ADMIN.sql` | Product addition & entity persistence failure (RLS 42501, non-UUID syntax, lack of offline cache) | Created RFC4122 `uuidUtils.ts`, normalized category UUIDs, implemented multi-tier `localStorage` resilient caching in `App.tsx`, added visual Sync Status Banner, generated comprehensive `FIX_RLS_POLICIES_FOR_ADMIN.sql` script with 13 products + 11 categories seed | Resolved |
 
 ---
 
@@ -116,3 +122,4 @@
 | 2026-11-03T00:38:00+03:00 | Global Default Lock | Enforced Ironclad Protocol as unconditional default for literally every request | Protocol is active unconditionally on all prompts. |
 | 2026-11-03T00:41:00+03:00 | Finalizer Audit & Remediation | Fixed all 24 unreachable screens/pages across Flutter & React Admin | 0 issues found in `flutter analyze`, 12/12 unit/widget tests passing, React Admin built in 3.50s. |
 | 2026-11-03T00:54:00+03:00 | Production Release Deployment | Pushed release commit `b36072c` to `main`; GitHub Actions CI/CD completed in 4m28s; verified live HTTP 200 OK | Customer App & Admin live at GitHub Pages. |
+| 2026-11-03T02:20:00+03:00 | Forensic Fix & Persistence Engine | Fixed product addition & multi-tier storage engine (UUID RFC4122, canonical categories, local-first cache, Sync Toast, RLS SQL script) | React Admin built in 3.74s, Flutter analyze 0 issues, Flutter test 12/12 passed (100%). |
