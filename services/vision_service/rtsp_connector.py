@@ -26,7 +26,7 @@ class CameraStreamConfig:
     target_fps: int = 15
     reconnect_interval_sec: float = 3.0
     max_reconnect_interval_sec: float = 60.0
-    timeout_sec: float = 5.0
+    timeout_sec: float = 0.3
     zone: str = "entrance"
 
 
@@ -83,6 +83,8 @@ class RTSPConnector:
         self.last_frame_ts = 0.0
         self.current_backoff = config.reconnect_interval_sec
         self.last_error: Optional[str] = None
+        self.last_probe_time: float = 0.0
+        self.cached_status: Optional[StreamHealthStatus] = None
         logger.info("Initialized RTSPConnector for camera [%s] on device [%s]", config.camera_id, self.device)
 
     def probe_rtsp_host(self) -> Tuple[bool, Optional[str]]:
@@ -115,7 +117,12 @@ class RTSPConnector:
             return False, f"Network probe exception: {str(e)}"
 
     def check_connection(self) -> StreamHealthStatus:
-        """Evaluates live stream health and returns structured diagnostics."""
+        """Evaluates live stream health with caching to prevent blocking REST requests."""
+        now = time.time()
+        if self.cached_status and (now - self.last_probe_time) < self.current_backoff:
+            return self.cached_status
+
+        self.last_probe_time = now
         reachable, err = self.probe_rtsp_host()
         if reachable:
             self.is_connected = True
@@ -126,11 +133,11 @@ class RTSPConnector:
             self.is_connected = False
             self.last_error = err
             self.reconnect_attempts += 1
-            # Exponential backoff
+            # Exponential backoff capped at max
             self.current_backoff = min(self.current_backoff * 1.5, self.config.max_reconnect_interval_sec)
             status_text = "disconnected"
 
-        return StreamHealthStatus(
+        self.cached_status = StreamHealthStatus(
             camera_id=self.config.camera_id,
             is_connected=self.is_connected,
             connection_status=status_text,
@@ -141,6 +148,7 @@ class RTSPConnector:
             hardware_accelerator=self.device,
             error_message=self.last_error
         )
+        return self.cached_status
 
     def get_status_dict(self) -> Dict[str, Any]:
         """Serializes current connection health for REST API / dashboard consumers."""

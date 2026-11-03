@@ -12,4 +12,6 @@ build/
 supabase/.temp/
 __pycache__/
 *.pyc
+backups/
+*.dump
 

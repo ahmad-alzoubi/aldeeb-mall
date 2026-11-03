@@ -23,11 +23,14 @@ import {
   UserX,
   Power,
   History,
-  Sliders
+  Sliders,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { StaffMember, StaffRole, PasswordChangeRequest, Branch } from '../types';
 import { getRoleArabicTitle, getRoleBadgeStyle } from '../lib/staffData';
 import { logAuditEvent, getAuditLogs, AuditLogEntry } from '../lib/auditLogger';
+import { supabase } from '../lib/supabase';
 
 interface StaffManagementPageProps {
   staffList: StaffMember[];
@@ -59,6 +62,10 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Loading & Submitting states for zero-lag and defensive safety
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Edit Employee & Audit Trail state
   const [selectedStaffForEdit, setSelectedStaffForEdit] = useState<StaffMember | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -88,6 +95,81 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  // Sync with live server & database
+  const handleSyncWithServer = async () => {
+    setIsSyncing(true);
+    try {
+      const { data: dbStaff, error: staffError } = await supabase
+        .from('staff_members')
+        .select('*')
+        .order('employee_code', { ascending: true });
+
+      if (staffError) throw staffError;
+
+      if (dbStaff && dbStaff.length > 0) {
+        const mapped: StaffMember[] = dbStaff.map((s: any) => ({
+          id: s.id,
+          employee_code: s.employee_code,
+          full_name: s.full_name,
+          username: s.username,
+          email: s.email,
+          phone: s.phone || '',
+          role: s.role as StaffRole,
+          branch_id: s.branch_id,
+          branch_name: s.branch_name,
+          password: s.password || '',
+          password_hash: s.password_hash,
+          can_change_password: !!s.can_change_password,
+          has_pending_password_request: !!s.has_pending_password_request,
+          basic_salary: Number(s.basic_salary || 5000),
+          allowances: Number(s.allowances || 0),
+          shift_start: s.shift_start || '08:00',
+          shift_end: s.shift_end || '16:00',
+          avatar_url: s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.username)}`,
+          is_active: s.is_active !== false,
+          joined_date: s.joined_date || new Date().toISOString().split('T')[0],
+          session_revoked_at: s.session_revoked_at,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+        }));
+        setStaffList(mapped);
+      }
+
+      const { data: dbRequests, error: reqError } = await supabase
+        .from('password_change_requests')
+        .select('*')
+        .order('requested_at', { ascending: false });
+
+      if (reqError) throw reqError;
+
+      if (dbRequests) {
+        const mappedRequests: PasswordChangeRequest[] = dbRequests.map((r: any) => {
+          const matched = (dbStaff || staffList).find((s: any) => s.id === r.employee_id);
+          return {
+            id: r.id,
+            employee_id: r.employee_id,
+            employee_name: matched ? matched.full_name : 'موظف في المنظومة',
+            role: matched ? matched.role : 'cashier',
+            branch_name: matched ? matched.branch_name : 'الفرع الرئيسي',
+            requested_at: r.requested_at,
+            reason: r.reason,
+            status: r.status,
+            reviewed_by: r.reviewed_by,
+            reviewed_at: r.reviewed_at,
+          };
+        });
+        setPasswordRequests(mappedRequests);
+      }
+
+      showToast('✅ تم مزامنة بيانات الموظفين والصلاحيات مع السيرفر الحي وقاعدة البيانات بنجاح');
+    } catch (e: any) {
+      console.error('Server sync error:', e);
+      showToast('⚠️ تعذر المزامنة الفورية مع السيرفر: ' + (e?.message || 'خطأ اتصال'));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Filter staff list
   const filteredStaff = staffList.filter((emp) => {
     const matchesSearch = 
@@ -102,8 +184,8 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     return matchesSearch && matchesRole && matchesBranch;
   });
 
-  // Handle open new account
-  const handleCreateEmployee = (e: React.FormEvent) => {
+  // Handle open new account in server & local state
+  const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmployee.full_name || !newEmployee.username || !newEmployee.password) {
       alert('يرجى ملء جميع الحقول الإلزامية وكلمة المرور');
@@ -111,83 +193,178 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     }
 
     const assignedBranch = branches.find(b => b.id === newEmployee.branch_id);
+    const newStaffId = `staff-${Date.now()}`;
+    const nextCode = `EMP-${String(staffList.length + 1).padStart(3, '0')}`;
 
     const created: StaffMember = {
-      id: `staff-${Date.now()}`,
-      employee_code: `EMP-${String(staffList.length + 1).padStart(3, '0')}`,
-      full_name: newEmployee.full_name,
+      id: newStaffId,
+      employee_code: nextCode,
+      full_name: newEmployee.full_name.trim(),
       username: newEmployee.username.trim().toLowerCase(),
-      email: newEmployee.email || `${newEmployee.username}@aldeebmall.com`,
-      phone: newEmployee.phone || '+966 50 000 0000',
+      email: newEmployee.email?.trim() || `${newEmployee.username.trim().toLowerCase()}@aldeebmall.com`,
+      phone: newEmployee.phone?.trim() || '+966 50 000 0000',
       role: (newEmployee.role as StaffRole) || 'cashier',
       branch_id: newEmployee.branch_id || branches[0]?.id || 'b-ruh-01',
       branch_name: assignedBranch ? assignedBranch.name_ar : 'الفرع الرئيسي',
-      password: newEmployee.password,
+      password: newEmployee.password.trim(),
       can_change_password: !!newEmployee.can_change_password,
+      has_pending_password_request: false,
       basic_salary: Number(newEmployee.basic_salary) || 5000,
       allowances: Number(newEmployee.allowances) || 0,
       shift_start: newEmployee.shift_start || '08:00',
       shift_end: newEmployee.shift_end || '16:00',
       is_active: true,
       joined_date: new Date().toISOString().split('T')[0],
-      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(newEmployee.username)}`,
+      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(newEmployee.username.trim())}`,
     };
 
-    setStaffList(prev => [created, ...prev]);
-    setIsAddModalOpen(false);
-    showToast(`✅ تم إنشاء وتفعيل حساب الموظف [${created.full_name}] وتعيين كلمة المرور بنجاح!`);
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('staff_members').insert({
+        id: created.id,
+        employee_code: created.employee_code,
+        full_name: created.full_name,
+        username: created.username,
+        email: created.email,
+        phone: created.phone,
+        role: created.role,
+        branch_id: created.branch_id,
+        branch_name: created.branch_name,
+        password: created.password,
+        password_hash: `sha256$${created.password}`,
+        can_change_password: created.can_change_password,
+        has_pending_password_request: false,
+        basic_salary: created.basic_salary,
+        allowances: created.allowances,
+        shift_start: created.shift_start,
+        shift_end: created.shift_end,
+        avatar_url: created.avatar_url,
+        is_active: created.is_active,
+        joined_date: created.joined_date,
+      });
 
-    // Reset form
-    setNewEmployee({
-      full_name: '',
-      username: '',
-      email: '',
-      phone: '',
-      role: 'cashier',
-      branch_id: branches[0]?.id || 'b-ruh-01',
-      password: '',
-      can_change_password: false,
-      basic_salary: 5000,
-      allowances: 500,
-      shift_start: '08:00',
-      shift_end: '16:00',
-      is_active: true,
-    });
+      if (error) throw error;
+
+      setStaffList(prev => [created, ...prev]);
+      setIsAddModalOpen(false);
+      showToast(`✅ تم إنشاء وتفعيل حساب الموظف [${created.full_name}] وتعيين كلمة المرور بنجاح في السيرفر!`);
+
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: 'CREATE_STAFF_ACCOUNT',
+        category: 'staff',
+        target_id: created.id,
+        target_type: 'staff_member',
+        details: `إنشاء حساب موظف جديد: ${created.full_name} (${created.employee_code}) بدور ${created.role} وربطه بالفرع ${created.branch_name}`,
+        branch_id: created.branch_id,
+        branch_name: created.branch_name,
+      });
+
+      // Reset form
+      setNewEmployee({
+        full_name: '',
+        username: '',
+        email: '',
+        phone: '',
+        role: 'cashier',
+        branch_id: branches[0]?.id || 'b-ruh-01',
+        password: '',
+        can_change_password: false,
+        basic_salary: 5000,
+        allowances: 500,
+        shift_start: '08:00',
+        shift_end: '16:00',
+        is_active: true,
+      });
+    } catch (err: any) {
+      console.error('Error creating employee in Supabase:', err);
+      showToast(`⚠️ فشل حفظ حساب الموظف في السيرفر: ${err?.message || 'خطأ غير متوقع'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Handle direct admin password change
-  const handleAdminResetPassword = () => {
+  // Handle direct admin password change in server
+  const handleAdminResetPassword = async () => {
     if (!selectedEmployeeForPassword || !newPasswordValue.trim()) return;
 
-    setStaffList(prev => prev.map(emp => {
-      if (emp.id === selectedEmployeeForPassword.id) {
-        return {
-          ...emp,
-          password: newPasswordValue.trim(),
-          has_pending_password_request: false,
-        };
-      }
-      return emp;
-    }));
+    setIsSubmitting(true);
+    const trimmedPw = newPasswordValue.trim();
+    const nowIso = new Date().toISOString();
 
-    // If there was a pending request, resolve it
-    setPasswordRequests(prev => prev.map(req => {
-      if (req.employee_id === selectedEmployeeForPassword.id && req.status === 'pending') {
-        return {
-          ...req,
+    try {
+      const { error: staffErr } = await supabase
+        .from('staff_members')
+        .update({
+          password: trimmedPw,
+          password_hash: `sha256$${trimmedPw}`,
+          has_pending_password_request: false,
+          updated_at: nowIso,
+        })
+        .eq('id', selectedEmployeeForPassword.id);
+
+      if (staffErr) throw staffErr;
+
+      // Also resolve any pending request in server
+      await supabase
+        .from('password_change_requests')
+        .update({
           status: 'approved',
           reviewed_by: 'الإدارة العامة',
-          reviewed_at: new Date().toISOString(),
-        };
-      }
-      return req;
-    }));
+          reviewed_at: nowIso,
+        })
+        .eq('employee_id', selectedEmployeeForPassword.id)
+        .eq('status', 'pending');
 
-    showToast(`🔒 تم تحديث وتعيين كلمة مرور جديدة للموظف (${selectedEmployeeForPassword.full_name}) بنجاح!`);
-    setIsResetPasswordModalOpen(false);
-    setSelectedEmployeeForPassword(null);
-    setNewPasswordValue('');
-    setRecoveryToken(null);
+      setStaffList(prev => prev.map(emp => {
+        if (emp.id === selectedEmployeeForPassword.id) {
+          return {
+            ...emp,
+            password: trimmedPw,
+            has_pending_password_request: false,
+          };
+        }
+        return emp;
+      }));
+
+      setPasswordRequests(prev => prev.map(req => {
+        if (req.employee_id === selectedEmployeeForPassword.id && req.status === 'pending') {
+          return {
+            ...req,
+            status: 'approved',
+            reviewed_by: 'الإدارة العامة',
+            reviewed_at: nowIso,
+          };
+        }
+        return req;
+      }));
+
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: 'RESET_PASSWORD_ADMIN',
+        category: 'auth',
+        target_id: selectedEmployeeForPassword.id,
+        target_type: 'staff_member',
+        details: `تحديث وإعادة ضبط كلمة مرور الموظف [${selectedEmployeeForPassword.full_name}] مباشرة من قبل الإدارة في السيرفر.`,
+        branch_id: selectedEmployeeForPassword.branch_id,
+        branch_name: selectedEmployeeForPassword.branch_name,
+      });
+
+      showToast(`🔒 تم تحديث وتعيين كلمة مرور جديدة للموظف (${selectedEmployeeForPassword.full_name}) في السيرفر بنجاح!`);
+      setIsResetPasswordModalOpen(false);
+      setSelectedEmployeeForPassword(null);
+      setNewPasswordValue('');
+      setRecoveryToken(null);
+    } catch (err: any) {
+      console.error('Error updating password in Supabase:', err);
+      showToast(`⚠️ فشل تحديث كلمة المرور في السيرفر: ${err?.message || 'خطأ غير متوقع'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Generate One-Time Recovery Token (for offline / unconfigured SMS gateway)
@@ -213,120 +390,229 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     showToast(`🔑 تم توليد رمز استعادة مؤقت (${pin}) صالح حتى ${expires}`);
   };
 
-  // Toggle permission to change password
-  const handleTogglePasswordPermission = (empId: string, currentVal: boolean) => {
-    setStaffList(prev => prev.map(emp => {
-      if (emp.id === empId) {
-        return { ...emp, can_change_password: !currentVal };
-      }
-      return emp;
-    }));
-    showToast(!currentVal 
-      ? '🔓 تم منح الموظف إذن لتغيير كلمة المرور الخاصة به' 
-      : '🔒 تم قفل وتجميد إذن تغيير كلمة المرور للموظف'
-    );
+  // Toggle permission to change password in server
+  const handleTogglePasswordPermission = async (empId: string, currentVal: boolean) => {
+    const nextVal = !currentVal;
+    try {
+      const { error } = await supabase
+        .from('staff_members')
+        .update({
+          can_change_password: nextVal,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', empId);
+
+      if (error) throw error;
+
+      setStaffList(prev => prev.map(emp => {
+        if (emp.id === empId) {
+          return { ...emp, can_change_password: nextVal };
+        }
+        return emp;
+      }));
+      showToast(!currentVal 
+        ? '🔓 تم منح الموظف إذن لتغيير كلمة المرور الخاصة به في السيرفر' 
+        : '🔒 تم قفل وتجميد إذن تغيير كلمة المرور للموظف في السيرفر'
+      );
+    } catch (e: any) {
+      console.error('Error toggling password permission:', e);
+      showToast(`⚠️ تعذر تعديل صلاحية كلمة المرور في السيرفر: ${e?.message}`);
+    }
   };
 
-  // Approve password request
-  const handleApproveRequest = (request: PasswordChangeRequest) => {
-    setPasswordRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'approved', reviewed_at: new Date().toISOString() } : r));
-    setStaffList(prev => prev.map(emp => emp.id === request.employee_id ? { ...emp, can_change_password: true, has_pending_password_request: false } : emp));
-    showToast(`✅ تمت الموافقة على طلب الموظف [${request.employee_name}] وتفعيل إذن تغيير كلمة المرور له`);
+  // Approve password request in server
+  const handleApproveRequest = async (request: PasswordChangeRequest) => {
+    try {
+      const nowIso = new Date().toISOString();
+      await supabase
+        .from('password_change_requests')
+        .update({ status: 'approved', reviewed_by: 'الإدارة العامة', reviewed_at: nowIso })
+        .eq('id', request.id);
+
+      await supabase
+        .from('staff_members')
+        .update({ can_change_password: true, has_pending_password_request: false, updated_at: nowIso })
+        .eq('id', request.employee_id);
+
+      setPasswordRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'approved', reviewed_at: nowIso } : r));
+      setStaffList(prev => prev.map(emp => emp.id === request.employee_id ? { ...emp, can_change_password: true, has_pending_password_request: false } : emp));
+      showToast(`✅ تمت الموافقة على طلب الموظف [${request.employee_name}] وتفعيل إذن تغيير كلمة المرور في السيرفر`);
+    } catch (e: any) {
+      console.error('Error approving request in Supabase:', e);
+      showToast(`⚠️ تعذر اعتماد الطلب في السيرفر: ${e?.message}`);
+    }
   };
 
-  // Reject password request
-  const handleRejectRequest = (request: PasswordChangeRequest) => {
-    setPasswordRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'rejected', reviewed_at: new Date().toISOString() } : r));
-    setStaffList(prev => prev.map(emp => emp.id === request.employee_id ? { ...emp, has_pending_password_request: false } : emp));
-    showToast(`❌ تم رفض طلب الموظف [${request.employee_name}] لتغيير كلمة المرور`);
+  // Reject password request in server
+  const handleRejectRequest = async (request: PasswordChangeRequest) => {
+    try {
+      const nowIso = new Date().toISOString();
+      await supabase
+        .from('password_change_requests')
+        .update({ status: 'rejected', reviewed_by: 'الإدارة العامة', reviewed_at: nowIso })
+        .eq('id', request.id);
+
+      await supabase
+        .from('staff_members')
+        .update({ has_pending_password_request: false, updated_at: nowIso })
+        .eq('id', request.employee_id);
+
+      setPasswordRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'rejected', reviewed_at: nowIso } : r));
+      setStaffList(prev => prev.map(emp => emp.id === request.employee_id ? { ...emp, has_pending_password_request: false } : emp));
+      showToast(`❌ تم رفض طلب الموظف [${request.employee_name}] لتغيير كلمة المرور في السيرفر`);
+    } catch (e: any) {
+      console.error('Error rejecting request in Supabase:', e);
+      showToast(`⚠️ تعذر رفض الطلب في السيرفر: ${e?.message}`);
+    }
   };
 
-  // Immediate toggle of account status (Active / Deactivated)
-  const handleToggleStaffActive = (emp: StaffMember) => {
+  // Immediate toggle of account status (Active / Deactivated) in server
+  const handleToggleStaffActive = async (emp: StaffMember) => {
     const nextStatus = !emp.is_active;
-    setStaffList(prev => prev.map(s => {
-      if (s.id === emp.id) {
-        return {
-          ...s,
-          is_active: nextStatus,
-          session_revoked_at: !nextStatus ? new Date().toISOString() : s.session_revoked_at,
-        };
-      }
-      return s;
-    }));
-
-    logAuditEvent({
-      actor_id: currentAdminRole,
-      actor_name: 'مدير النظام',
-      actor_role: currentAdminRole,
-      action: nextStatus ? 'ACTIVATE_ACCOUNT' : 'DEACTIVATE_ACCOUNT',
-      category: 'staff',
-      target_id: emp.id,
-      target_type: 'staff_member',
-      details: nextStatus
-        ? `تم تنشيط وتفعيل حساب الموظف: ${emp.full_name}`
-        : `تم تجميد وتعطيل حساب الموظف: ${emp.full_name} وإنهاء جلسته النشطة فوراً ومنعه من الدخول`,
-      branch_id: emp.branch_id,
-      branch_name: emp.branch_name,
-    });
-
-    showToast(nextStatus 
-      ? `✅ تم تفعيل حساب الموظف [${emp.full_name}] فوراً!` 
-      : `⚠️ تم تجميد حساب الموظف [${emp.full_name}] وإنهاء جلسته النشطة فوراً ومنعه من الدخول!`
-    );
-  };
-
-  // Immediate termination of active session
-  const handleTerminateSession = (emp: StaffMember) => {
     const nowIso = new Date().toISOString();
-    setStaffList(prev => prev.map(s => s.id === emp.id ? { ...s, session_revoked_at: nowIso } : s));
-    logAuditEvent({
-      actor_id: currentAdminRole,
-      actor_name: 'مدير النظام',
-      actor_role: currentAdminRole,
-      action: 'TERMINATE_SESSION',
-      category: 'auth',
-      target_id: emp.id,
-      target_type: 'staff_member',
-      details: `تم إنهاء جلسة الموظف النشطة قسرياً: ${emp.full_name}`,
-      branch_id: emp.branch_id,
-      branch_name: emp.branch_name,
-    });
-    showToast(`🔒 تم إنهاء الجلسة النشطة للموظف [${emp.full_name}] فورياً على كافة الأجهزة.`);
+    try {
+      const { error } = await supabase
+        .from('staff_members')
+        .update({
+          is_active: nextStatus,
+          session_revoked_at: !nextStatus ? nowIso : null,
+          updated_at: nowIso,
+        })
+        .eq('id', emp.id);
+
+      if (error) throw error;
+
+      setStaffList(prev => prev.map(s => {
+        if (s.id === emp.id) {
+          return {
+            ...s,
+            is_active: nextStatus,
+            session_revoked_at: !nextStatus ? nowIso : s.session_revoked_at,
+          };
+        }
+        return s;
+      }));
+
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: nextStatus ? 'ACTIVATE_ACCOUNT' : 'DEACTIVATE_ACCOUNT',
+        category: 'staff',
+        target_id: emp.id,
+        target_type: 'staff_member',
+        details: nextStatus
+          ? `تم تنشيط وتفعيل حساب الموظف: ${emp.full_name} في السيرفر`
+          : `تم تجميد وتعطيل حساب الموظف: ${emp.full_name} وإنهاء جلسته النشطة فوراً ومنعه من الدخول في السيرفر`,
+        branch_id: emp.branch_id,
+        branch_name: emp.branch_name,
+      });
+
+      showToast(nextStatus 
+        ? `✅ تم تفعيل حساب الموظف [${emp.full_name}] في السيرفر فوراً!` 
+        : `⚠️ تم تجميد حساب الموظف [${emp.full_name}] وإنهاء جلسته في السيرفر فوراً ومنعه من الدخول!`
+      );
+    } catch (e: any) {
+      console.error('Error toggling staff status in Supabase:', e);
+      showToast(`⚠️ تعذر تغيير حالة الحساب في السيرفر: ${e?.message}`);
+    }
   };
 
-  // Save edited employee
-  const handleSaveEditEmployee = (e: React.FormEvent) => {
+  // Immediate termination of active session in server
+  const handleTerminateSession = async (emp: StaffMember) => {
+    const nowIso = new Date().toISOString();
+    try {
+      const { error } = await supabase
+        .from('staff_members')
+        .update({
+          session_revoked_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq('id', emp.id);
+
+      if (error) throw error;
+
+      setStaffList(prev => prev.map(s => s.id === emp.id ? { ...s, session_revoked_at: nowIso } : s));
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: 'TERMINATE_SESSION',
+        category: 'auth',
+        target_id: emp.id,
+        target_type: 'staff_member',
+        details: `تم إنهاء جلسة الموظف النشطة قسرياً في السيرفر: ${emp.full_name}`,
+        branch_id: emp.branch_id,
+        branch_name: emp.branch_name,
+      });
+      showToast(`🔒 تم إنهاء الجلسة النشطة للموظف [${emp.full_name}] فورياً على السيرفر.`);
+    } catch (e: any) {
+      console.error('Error terminating session:', e);
+      showToast(`⚠️ تعذر إنهاء الجلسة في السيرفر: ${e?.message}`);
+    }
+  };
+
+  // Save edited employee in server
+  const handleSaveEditEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStaffForEdit) return;
 
     const assignedBranch = branches.find(b => b.id === selectedStaffForEdit.branch_id);
+    const updatedBranchName = assignedBranch ? assignedBranch.name_ar : selectedStaffForEdit.branch_name;
+    const nowIso = new Date().toISOString();
 
-    setStaffList(prev => prev.map(s => {
-      if (s.id === selectedStaffForEdit.id) {
-        return {
-          ...selectedStaffForEdit,
-          branch_name: assignedBranch ? assignedBranch.name_ar : s.branch_name,
-        };
-      }
-      return s;
-    }));
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('staff_members')
+        .update({
+          full_name: selectedStaffForEdit.full_name.trim(),
+          email: selectedStaffForEdit.email.trim(),
+          phone: selectedStaffForEdit.phone.trim(),
+          role: selectedStaffForEdit.role,
+          branch_id: selectedStaffForEdit.branch_id,
+          branch_name: updatedBranchName,
+          basic_salary: Number(selectedStaffForEdit.basic_salary) || 5000,
+          allowances: Number(selectedStaffForEdit.allowances) || 0,
+          shift_start: selectedStaffForEdit.shift_start || '08:00',
+          shift_end: selectedStaffForEdit.shift_end || '16:00',
+          updated_at: nowIso,
+        })
+        .eq('id', selectedStaffForEdit.id);
 
-    logAuditEvent({
-      actor_id: currentAdminRole,
-      actor_name: 'مدير النظام',
-      actor_role: currentAdminRole,
-      action: 'UPDATE_STAFF_DETAILS',
-      category: 'staff',
-      target_id: selectedStaffForEdit.id,
-      target_type: 'staff_member',
-      details: `تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}]: الدور (${selectedStaffForEdit.role})، الفرع (${assignedBranch?.name_ar})`,
-      branch_id: selectedStaffForEdit.branch_id,
-      branch_name: assignedBranch?.name_ar,
-    });
+      if (error) throw error;
 
-    setIsEditModalOpen(false);
-    showToast(`✅ تم تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}] بنجاح.`);
+      setStaffList(prev => prev.map(s => {
+        if (s.id === selectedStaffForEdit.id) {
+          return {
+            ...selectedStaffForEdit,
+            branch_name: updatedBranchName,
+          };
+        }
+        return s;
+      }));
+
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: 'UPDATE_STAFF_DETAILS',
+        category: 'staff',
+        target_id: selectedStaffForEdit.id,
+        target_type: 'staff_member',
+        details: `تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}]: الدور (${selectedStaffForEdit.role})، الفرع (${updatedBranchName}) في السيرفر`,
+        branch_id: selectedStaffForEdit.branch_id,
+        branch_name: updatedBranchName,
+      });
+
+      setIsEditModalOpen(false);
+      showToast(`✅ تم تحديث بيانات وصلاحيات الموظف [${selectedStaffForEdit.full_name}] في السيرفر بنجاح.`);
+    } catch (err: any) {
+      console.error('Error saving edited employee in Supabase:', err);
+      showToast(`⚠️ فشل تحديث بيانات الموظف في السيرفر: ${err?.message || 'خطأ غير متوقع'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

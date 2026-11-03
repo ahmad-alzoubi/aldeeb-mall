@@ -120,6 +120,48 @@ export const INITIAL_STAFF: StaffMember[] = [
     avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80',
     is_active: true,
     joined_date: '2025-04-12',
+  },
+  {
+    id: 'staff-mgr-dam',
+    employee_code: 'EMP-007',
+    full_name: 'وائل خوري',
+    username: 'manager_wael',
+    email: 'w.khoury@aldeebmall.com',
+    phone: '+963 11 611 2233',
+    role: 'branch_manager',
+    branch_id: 'b-dam-01',
+    branch_name: 'فرع دمشق المركزي (أوتوستراد المزة)',
+    password: 'dam123',
+    can_change_password: false,
+    has_pending_password_request: false,
+    basic_salary: 11000,
+    allowances: 1800,
+    shift_start: '08:30',
+    shift_end: '17:00',
+    avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+    is_active: true,
+    joined_date: '2025-05-15',
+  },
+  {
+    id: 'staff-mgr-darkstore',
+    employee_code: 'EMP-008',
+    full_name: 'سامي العتيبي',
+    username: 'manager_sami',
+    email: 's.otaibi@aldeebmall.com',
+    phone: '+966 11 999 0011',
+    role: 'branch_manager',
+    branch_id: 'b-ruh-ds02',
+    branch_name: 'مركز تلبية النرجس فوري 15 دقيقة (Dark Store)',
+    password: 'dark123',
+    can_change_password: false,
+    has_pending_password_request: false,
+    basic_salary: 9800,
+    allowances: 1200,
+    shift_start: '08:00',
+    shift_end: '16:30',
+    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&q=80',
+    is_active: true,
+    joined_date: '2025-06-01',
   }
 ];
 
@@ -238,6 +280,25 @@ export function getRoleArabicTitle(role: StaffRole): string {
       return 'مدير فرع (Branch Manager)';
     case 'cashier':
       return 'كاشير ومبيعات (Cashier)';
+    default:
+      return role;
+  }
+}
+
+export function getRoleShortTitle(role: StaffRole): string {
+  switch (role) {
+    case 'super_admin':
+      return 'مسؤول النظام';
+    case 'general_manager':
+      return 'المدير العام';
+    case 'auditor':
+      return 'المدقق العام';
+    case 'accountant':
+      return 'المحاسب المالي';
+    case 'branch_manager':
+      return 'مدير الفرع';
+    case 'cashier':
+      return 'كاشير ومبيعات';
     default:
       return role;
   }

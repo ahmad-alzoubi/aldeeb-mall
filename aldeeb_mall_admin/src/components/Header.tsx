@@ -21,7 +21,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { StaffMember, StaffRole, Branch } from '../types';
-import { calculateShiftRemaining, getRoleArabicTitle, getRoleBadgeStyle, INITIAL_STAFF } from '../lib/staffData';
+import { calculateShiftRemaining, getRoleArabicTitle, getRoleShortTitle, getRoleBadgeStyle, INITIAL_STAFF } from '../lib/staffData';
 import { useHelp } from './common/InteractiveHelpSystem';
 
 interface HeaderProps {
@@ -142,35 +142,41 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between shadow-sm sticky top-0 z-30 select-none">
-      {/* Right Side: Title & Mobile Menu */}
-      <div className="flex items-center gap-3">
+    <header className="h-16 lg:h-20 min-h-[4rem] lg:min-h-[5rem] bg-white border-b border-slate-200 px-3 sm:px-4 md:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs">
+      {/* Right Side: Title & Mobile Menu & Branch */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 md:flex-initial">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200"
+            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 shrink-0"
             title="القائمة"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-800">{title}</h2>
-          {subtitle && <p className="text-xs text-slate-500 font-medium hidden sm:block">{subtitle}</p>}
+        <div className="min-w-0 max-w-[170px] sm:max-w-[240px] md:max-w-[280px] lg:max-w-[340px] xl:max-w-[380px] flex flex-col justify-center">
+          <h2 className="text-sm sm:text-base md:text-lg font-black text-slate-800 truncate whitespace-nowrap leading-snug" title={title}>
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-[11px] text-slate-400 font-medium truncate whitespace-nowrap hidden lg:block leading-tight" title={subtitle}>
+              {subtitle}
+            </p>
+          )}
         </div>
 
         {/* Branch Selector with Strict Isolation */}
         {branches && branches.length > 0 && onSwitchBranch && (
-          <div className="hidden md:flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 rounded-2xl border border-slate-200 mr-2 transition-all">
+          <div className="hidden md:flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1.5 rounded-xl border border-slate-200/80 shrink-0 transition-all">
             <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] text-slate-400 font-bold leading-none">الفرع النشط:</span>
+            <div className="flex flex-col text-right min-w-0">
+              <span className="text-[9px] text-slate-400 font-bold leading-none">الفرع النشط:</span>
               <select
                 value={activeBranchId}
                 onChange={(e) => onSwitchBranch(e.target.value)}
-                className="bg-transparent font-black text-xs text-slate-800 focus:outline-none cursor-pointer pr-0.5"
+                className="bg-transparent font-black text-xs text-slate-800 focus:outline-none cursor-pointer max-w-[120px] lg:max-w-[160px] truncate pr-0.5"
               >
-                <option value="all">🌐 كافة الفروع (مؤشرات عامة)</option>
+                <option value="all">🌐 كافة الفروع</option>
                 {branches.map(b => (
                   <option key={b.id} value={b.id}>
                     📍 {b.name_ar}
@@ -186,26 +192,27 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Center: Live Shift Countdown Widget */}
-      <div className="hidden xl:flex items-center gap-3 bg-gradient-to-r from-slate-900 to-blue-950 text-white px-4 py-2 rounded-2xl border border-slate-800 shadow-md">
-        <div className="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-blue-400">
-          <Clock className={`w-4 h-4 ${shiftStats.isOvertime ? 'text-amber-400 animate-spin' : 'animate-pulse'}`} />
+      {/* Wide screen 2xl: Full detailed widget */}
+      <div className="hidden 2xl:flex items-center gap-2.5 bg-gradient-to-r from-slate-900 to-blue-950 text-white px-3.5 py-1.5 rounded-2xl border border-slate-800 shadow-xs h-11 shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
+          <Clock className={`w-3.5 h-3.5 ${shiftStats.isOvertime ? 'text-amber-400 animate-spin' : 'animate-pulse'}`} />
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-slate-300">
+        <div className="flex flex-col justify-center">
+          <div className="flex items-center gap-1.5 leading-tight">
+            <span className="text-[10px] font-medium text-slate-300">
               {shiftStats.isOvertime 
                 ? '⚠️ تنبيه الدوام:' 
                 : shiftStats.isBeforeShift 
-                ? '⏳ موعد بدء الوردية:' 
-                : '⏳ كم باقي على انتهاء دوامك:'}
+                ? '⏳ بدء الوردية:' 
+                : '⏳ باقي على الدوام:'}
             </span>
             <span className="text-xs font-black tracking-wide text-amber-300 font-mono">
               {shiftStats.remainingText}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 mt-1">
-            <div className="w-36 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="w-28 h-1 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
               <div 
                 className={`h-full transition-all duration-1000 ${
                   shiftStats.isOvertime ? 'bg-amber-500' : 'bg-emerald-500'
@@ -213,57 +220,67 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{ width: `${shiftStats.percent}%` }}
               />
             </div>
-            <span className="text-[10px] text-slate-400 font-bold">
+            <span className="text-[9px] text-slate-400 font-bold">
               {currentUser.shift_start} - {currentUser.shift_end}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Left Side: Audio, Refresh, and User Profile Badge */}
-      <div className="flex items-center gap-3">
+      {/* Large screen xl: Compact pill widget */}
+      <div
+        className="hidden xl:flex 2xl:hidden items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl border border-slate-800 shadow-xs h-10 shrink-0"
+        title={`ساعات الوردية: ${currentUser.shift_start} - ${currentUser.shift_end}`}
+      >
+        <Clock className={`w-3.5 h-3.5 text-blue-400 shrink-0 ${shiftStats.isOvertime ? 'text-amber-400 animate-spin' : 'animate-pulse'}`} />
+        <span className="text-[10px] font-bold text-slate-300">الوردية:</span>
+        <span className="text-xs font-black text-amber-300 font-mono">{shiftStats.remainingText}</span>
+      </div>
+
+      {/* Left Side: Audio, Refresh, Help, Notifications, and User Profile Badge */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         {/* Interactive 3-Clicks Help Mode Toggle */}
         <button
           onClick={toggleHelpMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+          className={`flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl border text-xs font-bold transition-all shrink-0 ${
             isHelpModeActive
               ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/30 animate-pulse'
               : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
           }`}
           title="تفعيل وضع المساعدة التفاعلي والشروحات (أو انقر 3 مرات على أي ميزة)"
         >
-          <HelpCircle className="w-4 h-4 text-amber-600" />
-          <span className="hidden sm:inline">{isHelpModeActive ? 'وضع المساعدة نشط 💡' : 'شرح الوظائف'}</span>
+          <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span className="hidden 2xl:inline">{isHelpModeActive ? 'وضع المساعدة نشط 💡' : 'شرح الوظائف'}</span>
         </button>
 
         {/* Audio Ping Toggle */}
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
-          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+          className={`hidden sm:flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl border text-xs font-bold transition-all shrink-0 ${
             soundEnabled
               ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
               : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
           }`}
-          title="تنبيه صوتي للطلبات"
+          title={soundEnabled ? 'تنبيه صوتي مفعل' : 'تنبيه صوتي صامت'}
         >
-          {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-600" /> : <VolumeX className="w-4 h-4" />}
-          <span className="hidden md:inline">{soundEnabled ? 'تنبيه مفعل' : 'صامت'}</span>
+          {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-600 shrink-0" /> : <VolumeX className="w-4 h-4 shrink-0" />}
+          <span className="hidden 2xl:inline">{soundEnabled ? 'تنبيه مفعل' : 'صامت'}</span>
         </button>
 
         {/* Refresh Button */}
         <button
           onClick={onRefresh}
-          className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 border border-slate-200 transition-all"
+          className="p-2 sm:p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 border border-slate-200 transition-all shrink-0"
           title="تحديث البيانات"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 border border-slate-200 transition-all relative cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 border border-slate-200 transition-all relative cursor-pointer"
             title="الإشعارات والتنبيهات الفورية"
           >
             <Bell className="w-4 h-4" />
@@ -320,29 +337,26 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* USER PROFILE & SHIFT SUMMARY DROPDOWN */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="flex items-center gap-2.5 p-1.5 pr-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all cursor-pointer"
+            className="h-10 sm:h-11 flex items-center gap-2 p-1.5 pr-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all cursor-pointer shrink-0"
+            title={`${currentUser.full_name} (${getRoleArabicTitle(currentUser.role)})`}
           >
             <img
               src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80'}
               alt={currentUser.full_name}
-              className="w-8 h-8 rounded-xl object-cover border border-slate-200"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover border border-slate-200 shrink-0"
             />
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-slate-900 leading-tight">{currentUser.full_name}</p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md border ${badge.bg} ${badge.text} ${badge.border}`}>
-                  {getRoleArabicTitle(currentUser.role)}
-                </span>
-                <span className="text-[10px] text-amber-700 font-bold flex items-center gap-0.5">
-                  <Lock className="w-2.5 h-2.5" />
-                  {currentUser.branch_name.slice(0, 16)}...
+            <div className="text-right hidden sm:flex flex-col justify-center min-w-0 max-w-[110px]">
+              <p className="text-xs font-black text-slate-900 leading-tight truncate">{currentUser.full_name}</p>
+              <div className="mt-0.5">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border truncate leading-none inline-block ${badge.bg} ${badge.text} ${badge.border}`}>
+                  {getRoleShortTitle(currentUser.role)}
                 </span>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           </button>
 
           {/* DROPDOWN MENU */}

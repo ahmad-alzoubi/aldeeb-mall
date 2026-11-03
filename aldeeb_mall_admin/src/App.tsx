@@ -92,6 +92,7 @@ import {
   SubscriptionActivityLog,
   Banner,
   StaffMember,
+  StaffRole,
   PayrollTransaction,
   PasswordChangeRequest,
   Branch
@@ -154,6 +155,9 @@ export const App: React.FC = () => {
     COUPONS: 'aldeeb_admin_coupons_v5',
     BANNERS: 'aldeeb_admin_banners_v5',
     ORDERS: 'aldeeb_admin_orders_v5',
+    STAFF: 'aldeeb_admin_staff_v5',
+    PASSWORD_REQUESTS: 'aldeeb_admin_password_requests_v5',
+    BRANCHES: 'aldeeb_admin_branches_v5',
   };
 
   const getCachedData = <T,>(key: string, fallback: T[]): T[] => {
@@ -162,12 +166,26 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Invalidate legacy mock orders containing ord-8842, DEEB-8842 or LOCAL-TEST
+          if (key === STORAGE_KEYS.ORDERS) {
+            const hasMock = parsed.some((item: any) => 
+              item.id === 'ord-8842' || 
+              item.order_number === 'DEEB-8842' ||
+              (item.order_number && item.order_number.startsWith('LOCAL-TEST'))
+            );
+            if (hasMock) {
+              localStorage.removeItem(key);
+              return [];
+            }
+          }
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn(`Failed to read cache for ${key}:`, e);
     }
-    return fallback;
+    return key === STORAGE_KEYS.ORDERS ? [] : fallback;
   };
 
   // Sync Notification Banner State
@@ -210,7 +228,7 @@ export const App: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>(() => getCachedData(STORAGE_KEYS.BANNERS, initialBanners));
 
   // Multi-branch dataset
-  const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
+  const [branches, setBranches] = useState<Branch[]>(() => getCachedData(STORAGE_KEYS.BRANCHES, INITIAL_BRANCHES));
   const [activeBranchId, setActiveBranchIdState] = useState<string>(() => getActiveBranchId());
   const [isBranchSwitching, setIsBranchSwitching] = useState<boolean>(false);
 
@@ -224,12 +242,13 @@ export const App: React.FC = () => {
   };
 
   // Staff, Roles, Permissions & Shift System
-  const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+  const [staffList, setStaffList] = useState<StaffMember[]>(() => getCachedData(STORAGE_KEYS.STAFF, INITIAL_STAFF));
   const [currentUser, setCurrentUser] = useState<StaffMember>(() => {
     if (typeof window !== 'undefined') {
       const savedId = localStorage.getItem('aldeeb_admin_user_id');
       if (savedId) {
-        const found = INITIAL_STAFF.find(s => s.id === savedId);
+        const cachedStaff = getCachedData(STORAGE_KEYS.STAFF, INITIAL_STAFF);
+        const found = cachedStaff.find(s => s.id === savedId) || INITIAL_STAFF.find(s => s.id === savedId);
         if (found) return found;
       }
     }
@@ -242,7 +261,7 @@ export const App: React.FC = () => {
     return false;
   });
   const [payrollTransactions, setPayrollTransactions] = useState<PayrollTransaction[]>(INITIAL_PAYROLL_TRANSACTIONS);
-  const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(INITIAL_PASSWORD_REQUESTS);
+  const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(() => getCachedData(STORAGE_KEYS.PASSWORD_REQUESTS, INITIAL_PASSWORD_REQUESTS));
 
   const handleLogin = (staff: StaffMember) => {
     setCurrentUser(staff);
@@ -277,9 +296,10 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleRequestPasswordChange = (reason: string) => {
+  const handleRequestPasswordChange = async (reason: string) => {
+    const newReqId = `pwr-${Date.now()}`;
     const newReq: PasswordChangeRequest = {
-      id: `pwr-${Date.now()}`,
+      id: newReqId,
       employee_id: currentUser.id,
       employee_name: currentUser.full_name,
       role: currentUser.role,
@@ -288,13 +308,53 @@ export const App: React.FC = () => {
       reason,
       status: 'pending',
     };
-    setPasswordRequests(prev => [newReq, ...prev]);
-    setStaffList(prev => prev.map(s => s.id === currentUser.id ? { ...s, has_pending_password_request: true } : s));
+    setPasswordRequests(prev => {
+      const updated = [newReq, ...prev];
+      try { localStorage.setItem(STORAGE_KEYS.PASSWORD_REQUESTS, JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    setStaffList(prev => {
+      const updated = prev.map(s => s.id === currentUser.id ? { ...s, has_pending_password_request: true } : s);
+      try { localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    try {
+      await supabase.from('password_change_requests').insert({
+        id: newReqId,
+        employee_id: currentUser.id,
+        reason,
+        status: 'pending',
+        requested_at: newReq.requested_at,
+      });
+      await supabase.from('staff_members').update({
+        has_pending_password_request: true,
+        updated_at: new Date().toISOString(),
+      }).eq('id', currentUser.id);
+      showSyncNotification('✅ تم إرسال طلب تغيير كلمة المرور للسيرفر بنجاح بانتظار اعتماد الإدارة', 'success');
+    } catch (e) {
+      console.warn('Supabase password request sync error:', e);
+    }
   };
 
-  const handleDirectChangePassword = (newPw: string) => {
-    setStaffList(prev => prev.map(s => s.id === currentUser.id ? { ...s, password: newPw, can_change_password: false } : s));
+  const handleDirectChangePassword = async (newPw: string) => {
+    setStaffList(prev => {
+      const updated = prev.map(s => s.id === currentUser.id ? { ...s, password: newPw, can_change_password: false } : s);
+      try { localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
     setCurrentUser(prev => ({ ...prev, password: newPw, can_change_password: false }));
+
+    try {
+      await supabase.from('staff_members').update({
+        password: newPw,
+        can_change_password: false,
+        updated_at: new Date().toISOString(),
+      }).eq('id', currentUser.id);
+      showSyncNotification('✅ تم تحديث كلمة المرور في قاعدة البيانات بنجاح', 'success');
+    } catch (e) {
+      console.warn('Supabase direct password update error:', e);
+    }
   };
 
   // Play pleasant synthetic order chime via Web Audio API
@@ -371,15 +431,10 @@ export const App: React.FC = () => {
             cost_price: p.cost_price ? Number(p.cost_price) : undefined,
             status: p.status || 'published',
           }));
-          setProducts((prev) => {
-            const cloudIds = new Set(mappedProducts.map((p) => p.id));
-            const localCustom = prev.filter((p) => !cloudIds.has(p.id));
-            const merged = [...localCustom, ...mappedProducts];
-            try {
-              localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
+          setProducts(mappedProducts);
+          try {
+            localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(mappedProducts));
+          } catch (e) {}
         }
 
         // 2. Categories
@@ -482,17 +537,117 @@ export const App: React.FC = () => {
               unit: it.unit || 'piece',
               total_price: Number(it.total_price || 0),
             })),
-            branch_id: o.branch_id || 'b-ruh-01',
+            branch_id: o.branch_id || 'b-jed-01',
           }));
-          setOrders((prev) => {
-            const cloudIds = new Set(mappedOrders.map((o) => o.id));
-            const localCustom = prev.filter((o) => !cloudIds.has(o.id));
-            const merged = [...localCustom, ...mappedOrders];
-            try {
-              localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
+          setOrders(mappedOrders);
+          try {
+            localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(mappedOrders));
+          } catch (e) {}
+        }
+
+        // 6. Branches (from live database)
+        const { data: dbBranches } = await supabase
+          .from('branches')
+          .select('*')
+          .order('id', { ascending: true });
+
+        if (isMounted && dbBranches && dbBranches.length > 0) {
+          const mappedBranches: Branch[] = dbBranches.map((b: any) => ({
+            id: b.id,
+            code: b.code,
+            name_ar: b.name_ar,
+            name_en: b.name_en || b.name_ar,
+            city: b.city,
+            district: b.district || '',
+            address: b.address || '',
+            phone: b.phone || '',
+            manager_name: b.manager_name || '',
+            is_active: b.is_active !== false,
+            terminals_count: Number(b.terminals_count || 4),
+            daily_sales: Number(b.daily_sales || 0),
+            currency: b.currency || 'ل.س',
+            type: b.type || 'supermarket',
+            created_at: b.created_at || new Date().toISOString(),
+          }));
+          setBranches(mappedBranches);
+          try {
+            localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(mappedBranches));
+          } catch (e) {}
+        }
+
+        // 7. Staff Members (from live PostgreSQL / Supabase server)
+        const { data: dbStaff } = await supabase
+          .from('staff_members')
+          .select('*')
+          .order('employee_code', { ascending: true });
+
+        if (isMounted && dbStaff && dbStaff.length > 0) {
+          const mappedStaff: StaffMember[] = dbStaff.map((s: any) => ({
+            id: s.id,
+            employee_code: s.employee_code,
+            full_name: s.full_name,
+            username: s.username,
+            email: s.email,
+            phone: s.phone || '',
+            role: s.role as StaffRole,
+            branch_id: s.branch_id,
+            branch_name: s.branch_name,
+            password: s.password || '',
+            password_hash: s.password_hash,
+            can_change_password: !!s.can_change_password,
+            has_pending_password_request: !!s.has_pending_password_request,
+            basic_salary: Number(s.basic_salary || 5000),
+            allowances: Number(s.allowances || 0),
+            shift_start: s.shift_start || '08:00',
+            shift_end: s.shift_end || '16:00',
+            avatar_url: s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.username)}`,
+            is_active: s.is_active !== false,
+            joined_date: s.joined_date || new Date().toISOString().split('T')[0],
+            session_revoked_at: s.session_revoked_at,
+            created_at: s.created_at,
+            updated_at: s.updated_at,
+          }));
+          setStaffList(mappedStaff);
+          try {
+            localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(mappedStaff));
+          } catch (e) {}
+
+          const savedUserId = localStorage.getItem('aldeeb_admin_user_id');
+          if (savedUserId) {
+            const updatedCurrent = mappedStaff.find(s => s.id === savedUserId);
+            if (updatedCurrent) {
+              setCurrentUser(updatedCurrent);
+            }
+          }
+        }
+
+        // 8. Password Change Requests (from live database)
+        const { data: dbRequests } = await supabase
+          .from('password_change_requests')
+          .select('*')
+          .order('requested_at', { ascending: false });
+
+        if (isMounted && dbRequests) {
+          const staffForRequests = dbStaff && dbStaff.length > 0 ? dbStaff : staffList;
+          const mappedRequests: PasswordChangeRequest[] = dbRequests.map((r: any) => {
+            const matchedEmp = staffForRequests.find((s: any) => s.id === r.employee_id);
+            return {
+              id: r.id,
+              employee_id: r.employee_id,
+              employee_name: matchedEmp ? matchedEmp.full_name : 'موظف في المنظومة',
+              role: matchedEmp ? matchedEmp.role : 'cashier',
+              branch_name: matchedEmp ? matchedEmp.branch_name : 'الفرع الرئيسي',
+              requested_at: r.requested_at,
+              reason: r.reason,
+              status: r.status,
+              reviewed_by: r.reviewed_by,
+              reviewed_at: r.reviewed_at,
+            };
           });
+          setPasswordRequests(mappedRequests);
+          try {
+            localStorage.setItem(STORAGE_KEYS.PASSWORD_REQUESTS, JSON.stringify(mappedRequests));
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('⚠️ Supabase data sync note:', err);
@@ -552,9 +707,87 @@ export const App: React.FC = () => {
       })
       .subscribe();
 
+    // Setup Realtime Subscription for Staff & Security Events
+    const staffChannel = supabase
+      .channel('admin_realtime_staff_and_security')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_members' }, async () => {
+        try {
+          const { data: dbStaff } = await supabase
+            .from('staff_members')
+            .select('*')
+            .order('employee_code', { ascending: true });
+          if (dbStaff && isMounted) {
+            const mappedStaff: StaffMember[] = dbStaff.map((s: any) => ({
+              id: s.id,
+              employee_code: s.employee_code,
+              full_name: s.full_name,
+              username: s.username,
+              email: s.email,
+              phone: s.phone || '',
+              role: s.role as StaffRole,
+              branch_id: s.branch_id,
+              branch_name: s.branch_name,
+              password: s.password || '',
+              password_hash: s.password_hash,
+              can_change_password: !!s.can_change_password,
+              has_pending_password_request: !!s.has_pending_password_request,
+              basic_salary: Number(s.basic_salary || 5000),
+              allowances: Number(s.allowances || 0),
+              shift_start: s.shift_start || '08:00',
+              shift_end: s.shift_end || '16:00',
+              avatar_url: s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.username)}`,
+              is_active: s.is_active !== false,
+              joined_date: s.joined_date || new Date().toISOString().split('T')[0],
+              session_revoked_at: s.session_revoked_at,
+              created_at: s.created_at,
+              updated_at: s.updated_at,
+            }));
+            setStaffList(mappedStaff);
+            try {
+              localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(mappedStaff));
+            } catch (e) {}
+          }
+        } catch (e) {
+          console.warn('Realtime staff sync notice:', e);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'password_change_requests' }, async () => {
+        try {
+          const { data: dbRequests } = await supabase
+            .from('password_change_requests')
+            .select('*')
+            .order('requested_at', { ascending: false });
+          if (dbRequests && isMounted) {
+            const mappedRequests: PasswordChangeRequest[] = dbRequests.map((r: any) => {
+              const matchedEmp = staffList.find((s) => s.id === r.employee_id);
+              return {
+                id: r.id,
+                employee_id: r.employee_id,
+                employee_name: matchedEmp ? matchedEmp.full_name : 'موظف في المنظومة',
+                role: matchedEmp ? matchedEmp.role : 'cashier',
+                branch_name: matchedEmp ? matchedEmp.branch_name : 'الفرع الرئيسي',
+                requested_at: r.requested_at,
+                reason: r.reason,
+                status: r.status,
+                reviewed_by: r.reviewed_by,
+                reviewed_at: r.reviewed_at,
+              };
+            });
+            setPasswordRequests(mappedRequests);
+            try {
+              localStorage.setItem(STORAGE_KEYS.PASSWORD_REQUESTS, JSON.stringify(mappedRequests));
+            } catch (e) {}
+          }
+        } catch (e) {
+          console.warn('Realtime password requests sync notice:', e);
+        }
+      })
+      .subscribe();
+
     return () => {
       isMounted = false;
       supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(staffChannel);
     };
   }, []);
 
@@ -1243,17 +1476,17 @@ export const App: React.FC = () => {
         return { title: 'إعدادات المول وسياسات التوصيل', subtitle: 'العملة، رسوم التوصيل المجاني، ومعلومات الاتصال' };
       case 'staff_management':
         return { 
-          title: 'إدارة حسابات الموظفين، الصلاحيات وتحديد كلمات المرور', 
+          title: 'إدارة حسابات الموظفين والصلاحيات', 
           subtitle: 'فتح حسابات الموظفين، تحديد كلمات السر وقفل تعديلها إلا بإذن، وتقييد كل موظف بفرعه الإلزامي' 
         };
       case 'accounting_payroll':
         return { 
-          title: 'مشروع المحاسبة: إدارة الرواتب، السحبيات والخصومات', 
+          title: 'إدارة الرواتب والخصومات والسلف', 
           subtitle: 'كشف مسير رواتب الموظفين، قيد السحبيات والسلف، تسجيل الخصومات والجزاءات، وصلاحيات المحاسب والمدقق' 
         };
       case 'invoice_designer':
         return { 
-          title: 'مصمم ومحرر قوالب الفواتير والباركود الإلكتروني', 
+          title: 'تصميم قوالب الفواتير والباركود', 
           subtitle: 'تخصيص فاتورة الكاشير والطباعة الحرارية، إظهار/إخفاء الحقول، وإعداد الباركود المعتمد' 
         };
       case 'butcher_operations':
@@ -1418,7 +1651,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <Header
           title={pageInfo.title}
           subtitle={pageInfo.subtitle}

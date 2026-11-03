@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   TrendingUp, 
@@ -14,6 +14,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { HOURLY_TRAFFIC_DATA, HourlyTraffic } from '../../lib/storeVisionData';
+import { fetchLiveFootfall, FootfallMetrics } from '../../lib/visionApi';
 
 interface FootfallPeakAnalyticsProps {
   totalOrdersCount: number;
@@ -23,10 +24,20 @@ export const FootfallPeakAnalytics: React.FC<FootfallPeakAnalyticsProps> = ({
   totalOrdersCount,
 }) => {
   const [selectedHour, setSelectedHour] = useState<HourlyTraffic>(HOURLY_TRAFFIC_DATA[10]); // default 18:00 (peak)
-  const currentOccupants = 52;
-  const maxCapacity = 80;
-  const totalEntriesToday = 814;
-  const totalExitsToday = 762;
+  const [footfallData, setFootfallData] = useState<FootfallMetrics | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchLiveFootfall().then((res) => {
+      if (isMounted && res) setFootfallData(res);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const currentOccupants = footfallData?.net_occupancy ?? 52;
+  const maxCapacity = footfallData?.capacity_max ?? 80;
+  const totalEntriesToday = footfallData?.total_in ?? 384;
+  const totalExitsToday = footfallData?.total_out ?? 332;
   const avgDwellTimeMinutes = 23.5;
 
   // Real-time In-Store Conversion Rate: Orders completed / Visitors entered
