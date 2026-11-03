@@ -38,8 +38,16 @@ ON public.support_tickets FOR ALL
 USING (true)
 WITH CHECK (true);
 
--- Enable Supabase Realtime Replication
-ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets;
+-- Enable Supabase Realtime Replication (Safely conditional)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END $$;
 
 -- Seed Initial Realistic Support Tickets
 INSERT INTO public.support_tickets (id, ticket_number, customer_name, customer_phone, order_number, subject, category, status, priority, last_message, messages)

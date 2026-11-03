@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, 
   Users, 
@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { STORE_ZONES, StoreZoneDensity, INITIAL_CAMERAS, StoreCamera } from '../../lib/storeVisionData';
+import { fetchVisionTelemetry } from '../../lib/visionApi';
 import { FEATURE_FLAGS } from '../../lib/featureFlags';
 
 interface StoreFloorplanHeatmapProps {
@@ -21,8 +22,27 @@ interface StoreFloorplanHeatmapProps {
 export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
   onSelectCamera,
 }) => {
+  const [zones, setZones] = useState<StoreZoneDensity[]>(STORE_ZONES);
   const [selectedZone, setSelectedZone] = useState<StoreZoneDensity | null>(STORE_ZONES[6]); // default POS
   const [activeLayer, setActiveLayer] = useState<'density' | 'dwell' | 'cameras'>('density');
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchVisionTelemetry().then((res) => {
+      if (isMounted && res?.zones && res.zones.length > 0) {
+        setZones(res.zones);
+        setSelectedZone((current) => {
+          if (!current) return res.zones[6] || res.zones[0];
+          return res.zones.find(z => z.id === current.id) || current;
+        });
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const getZone = (id: string, fallbackIdx: number) => {
+    return zones.find(z => z.id === id) || STORE_ZONES[fallbackIdx];
+  };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-slate-100 shadow-xl space-y-6" dir="rtl">
@@ -94,15 +114,15 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
           <div className="grid grid-cols-3 gap-3.5 relative z-10">
             {/* 1. Entrance Zone */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[0])}
+              onClick={() => setSelectedZone(getZone('entrance', 0))}
               className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[0].id ? 'ring-2 ring-blue-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('entrance', 0).id ? 'ring-2 ring-blue-500 scale-[1.02]' : ''
               } bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-amber-300">المدخل والاستقبال</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-200">
-                  {STORE_ZONES[0].currentShoppers} متسوق
+                  {getZone('entrance', 0).currentShoppers} متسوق
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">كاميرا 01 تغطي مسار البوابات</p>
@@ -110,47 +130,47 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
 
             {/* 2. Produce Zone */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[1])}
+              onClick={() => setSelectedZone(getZone('produce', 1))}
               className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[1].id ? 'ring-2 ring-emerald-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('produce', 1).id ? 'ring-2 ring-emerald-500 scale-[1.02]' : ''
               } bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-emerald-300">الخضار والفواكه</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-200">
-                  {STORE_ZONES[1].currentShoppers} متسوق
+                  {getZone('produce', 1).currentShoppers} متسوق
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">إشغال 64% • حركة عالية</p>
+              <p className="text-[11px] text-slate-400">إشغال {Math.round((getZone('produce', 1).currentShoppers / (getZone('produce', 1).capacityMax || 40)) * 100)}% • حركة حية</p>
             </div>
 
             {/* 3. Bakery Zone */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[3])}
+              onClick={() => setSelectedZone(getZone('bakery', 3))}
               className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[3].id ? 'ring-2 ring-orange-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('bakery', 3).id ? 'ring-2 ring-orange-500 scale-[1.02]' : ''
               } bg-orange-500/10 border-orange-500/40 hover:bg-orange-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-orange-300">المخبز والحلويات</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-950 text-orange-200">
-                  {STORE_ZONES[3].currentShoppers} متسوق
+                  {getZone('bakery', 3).currentShoppers} متسوق
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">كاميرا 06 نشطة</p>
+              <p className="text-[11px] text-slate-400">كاميرا 05 نشطة</p>
             </div>
 
             {/* 4. Central Grocery Aisles (Span 2 cols) */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[4])}
+              onClick={() => setSelectedZone(getZone('aisles', 4))}
               className={`col-span-2 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[4].id ? 'ring-2 ring-blue-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('aisles', 4).id ? 'ring-2 ring-blue-500 scale-[1.02]' : ''
               } bg-blue-500/10 border-blue-500/40 hover:bg-blue-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-blue-300">الممرات المركزية والمعلبات (الممرات 1 إلى 6)</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-950 text-blue-200">
-                  {STORE_ZONES[4].currentShoppers} متسوق
+                  {getZone('aisles', 4).currentShoppers} متسوق
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">متوسط مكوث المتسوق 14.8 دقيقة • تدفق منتظم</p>
@@ -158,43 +178,43 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
 
             {/* 5. Beauty & Fragrance */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[5])}
+              onClick={() => setSelectedZone(getZone('beverages', 5))}
               className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[5].id ? 'ring-2 ring-purple-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('beverages', 5).id ? 'ring-2 ring-purple-500 scale-[1.02]' : ''
               } bg-purple-500/10 border-purple-500/40 hover:bg-purple-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-purple-300">العطور والمستوردات</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-200">
-                  {STORE_ZONES[5].currentShoppers} متسوق
+                  {getZone('beverages', 5).currentShoppers} متسوق
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-bold text-amber-400">
-                ⚠️ رصد اشتباه أمني نشط (CAM-03)
+                ⚠️ رصد اشتباه أمني نشط (CAM-04)
               </p>
             </div>
 
             {/* 6. Butcher & Cold Cuts */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[2])}
+              onClick={() => setSelectedZone(getZone('butcher', 2))}
               className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[2].id ? 'ring-2 ring-rose-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('butcher', 2).id ? 'ring-2 ring-rose-500 scale-[1.02]' : ''
               } bg-rose-500/10 border-rose-500/40 hover:bg-rose-500/20`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="font-extrabold text-rose-300">الملحمة والمبردات</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-950 text-rose-200">
-                  {STORE_ZONES[2].currentShoppers} متسوق
+                  {getZone('butcher', 2).currentShoppers} متسوق
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">كاميرا 02 • رقابة سلسلة التبريد</p>
+              <p className="text-[11px] text-slate-400">كاميرا 03 • رقابة سلسلة التبريد</p>
             </div>
 
             {/* 7. POS & Self-Checkout Area (Span 2 cols) */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[6])}
+              onClick={() => setSelectedZone(getZone('cashier', 6))}
               className={`col-span-2 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[6].id ? 'ring-2 ring-red-500 scale-[1.02]' : ''
+                selectedZone?.id === getZone('cashier', 6).id ? 'ring-2 ring-red-500 scale-[1.02]' : ''
               } bg-red-600/15 border-red-500/60 hover:bg-red-600/25 relative overflow-hidden`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
@@ -203,19 +223,19 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
                   منطقة الكاشير والدفع الذاتي (مستوى كثافة حرج ⚠️)
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-950 text-red-200 font-bold">
-                  {STORE_ZONES[6].currentShoppers} متسوق (82% إشغال)
+                  {getZone('cashier', 6).currentShoppers} متسوق ({Math.round((getZone('cashier', 6).currentShoppers / (getZone('cashier', 6).capacityMax || 50)) * 100)}% إشغال)
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">
-                طابور كاشير 1 يتطلب دعماً • كاميرا 04 تراقب عدم تطابق المسح
+                طابور كاشير 1 يتطلب دعماً • كاميرا 06 تراقب عدم تطابق المسح
               </p>
             </div>
 
             {/* 8. Loading Dock (Bottom) */}
             <div 
-              onClick={() => setSelectedZone(STORE_ZONES[7])}
+              onClick={() => setSelectedZone(getZone('loading_dock', 7))}
               className={`col-span-3 p-3 rounded-2xl border cursor-pointer transition-all ${
-                selectedZone?.id === STORE_ZONES[7].id ? 'ring-2 ring-slate-400' : ''
+                selectedZone?.id === getZone('loading_dock', 7).id ? 'ring-2 ring-slate-400' : ''
               } bg-slate-900 border-slate-800 hover:bg-slate-800/80`}
             >
               <div className="flex items-center justify-between text-xs">

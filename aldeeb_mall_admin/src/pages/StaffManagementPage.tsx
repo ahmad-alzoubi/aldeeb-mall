@@ -631,9 +631,16 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30 mb-3">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>منظومة الحسابات، الصلاحيات والأمان الموحد</span>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">
+                <ShieldCheck className="w-4 h-4 text-blue-400" />
+                <span>منظومة الحسابات، الصلاحيات والأمان الموحد</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span>متصل بقاعدة البيانات الحية (PostgreSQL Engine)</span>
+              </div>
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
               إدارة حسابات الموظفين والصلاحيات والفروع
@@ -644,6 +651,15 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleSyncWithServer}
+              disabled={isSyncing}
+              className="px-4 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              title="مزامنة وتحديث البيانات من السيرفر الحي"
+            >
+              <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'جاري المزامنة...' : 'تحديث من السيرفر'}</span>
+            </button>
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm shadow-lg shadow-blue-600/30 flex items-center gap-2.5 transition-all active:scale-95"
@@ -1287,9 +1303,11 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/30"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 flex items-center gap-2 disabled:opacity-50"
                 >
-                  حفظ وتفعيل الحساب فورياً
+                  {isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? 'جاري الحفظ في السيرفر...' : 'حفظ وتفعيل الحساب فورياً'}</span>
                 </button>
               </div>
             </form>
@@ -1395,10 +1413,12 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={handleAdminResetPassword}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/30"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 flex items-center gap-2 disabled:opacity-50"
                 >
-                  حفظ وتعيين كلمة المرور
+                  {isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? 'جاري التحديث في السيرفر...' : 'حفظ وتعيين كلمة المرور'}</span>
                 </button>
               </div>
             </div>
@@ -1537,9 +1557,11 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/30"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-2 disabled:opacity-50"
                 >
-                  حفظ التعديلات واعتمادها
+                  {isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? 'جاري الحفظ في السيرفر...' : 'حفظ التعديلات واعتمادها'}</span>
                 </button>
               </div>
             </form>
