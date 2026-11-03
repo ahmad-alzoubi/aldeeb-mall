@@ -31,6 +31,7 @@ import { StaffMember, StaffRole, PasswordChangeRequest, Branch } from '../types'
 import { getRoleArabicTitle, getRoleBadgeStyle } from '../lib/staffData';
 import { logAuditEvent, getAuditLogs, AuditLogEntry } from '../lib/auditLogger';
 import { supabase } from '../lib/supabase';
+import { staffAuthApi } from '../lib/staffAuthApi';
 
 interface StaffManagementPageProps {
   staffList: StaffMember[];
@@ -117,7 +118,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
           role: s.role as StaffRole,
           branch_id: s.branch_id,
           branch_name: s.branch_name,
-          password: s.password || '',
+          password: undefined,
           password_hash: s.password_hash,
           can_change_password: !!s.can_change_password,
           has_pending_password_request: !!s.has_pending_password_request,
@@ -193,61 +194,38 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     }
 
     const assignedBranch = branches.find(b => b.id === newEmployee.branch_id);
-    const newStaffId = `staff-${Date.now()}`;
-    const nextCode = `EMP-${String(staffList.length + 1).padStart(3, '0')}`;
-
-    const created: StaffMember = {
-      id: newStaffId,
-      employee_code: nextCode,
-      full_name: newEmployee.full_name.trim(),
-      username: newEmployee.username.trim().toLowerCase(),
-      email: newEmployee.email?.trim() || `${newEmployee.username.trim().toLowerCase()}@aldeebmall.com`,
-      phone: newEmployee.phone?.trim() || '+966 50 000 0000',
-      role: (newEmployee.role as StaffRole) || 'cashier',
-      branch_id: newEmployee.branch_id || branches[0]?.id || 'b-ruh-01',
-      branch_name: assignedBranch ? assignedBranch.name_ar : 'الفرع الرئيسي',
-      password: newEmployee.password.trim(),
-      can_change_password: !!newEmployee.can_change_password,
-      has_pending_password_request: false,
-      basic_salary: Number(newEmployee.basic_salary) || 5000,
-      allowances: Number(newEmployee.allowances) || 0,
-      shift_start: newEmployee.shift_start || '08:00',
-      shift_end: newEmployee.shift_end || '16:00',
-      is_active: true,
-      joined_date: new Date().toISOString().split('T')[0],
-      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(newEmployee.username.trim())}`,
-    };
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('staff_members').insert({
-        id: created.id,
-        employee_code: created.employee_code,
-        full_name: created.full_name,
-        username: created.username,
-        email: created.email,
-        phone: created.phone,
-        role: created.role,
-        branch_id: created.branch_id,
-        branch_name: created.branch_name,
-        password: created.password,
-        password_hash: `sha256$${created.password}`,
-        can_change_password: created.can_change_password,
-        has_pending_password_request: false,
-        basic_salary: created.basic_salary,
-        allowances: created.allowances,
-        shift_start: created.shift_start,
-        shift_end: created.shift_end,
-        avatar_url: created.avatar_url,
-        is_active: created.is_active,
-        joined_date: created.joined_date,
-      });
+      const res = await staffAuthApi.createStaffAccount(
+        {
+          full_name: newEmployee.full_name.trim(),
+          username: newEmployee.username.trim().toLowerCase(),
+          email: newEmployee.email?.trim() || `${newEmployee.username.trim().toLowerCase()}@aldeebmall.com`,
+          phone: newEmployee.phone?.trim() || '+966 50 000 0000',
+          role: (newEmployee.role as StaffRole) || 'cashier',
+          branch_id: newEmployee.branch_id || branches[0]?.id || 'b-ruh-01',
+          branch_name: assignedBranch ? assignedBranch.name_ar : 'الفرع الرئيسي',
+          can_change_password: !!newEmployee.can_change_password,
+          basic_salary: Number(newEmployee.basic_salary) || 5000,
+          allowances: Number(newEmployee.allowances) || 0,
+          shift_start: newEmployee.shift_start || '08:00',
+          shift_end: newEmployee.shift_end || '16:00',
+          is_active: true,
+          joined_date: new Date().toISOString().split('T')[0],
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(newEmployee.username.trim())}`,
+        },
+        newEmployee.password.trim()
+      );
 
-      if (error) throw error;
+      if (!res.success || !res.staff) {
+        throw new Error(res.message || 'تعذر إنشاء حساب الموظف على السيرفر');
+      }
 
-      setStaffList(prev => [created, ...prev]);
+      const created = res.staff!;
+      setStaffList(prev => [created, ...prev.filter(s => s.id !== created.id)]);
       setIsAddModalOpen(false);
-      showToast(`✅ تم إنشاء وتفعيل حساب الموظف [${created.full_name}] وتعيين كلمة المرور بنجاح في السيرفر!`);
+      showToast(`✅ ${res.message || 'تم إنشاء وتفعيل حساب الموظف وتشفير كلمة المرور على السيرفر بنجاح!'}`);
 
       logAuditEvent({
         actor_id: currentAdminRole,
@@ -295,34 +273,16 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     const nowIso = new Date().toISOString();
 
     try {
-      const { error: staffErr } = await supabase
-        .from('staff_members')
-        .update({
-          password: trimmedPw,
-          password_hash: `sha256$${trimmedPw}`,
-          has_pending_password_request: false,
-          updated_at: nowIso,
-        })
-        .eq('id', selectedEmployeeForPassword.id);
-
-      if (staffErr) throw staffErr;
-
-      // Also resolve any pending request in server
-      await supabase
-        .from('password_change_requests')
-        .update({
-          status: 'approved',
-          reviewed_by: 'الإدارة العامة',
-          reviewed_at: nowIso,
-        })
-        .eq('employee_id', selectedEmployeeForPassword.id)
-        .eq('status', 'pending');
+      // Use real server-side reset with bcrypt salted hashing and session revocation
+      const res = await staffAuthApi.adminResetPassword(selectedEmployeeForPassword.id, trimmedPw);
+      if (!res.success) {
+        throw new Error(res.message || 'تعذر إعادة تعيين كلمة المرور على السيرفر');
+      }
 
       setStaffList(prev => prev.map(emp => {
         if (emp.id === selectedEmployeeForPassword.id) {
           return {
             ...emp,
-            password: trimmedPw,
             has_pending_password_request: false,
           };
         }
@@ -349,12 +309,12 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
         category: 'auth',
         target_id: selectedEmployeeForPassword.id,
         target_type: 'staff_member',
-        details: `تحديث وإعادة ضبط كلمة مرور الموظف [${selectedEmployeeForPassword.full_name}] مباشرة من قبل الإدارة في السيرفر.`,
+        details: `تحديث وإعادة ضبط كلمة مرور الموظف [${selectedEmployeeForPassword.full_name}] وتشفيرها وإلغاء الجلسات القديمة من قبل الإدارة في السيرفر.`,
         branch_id: selectedEmployeeForPassword.branch_id,
         branch_name: selectedEmployeeForPassword.branch_name,
       });
 
-      showToast(`🔒 تم تحديث وتعيين كلمة مرور جديدة للموظف (${selectedEmployeeForPassword.full_name}) في السيرفر بنجاح!`);
+      showToast(`🔒 ${res.message || `تم تحديث وتعيين كلمة مرور جديدة للموظف (${selectedEmployeeForPassword.full_name}) في السيرفر بنجاح!`}`);
       setIsResetPasswordModalOpen(false);
       setSelectedEmployeeForPassword(null);
       setNewPasswordValue('');
@@ -368,26 +328,38 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
   };
 
   // Generate One-Time Recovery Token (for offline / unconfigured SMS gateway)
-  const handleGenerateRecoveryToken = () => {
+  const handleGenerateRecoveryToken = async () => {
     if (!selectedEmployeeForPassword) return;
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' });
-    setRecoveryToken({ token: pin, expiresAt: expires });
 
-    logAuditEvent({
-      actor_id: currentAdminRole,
-      actor_name: 'مدير النظام',
-      actor_role: currentAdminRole,
-      action: 'GENERATE_RECOVERY_TOKEN',
-      category: 'auth',
-      target_id: selectedEmployeeForPassword.id,
-      target_type: 'staff_member',
-      details: `توليد رمز استعادة كلمة مرور مؤقت للموظف (${selectedEmployeeForPassword.full_name}) مع بيان عدم اتصال مزود SMS.`,
-      branch_id: selectedEmployeeForPassword.branch_id,
-      branch_name: selectedEmployeeForPassword.branch_name,
-    });
+    try {
+      const res = await staffAuthApi.generateRecoveryToken(selectedEmployeeForPassword.id);
+      if (!res.success || !res.token) {
+        throw new Error(res.message || 'فشل توليد رمز الاستعادة');
+      }
 
-    showToast(`🔑 تم توليد رمز استعادة مؤقت (${pin}) صالح حتى ${expires}`);
+      const expires = res.expires_at 
+        ? new Date(res.expires_at).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })
+        : new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' });
+
+      setRecoveryToken({ token: res.token, expiresAt: expires });
+
+      logAuditEvent({
+        actor_id: currentAdminRole,
+        actor_name: 'مدير النظام',
+        actor_role: currentAdminRole,
+        action: 'GENERATE_RECOVERY_TOKEN',
+        category: 'auth',
+        target_id: selectedEmployeeForPassword.id,
+        target_type: 'staff_member',
+        details: `توليد رمز استعادة كلمة مرور مؤقت للموظف (${selectedEmployeeForPassword.full_name}) مع بيان عدم اتصال مزود SMS.`,
+        branch_id: selectedEmployeeForPassword.branch_id,
+        branch_name: selectedEmployeeForPassword.branch_name,
+      });
+
+      showToast(`🔑 تم توليد رمز استعادة مؤقت (${res.token}) صالح حتى ${expires}`);
+    } catch (e: any) {
+      showToast(`⚠️ تعذر توليد رمز الاستعادة: ${e.message}`);
+    }
   };
 
   // Toggle permission to change password in server
@@ -466,21 +438,15 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     }
   };
 
-  // Immediate toggle of account status (Active / Deactivated) in server
+  // Immediate toggle of account status (Active / Deactivated) in server with session revocation
   const handleToggleStaffActive = async (emp: StaffMember) => {
     const nextStatus = !emp.is_active;
     const nowIso = new Date().toISOString();
     try {
-      const { error } = await supabase
-        .from('staff_members')
-        .update({
-          is_active: nextStatus,
-          session_revoked_at: !nextStatus ? nowIso : null,
-          updated_at: nowIso,
-        })
-        .eq('id', emp.id);
-
-      if (error) throw error;
+      const res = await staffAuthApi.toggleStaffActive(emp.id, nextStatus);
+      if (!res.success) {
+        throw new Error(res.message || 'تعذر تغيير حالة الحساب في السيرفر');
+      }
 
       setStaffList(prev => prev.map(s => {
         if (s.id === emp.id) {
@@ -503,14 +469,14 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
         target_type: 'staff_member',
         details: nextStatus
           ? `تم تنشيط وتفعيل حساب الموظف: ${emp.full_name} في السيرفر`
-          : `تم تجميد وتعطيل حساب الموظف: ${emp.full_name} وإنهاء جلسته النشطة فوراً ومنعه من الدخول في السيرفر`,
+          : `تم تجميد وتعطيل حساب الموظف: ${emp.full_name} وإنهاء كافة جلساته النشطة فوراً ومنعه من الدخول في السيرفر`,
         branch_id: emp.branch_id,
         branch_name: emp.branch_name,
       });
 
       showToast(nextStatus 
         ? `✅ تم تفعيل حساب الموظف [${emp.full_name}] في السيرفر فوراً!` 
-        : `⚠️ تم تجميد حساب الموظف [${emp.full_name}] وإنهاء جلسته في السيرفر فوراً ومنعه من الدخول!`
+        : `⚠️ تم تجميد حساب الموظف [${emp.full_name}] وإلغاء كافة جلساته في السيرفر فوراً ومنعه من الدخول!`
       );
     } catch (e: any) {
       console.error('Error toggling staff status in Supabase:', e);
@@ -522,15 +488,10 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
   const handleTerminateSession = async (emp: StaffMember) => {
     const nowIso = new Date().toISOString();
     try {
-      const { error } = await supabase
-        .from('staff_members')
-        .update({
-          session_revoked_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq('id', emp.id);
-
-      if (error) throw error;
+      const res = await staffAuthApi.terminateStaffSession(emp.id);
+      if (!res.success) {
+        throw new Error(res.message || 'تعذر إنهاء الجلسة في السيرفر');
+      }
 
       setStaffList(prev => prev.map(s => s.id === emp.id ? { ...s, session_revoked_at: nowIso } : s));
       logAuditEvent({
@@ -541,11 +502,11 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
         category: 'auth',
         target_id: emp.id,
         target_type: 'staff_member',
-        details: `تم إنهاء جلسة الموظف النشطة قسرياً في السيرفر: ${emp.full_name}`,
+        details: `تم إنهاء جميع جلسات الموظف النشطة قسرياً في السيرفر: ${emp.full_name}`,
         branch_id: emp.branch_id,
         branch_name: emp.branch_name,
       });
-      showToast(`🔒 تم إنهاء الجلسة النشطة للموظف [${emp.full_name}] فورياً على السيرفر.`);
+      showToast(`🔒 ${res.message || `تم إنهاء الجلسة النشطة للموظف [${emp.full_name}] فورياً على السيرفر.`}`);
     } catch (e: any) {
       console.error('Error terminating session:', e);
       showToast(`⚠️ تعذر إنهاء الجلسة في السيرفر: ${e?.message}`);
@@ -915,7 +876,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                             <button
                               onClick={() => {
                                 setSelectedEmployeeForPassword(emp);
-                                setNewPasswordValue(emp.password || '');
+                                setNewPasswordValue('');
                                 setIsResetPasswordModalOpen(true);
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-xs flex items-center gap-1 transition-all"

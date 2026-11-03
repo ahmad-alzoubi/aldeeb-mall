@@ -11,7 +11,7 @@ set -euo pipefail
 
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
-DB_USER="${POSTGRES_USER:-aldeeb_admin}"
+DB_USER="${POSTGRES_USER:-ahmad_alzoubi}"
 DB_NAME="${POSTGRES_DB:-aldeeb_mall_prod}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 

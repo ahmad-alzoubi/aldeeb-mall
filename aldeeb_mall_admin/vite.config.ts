@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/vision/, ''),
       },
+      '/rest/v1': {
+        target: 'http://127.0.0.1:54321',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/rest\/v1/, ''),
+      },
     },
   },
   preview: {

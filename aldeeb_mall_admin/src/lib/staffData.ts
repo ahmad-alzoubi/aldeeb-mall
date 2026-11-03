@@ -11,7 +11,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'super_admin',
     branch_id: 'b-ruh-01',
     branch_name: 'هايبرماركت الرياض الرئيسي (المركز الفاخر)',
-    password: 'admin',
     can_change_password: true,
     basic_salary: 28000,
     allowances: 4000,
@@ -31,7 +30,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'general_manager',
     branch_id: 'b-ruh-01',
     branch_name: 'هايبرماركت الرياض الرئيسي (المركز الفاخر)',
-    password: 'gm123',
     can_change_password: false, // مقفل لا يمكن تغييره إلا بإذن الإدارة
     basic_salary: 22000,
     allowances: 3500,
@@ -51,7 +49,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'auditor',
     branch_id: 'b-dmm-01',
     branch_name: 'فرع الدمام الشاطئ ومول الشرقية',
-    password: 'audit123',
     can_change_password: false, // مقفل
     basic_salary: 14500,
     allowances: 2000,
@@ -71,7 +68,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'accountant',
     branch_id: 'b-jed-01',
     branch_name: 'فرع جدة الكورنيش (واجهة البحر)',
-    password: 'acc123',
     can_change_password: false, // مقفل لا يغيره إلا بإذن
     basic_salary: 12000,
     allowances: 1500,
@@ -91,7 +87,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'cashier',
     branch_id: 'b-ruh-01',
     branch_name: 'هايبرماركت الرياض الرئيسي (المركز الفاخر)',
-    password: 'pos123',
     can_change_password: false, // مقفل تماماً
     basic_salary: 5800,
     allowances: 800,
@@ -111,7 +106,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'branch_manager',
     branch_id: 'b-jed-01',
     branch_name: 'فرع جدة الكورنيش (واجهة البحر)',
-    password: 'jed123',
     can_change_password: false,
     basic_salary: 10500,
     allowances: 1500,
@@ -131,7 +125,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'branch_manager',
     branch_id: 'b-dam-01',
     branch_name: 'فرع دمشق المركزي (أوتوستراد المزة)',
-    password: 'dam123',
     can_change_password: false,
     has_pending_password_request: false,
     basic_salary: 11000,
@@ -152,7 +145,6 @@ export const INITIAL_STAFF: StaffMember[] = [
     role: 'branch_manager',
     branch_id: 'b-ruh-ds02',
     branch_name: 'مركز تلبية النرجس فوري 15 دقيقة (Dark Store)',
-    password: 'dark123',
     can_change_password: false,
     has_pending_password_request: false,
     basic_salary: 9800,

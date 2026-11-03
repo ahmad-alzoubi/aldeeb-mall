@@ -28,22 +28,83 @@ CREATE TABLE IF NOT EXISTS public.branches (
 ALTER TABLE IF EXISTS public.payroll_transactions DROP CONSTRAINT IF EXISTS payroll_transactions_employee_id_fkey;
 ALTER TABLE IF EXISTS public.password_change_requests DROP CONSTRAINT IF EXISTS password_change_requests_employee_id_fkey;
 
-ALTER TABLE IF EXISTS public.staff_members ALTER COLUMN id TYPE VARCHAR(64);
-ALTER TABLE IF EXISTS public.staff_members ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
-ALTER TABLE IF EXISTS public.payroll_transactions ALTER COLUMN employee_id TYPE VARCHAR(64);
-ALTER TABLE IF EXISTS public.password_change_requests ALTER COLUMN employee_id TYPE VARCHAR(64);
-ALTER TABLE IF EXISTS public.payroll_transactions ALTER COLUMN id TYPE VARCHAR(64);
-ALTER TABLE IF EXISTS public.payroll_transactions ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
-ALTER TABLE IF EXISTS public.password_change_requests ALTER COLUMN id TYPE VARCHAR(64);
-ALTER TABLE IF EXISTS public.password_change_requests ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'staff_members' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.staff_members ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
 
-ALTER TABLE IF EXISTS public.payroll_transactions 
-    ADD CONSTRAINT payroll_transactions_employee_id_fkey 
-    FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  ALTER TABLE public.staff_members ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
 
-ALTER TABLE IF EXISTS public.password_change_requests 
-    ADD CONSTRAINT password_change_requests_employee_id_fkey 
-    FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'payroll_transactions' 
+      AND column_name = 'employee_id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.payroll_transactions ALTER COLUMN employee_id TYPE VARCHAR(64);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'payroll_transactions' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.payroll_transactions ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
+
+  ALTER TABLE public.payroll_transactions ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'password_change_requests' 
+      AND column_name = 'employee_id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.password_change_requests ALTER COLUMN employee_id TYPE VARCHAR(64);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'password_change_requests' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.password_change_requests ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
+
+  ALTER TABLE public.password_change_requests ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'payroll_transactions_employee_id_fkey'
+  ) THEN
+    ALTER TABLE public.payroll_transactions 
+      ADD CONSTRAINT payroll_transactions_employee_id_fkey 
+      FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'password_change_requests_employee_id_fkey'
+  ) THEN
+    ALTER TABLE public.password_change_requests 
+      ADD CONSTRAINT password_change_requests_employee_id_fkey 
+      FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 ALTER TABLE IF EXISTS public.staff_members ADD COLUMN IF NOT EXISTS password TEXT;
 ALTER TABLE IF EXISTS public.staff_members ADD COLUMN IF NOT EXISTS session_revoked_at TIMESTAMPTZ;

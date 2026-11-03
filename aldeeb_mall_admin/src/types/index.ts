@@ -23,6 +23,7 @@ export interface Product {
   branch_id?: string;
   branch_name?: string;
   is_draft?: boolean;
+  is_active?: boolean;
   cost_price?: number;
   status?: 'published' | 'incomplete_data' | 'archived';
 }

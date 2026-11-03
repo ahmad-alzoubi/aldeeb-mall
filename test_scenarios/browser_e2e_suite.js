@@ -7,7 +7,7 @@ const puppeteer = require('../aldeeb_mall_admin/node_modules/puppeteer-core');
 const http = require('http');
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = 'http://127.0.0.1:5173';
 
 function logStep(icon, title, details = '') {
   console.log(`\n${icon} [TEST] ${title}`);
@@ -44,7 +44,7 @@ async function runBrowserVerification() {
     // ------------------------------------------------------------------------
     testCount++;
     logStep('🔐', 'Step 1: Admin Web Entrypoint Verification');
-    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle0', timeout: 15000 });
+    await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
     const pageTitle = await page.title();
     const loginText = await page.evaluate(() => document.body.innerText);
 
@@ -95,11 +95,10 @@ async function runBrowserVerification() {
 
     // Logout and login as Super Admin
     await page.evaluate(() => {
-      // Clear localStorage staff to log out
       localStorage.removeItem('aldeeb_active_staff');
-      window.location.reload();
     });
-    await new Promise(r => setTimeout(r, 1500));
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await new Promise(r => setTimeout(r, 800));
 
     // ------------------------------------------------------------------------
     // TEST 3: Super Admin Login & Active Navigation Integrity
@@ -280,9 +279,18 @@ async function runBrowserVerification() {
         let raw = '';
         res.on('data', chunk => raw += chunk);
         res.on('end', () => {
-          try { resolve(JSON.parse(raw)); } catch (_) { resolve([]); }
+          try { 
+            const parsed = JSON.parse(raw);
+            resolve(parsed); 
+          } catch (e) { 
+            console.error('JSON Parse error in Step 7:', e, 'RAW:', raw);
+            resolve([]); 
+          }
         });
-      }).on('error', () => resolve([]));
+      }).on('error', (e) => {
+        console.error('HTTP error in Step 7:', e);
+        resolve([]);
+      });
     });
 
     if (Array.isArray(dbOrders) && dbOrders.length > 0) {

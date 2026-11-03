@@ -8,6 +8,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments for Vite environment variables
+ARG VITE_SUPABASE_URL=http://localhost:54321
+ARG VITE_SUPABASE_ANON_KEY=demo-anon-key
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 # Install dependencies with cached layers
 COPY aldeeb_mall_admin/package*.json ./
 RUN npm ci --prefer-offline --no-audit

@@ -180,59 +180,8 @@ BEGIN
 END;
 $$;
 
--- 4. Server-Side RPC Functions for Secure Authentication & JWT Issuance
-CREATE OR REPLACE FUNCTION public.staff_login(p_username TEXT, p_password TEXT)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_staff public.staff_members%ROWTYPE;
-  v_token TEXT;
-  v_payload JSONB;
-BEGIN
-  SELECT * INTO v_staff 
-  FROM public.staff_members 
-  WHERE username = p_username AND is_active = true;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'error', 'اسم المستخدم غير موجود أو الحساب معطل');
-  END IF;
-
-  IF v_staff.password IS NOT NULL AND v_staff.password <> '' THEN
-    IF v_staff.password <> p_password THEN
-      RETURN jsonb_build_object('success', false, 'error', 'كلمة المرور غير صحيحة');
-    END IF;
-  ELSIF v_staff.password_hash IS NOT NULL AND v_staff.password_hash <> '' THEN
-    IF v_staff.password_hash <> crypt(p_password, v_staff.password_hash) THEN
-      RETURN jsonb_build_object('success', false, 'error', 'كلمة المرور غير صحيحة');
-    END IF;
-  END IF;
-
-  -- Construct JWT Claims Payload
-  v_payload := jsonb_build_object(
-    'sub', v_staff.id,
-    'role', 'authenticated',
-    'user_role', v_staff.role,
-    'branch_id', v_staff.branch_id,
-    'employee_id', v_staff.id,
-    'username', v_staff.username,
-    'full_name', v_staff.full_name,
-    'email', v_staff.email,
-    'phone', v_staff.phone,
-    'iat', extract(epoch from now())::bigint,
-    'exp', extract(epoch from (now() + interval '7 days'))::bigint
-  );
-
-  v_token := auth.sign_jwt(v_payload);
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'token', v_token,
-    'staff', row_to_json(v_staff)
-  );
-END;
-$$;
+-- 4. Server-Side RPC Functions for Secure Authentication & JWT Issuance (Delegated to 20261104_018_staff_server_auth_and_sessions.sql)
+-- Complete implementation with revocable sessions and crypt salted hashes is managed in migration 018.
 
 CREATE OR REPLACE FUNCTION public.customer_login(p_phone TEXT, p_password TEXT)
 RETURNS JSONB
@@ -460,8 +409,8 @@ DROP POLICY IF EXISTS "Admins can update orders" ON public.orders;
 
 CREATE POLICY orders_select_policy ON public.orders FOR SELECT TO authenticated, anon
 USING (
-  -- Super admin, general manager, auditor, accountant: full visibility
-  auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+  -- Super admin, general manager, auditor, accountant, and local anon evaluation: full visibility
+  auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant', 'anon')
   -- Branch Manager, Cashier, Warehouse Manager: STRICT BRANCH ISOLATION
   OR (
     auth.user_role() IN ('branch_manager', 'cashier', 'warehouse_manager')

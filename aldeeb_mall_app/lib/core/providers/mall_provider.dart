@@ -102,7 +102,7 @@ class MallProvider extends ChangeNotifier {
   bool _isLoading = false;
 
   List<CategoryModel> get categories => _categories;
-  List<ProductModel> get products => _products.where((p) => !p.isDraft && p.status == 'published').toList();
+  List<ProductModel> get products => _products.where((p) => !p.isDraft && p.status == 'published' && p.isActive).toList();
   List<BannerModel> get banners => _banners;
 
   List<BannerModel> get heroBanners {

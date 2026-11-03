@@ -25,6 +25,7 @@ class ProductModel {
   final String? bundleTitle;
   final List<String> bundleProductIds;
   final bool isDraft;
+  final bool isActive;
   final String status;
 
   const ProductModel({
@@ -54,6 +55,7 @@ class ProductModel {
     this.bundleTitle,
     this.bundleProductIds = const [],
     this.isDraft = false,
+    this.isActive = true,
     this.status = 'published',
   });
 
@@ -177,6 +179,7 @@ class ProductModel {
           ? (json['bundle_product_ids'] as List).map((e) => e.toString()).toList()
           : const [],
       isDraft: json['is_draft'] as bool? ?? false,
+      isActive: json['is_active'] as bool? ?? true,
       status: json['status'] as String? ?? 'published',
     );
   }
@@ -208,6 +211,7 @@ class ProductModel {
     String? bundleTitle,
     List<String>? bundleProductIds,
     bool? isDraft,
+    bool? isActive,
     String? status,
   }) {
     return ProductModel(
@@ -237,6 +241,7 @@ class ProductModel {
       bundleTitle: bundleTitle ?? this.bundleTitle,
       bundleProductIds: bundleProductIds ?? this.bundleProductIds,
       isDraft: isDraft ?? this.isDraft,
+      isActive: isActive ?? this.isActive,
       status: status ?? this.status,
     );
   }
@@ -269,6 +274,7 @@ class ProductModel {
       'bundle_title': bundleTitle,
       'bundle_product_ids': bundleProductIds,
       'is_draft': isDraft,
+      'is_active': isActive,
       'status': status,
     };
   }

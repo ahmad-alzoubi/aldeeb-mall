@@ -6,15 +6,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.admin
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:54321}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-demo-anon-key}
     container_name: aldeeb-admin-dashboard
     restart: unless-stopped
     ports:
       - "${ADMIN_PORT:-8080}:80"
     environment:
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://postgres-branch-db:54321}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://localhost:54321}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-demo-anon-key}
     depends_on:
       - vision-service
+      - postgrest
     networks:
       - aldeeb-network
 
@@ -39,7 +43,25 @@ services:
     networks:
       - aldeeb-network
 
-  # 3. Branch Operational Database Engine (PostgreSQL 16)
+  # 3. PostgREST API Engine (Supabase-compatible REST Gateway)
+  postgrest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: aldeeb-postgrest
+    restart: unless-stopped
+    ports:
+      - "${POSTGREST_PORT:-54321}:3000"
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-aldeeb_admin}:${POSTGRES_PASSWORD:-aldeeb_secure_pass_2026}@postgres-branch-db:5432/${POSTGRES_DB:-aldeeb_mall_prod}
+      PGRST_DB_SCHEMAS: public,branch_dam_01
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-aldeeb-mall-secure-jwt-secret-key-32chars-min-length-2026}
+    depends_on:
+      postgres-branch-db:
+        condition: service_healthy
+    networks:
+      - aldeeb-network
+
+  # 4. Branch Operational Database Engine (PostgreSQL 16)
   postgres-branch-db:
     image: postgres:16-alpine
     container_name: aldeeb-branch-db
@@ -52,7 +74,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-aldeeb_mall_prod}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./supabase/branch_database_provisioning.sql:/docker-entrypoint-initdb.d/01_branch_provisioning.sql:ro
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aldeeb_admin} -d ${POSTGRES_DB:-aldeeb_mall_prod}"]
       interval: 10s
