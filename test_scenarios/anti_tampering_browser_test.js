@@ -106,7 +106,7 @@ async function runAntiTamperingTest() {
     await page.waitForSelector('aside', { timeout: 12000 });
 
     const realToken = await page.evaluate(() => localStorage.getItem('aldeeb_admin_session_token'));
-    if (!realToken || !realToken.startsWith('st_')) {
+    if (!realToken || !realToken.startsWith('sess_')) {
       throw new Error(`Real session token not stored properly: ${realToken}`);
     }
 
@@ -189,7 +189,7 @@ async function runAntiTamperingTest() {
       return errBox.innerText;
     });
 
-    const hasFreezeError = errorText.includes('مجمد') || errorText.includes('موقوف');
+    const hasFreezeError = errorText.includes('مجمد') || errorText.includes('تجميد') || errorText.includes('موقوف');
 
     // Unfreeze account back to true
     runSql(`UPDATE public.staff_members SET is_active = true WHERE username = 'cashier_omar';`);

@@ -268,6 +268,7 @@ export const App: React.FC = () => {
     const checkServerSession = async () => {
       const token = staffAuthApi.getSessionToken();
       if (!token) {
+        staffAuthApi.clearSession();
         if (isMounted) {
           setIsAuthenticated(false);
           setIsVerifyingSession(false);
