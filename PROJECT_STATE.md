@@ -10,8 +10,8 @@
 
 | Target Module | Production Output Path | Technology & Build Engine | Build Status & Verification |
 | :--- | :--- | :--- | :--- |
-| **Admin & POS Web Dashboard** | `aldeeb_mall_admin/dist/` | React 19 + TypeScript 5.7 + Vite 6.4 (Gzip Optimized) | **100% Built & Verified** (Header dimensions & responsive bounds fixed) |
-| **Customer App Web Release** | `aldeeb_mall_app/build/web/` | Flutter 3.x Web Release (`main.dart.js`, WASM Dry Run) | **100% Built & Verified** |
+| **Admin & POS Web Dashboard** | `aldeeb_mall_admin/dist/` | React 19 + TypeScript 5.7 + Vite 6.4 (Gzip Optimized) | **100% Deployed & Live** (`https://ahmad-alzoubi.github.io/aldeeb-mall/admin/`) |
+| **Customer App Web Release** | `aldeeb_mall_app/build/web/` | Flutter 3.x Web Release (`main.dart.js`, WASM Dry Run) | **100% Deployed & Live** (`https://ahmad-alzoubi.github.io/aldeeb-mall/`) |
 | **Master Production SQL** | `supabase/PRODUCTION_MASTER_DEPLOYMENT.sql` | PostgreSQL 16 Idempotent DDL + Branch Isolation Engine | **100% Deployed & Verified** (31 tables) |
 | **Isolated Branch Engine** | `supabase/branch_database_provisioning.sql` | Schema provisioner (`branch_dam_01` verified) | **100% Deployed & Verified** |
 | **Edge Vision REST Gateway** | `services/vision_service/vision_api_server.py` | Python 3.11 HTTP Server (Port 8095) | **100% Active & Responding** |
