@@ -441,6 +441,10 @@ ALTER TABLE public.user_claimed_rewards FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions FORCE ROW LEVEL SECURITY;
 
+-- Ensure orders has branch_id for multi-branch isolation
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS branch_id VARCHAR(64) DEFAULT 'b-dam-01';
+CREATE INDEX IF NOT EXISTS idx_orders_branch_id ON public.orders(branch_id);
+
 -- 7. Surgical RLS Policies
 
 -- ==============================================================================
