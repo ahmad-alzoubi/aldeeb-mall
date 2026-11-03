@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # 1. Central Admin & POS Web Frontend (Nginx)
+  admin-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: aldeeb-admin-dashboard
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-8080}:80"
+    environment:
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://postgres-branch-db:54321}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-demo-anon-key}
+    depends_on:
+      - vision-service
+    networks:
+      - aldeeb-network
+
+  # 2. Local Edge Vision, Footfall & Loss Prevention Gateway
+  vision-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.vision
+    container_name: aldeeb-vision-edge
+    restart: unless-stopped
+    ports:
+      - "${VISION_PORT:-8095}:8095"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=${VISION_LOG_LEVEL:-INFO}
+      - CAMERA_01_RTSP=${CAMERA_01_RTSP:-rtsp://192.168.10.101:554/live}
+      - CAMERA_02_RTSP=${CAMERA_02_RTSP:-rtsp://192.168.10.102:554/live}
+      - CAMERA_03_RTSP=${CAMERA_03_RTSP:-rtsp://192.168.10.103:554/live}
+      - CAMERA_04_RTSP=${CAMERA_04_RTSP:-rtsp://192.168.10.104:554/live}
+    volumes:
+      - vision-logs:/app/logs
+    networks:
+      - aldeeb-network
+
+  # 3. Branch Operational Database Engine (PostgreSQL 16)
+  postgres-branch-db:
+    image: postgres:16-alpine
+    container_name: aldeeb-branch-db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aldeeb_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aldeeb_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-aldeeb_mall_prod}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./supabase/branch_database_provisioning.sql:/docker-entrypoint-initdb.d/01_branch_provisioning.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aldeeb_admin} -d ${POSTGRES_DB:-aldeeb_mall_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aldeeb-network
+
+networks:
+  aldeeb-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  vision-logs:
+    driver: local

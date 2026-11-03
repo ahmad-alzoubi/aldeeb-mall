@@ -1,0 +1,46 @@
+# ==============================================================================
+# ALDEEB MALL ADMIN & POS DASHBOARD - PRODUCTION DOCKERFILE
+# Multi-stage build: Node.js 20 build -> Nginx Alpine production image
+# ==============================================================================
+
+# Stage 1: Build static assets
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies with cached layers
+COPY aldeeb_mall_admin/package*.json ./
+RUN npm ci --prefer-offline --no-audit
+
+# Copy source files
+COPY aldeeb_mall_admin/ ./
+
+# Build optimized production bundle
+RUN npm run build
+
+# Stage 2: Serve with secure, production-tuned Nginx
+FROM nginx:1.27-alpine AS production
+
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
+# Remove default nginx static page
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy custom Nginx configuration
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Set proper ownership and permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+EXPOSE 80
+
+# Health check ensuring Nginx responds
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

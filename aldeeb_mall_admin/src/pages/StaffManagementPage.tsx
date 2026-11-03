@@ -64,6 +64,7 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStaffForAudit, setSelectedStaffForAudit] = useState<StaffMember | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState<{ token: string; expiresAt: string } | null>(null);
 
   // New employee form state
   const [newEmployee, setNewEmployee] = useState<Partial<StaffMember>>({
@@ -186,6 +187,30 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
     setIsResetPasswordModalOpen(false);
     setSelectedEmployeeForPassword(null);
     setNewPasswordValue('');
+    setRecoveryToken(null);
+  };
+
+  // Generate One-Time Recovery Token (for offline / unconfigured SMS gateway)
+  const handleGenerateRecoveryToken = () => {
+    if (!selectedEmployeeForPassword) return;
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' });
+    setRecoveryToken({ token: pin, expiresAt: expires });
+
+    logAuditEvent({
+      actor_id: currentAdminRole,
+      actor_name: 'مدير النظام',
+      actor_role: currentAdminRole,
+      action: 'GENERATE_RECOVERY_TOKEN',
+      category: 'auth',
+      target_id: selectedEmployeeForPassword.id,
+      target_type: 'staff_member',
+      details: `توليد رمز استعادة كلمة مرور مؤقت للموظف (${selectedEmployeeForPassword.full_name}) مع بيان عدم اتصال مزود SMS.`,
+      branch_id: selectedEmployeeForPassword.branch_id,
+      branch_name: selectedEmployeeForPassword.branch_name,
+    });
+
+    showToast(`🔑 تم توليد رمز استعادة مؤقت (${pin}) صالح حتى ${expires}`);
   };
 
   // Toggle permission to change password
@@ -1041,6 +1066,39 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
                 💡 سيتم اعتماد كلمة المرور هذه فورياً، ولن يتمكن الموظف من تغييرها إلا بعد طلب إذن من الإدارة.
               </div>
 
+              {/* Offline Recovery Token Section (Zero Hallucination - REQ-09) */}
+              <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    استعادة بدون اتصال / غياب مزود SMS
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRecoveryToken}
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    توليد رمز استعادة مؤقت
+                  </button>
+                </div>
+                <p className="text-[10px] text-amber-700 leading-relaxed">
+                  مزود خدمة الرسائل (SMS Gateway / SMTP) غير متصل حالياً؛ يتم إنشاء رمز استعادة مؤقت محلياً لتسليمه للموظف يدوياً دون ادعاء إرسال رسائل وهمية.
+                </p>
+                {recoveryToken && (
+                  <div className="p-2.5 bg-white rounded-xl border border-amber-300 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">رمز الاستعادة المؤقت:</span>
+                      <span className="font-mono text-base font-black text-amber-800 tracking-wider">
+                        {recoveryToken.token}
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-mono">
+                      ينتهي عند: {recoveryToken.expiresAt}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -1152,21 +1210,33 @@ export const StaffManagementPage: React.FC<StaffManagementPageProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">الراتب الأساسي (ل.س)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>الراتب الأساسي (ل.س)</span>
+                    {currentAdminRole !== 'super_admin' && currentAdminRole !== 'general_manager' && (
+                      <span className="text-[10px] text-rose-600 font-bold">للقراءة فقط (يتطلب صلاحية مدير عام)</span>
+                    )}
+                  </label>
                   <input
                     type="number"
+                    disabled={currentAdminRole !== 'super_admin' && currentAdminRole !== 'general_manager'}
                     value={selectedStaffForEdit.basic_salary}
                     onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, basic_salary: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">البدلات (ل.س)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>البدلات (ل.س)</span>
+                    {currentAdminRole !== 'super_admin' && currentAdminRole !== 'general_manager' && (
+                      <span className="text-[10px] text-rose-600 font-bold">للقراءة فقط</span>
+                    )}
+                  </label>
                   <input
                     type="number"
+                    disabled={currentAdminRole !== 'super_admin' && currentAdminRole !== 'general_manager'}
                     value={selectedStaffForEdit.allowances}
                     onChange={(e) => setSelectedStaffForEdit({ ...selectedStaffForEdit, allowances: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>

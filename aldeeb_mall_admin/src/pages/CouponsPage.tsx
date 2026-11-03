@@ -207,11 +207,41 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
       {/* New Coupon Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <TicketPercent className="w-5 h-5 text-blue-600" />
               إنشاء كود خصم جديد مع حوكمة المنع
             </h3>
+
+            {/* Live Interactive Preview Card */}
+            <div className="mb-5 p-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100 space-y-2">
+              <div className="flex items-center justify-between text-xs text-blue-800 font-extrabold">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  معاينة الكوبون للمستخدم في التطبيق
+                </span>
+                <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-mono">
+                  {code.trim() ? code.trim().toUpperCase() : 'CODE-PREVIEW'}
+                </span>
+              </div>
+              <div className="p-3 bg-white rounded-xl border border-blue-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    {discountType === 'percentage'
+                      ? `خصم ${discountValue || 0}% حتى سقف ${maxDiscount || 0} ل.س`
+                      : `خصم مباشر ${discountValue || 0} ل.س`}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    الحد الأدنى للطلب: {minOrder || 0} ل.س • ينتهي في: {expiryDate || 'مفتوح'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono block">
+                    {perCustomerLimit === 1 ? 'استخدام واحد فقط' : `${perCustomerLimit} مرات`}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleCreate} className="space-y-4 text-xs">
               <div>
@@ -224,6 +254,12 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase font-black text-blue-800"
                 />
+                {coupons.some((c) => c.code === code.trim().toUpperCase()) && (
+                  <p className="text-[10px] text-rose-600 font-bold mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    هذا الكود مستخدم مسبقاً، الرجاء اختيار كود فريد لمنع تضارب قواعد الخصم.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -299,6 +335,21 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                 </div>
               </div>
 
+              {/* Target Branch Allocation */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">تخصيص الكوبون لفرع محدد</label>
+                <select
+                  value={targetBranch}
+                  onChange={(e) => setTargetBranch(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                >
+                  <option value="all">كافة الفروع والمستودعات</option>
+                  <option value="b-damascus-hub">فرع دمشق والمنطقة الجنوبية</option>
+                  <option value="b-daraa-station">فرع درعا المحطة المركزي</option>
+                  <option value="b-daraa-countryside">فرع درعا البلد وريف حوران</option>
+                </select>
+              </div>
+
               {/* Anti-Conflict Toggles */}
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <span className="font-bold text-slate-800 block text-[11px]">سياسات منع التضارب المالي:</span>
@@ -332,7 +383,8 @@ export const CouponsPage: React.FC<CouponsPageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md shadow-blue-600/30"
+                  disabled={coupons.some((c) => c.code === code.trim().toUpperCase()) || !code.trim()}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-md shadow-blue-600/30"
                 >
                   حفظ وتفعيل الكوبون
                 </button>

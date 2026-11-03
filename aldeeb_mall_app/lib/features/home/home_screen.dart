@@ -21,20 +21,12 @@ import '../category/department_screen.dart';
 import '../category/categories_screen.dart';
 import '../notifications/notifications_sheet.dart';
 import '../customer_service/presentation/customer_service_screen.dart';
-import '../butcher/butcher_customizer_screen.dart';
-import '../meal_kits/meal_kits_screen.dart';
-import '../zero_waste/zero_waste_screen.dart';
-import '../live_shopping/live_shopping_screen.dart';
 import '../group_buying/group_deals_screen.dart';
-import '../lockers/smart_locker_pickup_screen.dart';
 import '../pickup/curbside_pickup_screen.dart';
-import '../pharmacy/pharmacy_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
-import '../kitchen_wand/kitchen_wand_screen.dart';
 import '../navigation/in_store_navigator_screen.dart';
 import '../smart_cart_iot/smart_cart_iot_screen.dart';
 import '../sustainability/eco_tracker_modal.dart';
-import '../price_match/price_match_modal.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -1026,50 +1018,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSmartServicesHub(BuildContext context, bool isDesktop) {
     final services = [
       _SmartServiceItem(
-        title: 'الملحمة والمسمكة',
-        subtitle: 'تفصيل وذبح طازج',
-        icon: Icons.outdoor_grill_rounded,
-        badge: 'ذبح حلال',
-        color: const Color(0xFFDC2626),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ButcherCustomizerScreen()),
-        ),
-      ),
-      _SmartServiceItem(
-        title: 'بوكسات الشيف',
-        subtitle: 'مقادير موزونة ووصفات',
-        icon: Icons.soup_kitchen_rounded,
-        badge: 'جاهزة للطهي',
-        color: const Color(0xFFD97706),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MealKitsScreen()),
-        ),
-      ),
-      _SmartServiceItem(
-        title: 'إنقاذ الطعام',
-        subtitle: 'وفر 40% إلى 70%',
-        icon: Icons.eco_rounded,
-        badge: 'Zero Waste',
-        color: const Color(0xFF16A34A),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ZeroWasteScreen()),
-        ),
-      ),
-      _SmartServiceItem(
-        title: 'التسوق الحي',
-        subtitle: 'بث وتخفيضات تفاعلية',
-        icon: Icons.live_tv_rounded,
-        badge: 'مباشر',
-        color: const Color(0xFFE11D48),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LiveShoppingScreen()),
-        ),
-      ),
-      _SmartServiceItem(
         title: 'الشراء الجماعي',
         subtitle: 'اشترِ مع جيرانك ووفر',
         icon: Icons.groups_rounded,
@@ -1081,47 +1029,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       _SmartServiceItem(
-        title: 'الخزائن الذكية',
-        subtitle: 'استلام مبرد ومجمد 24/7',
-        icon: Icons.lock_clock_rounded,
-        badge: '24/7',
-        color: const Color(0xFF2563EB),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartLockerPickupScreen()),
-        ),
-      ),
-      _SmartServiceItem(
         title: 'استلام بالسيارة',
-        subtitle: 'تحميل خلال دقيقتين',
+        subtitle: 'تحميل فوري خلال دقيقتين',
         icon: Icons.directions_car_rounded,
         badge: 'Curbside',
         color: const Color(0xFF0284C7),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CurbsidePickupScreen()),
-        ),
-      ),
-      _SmartServiceItem(
-        title: 'صيدلية وصفتي',
-        subtitle: 'وصفات وإعادة الصرف',
-        icon: Icons.medical_services_rounded,
-        badge: 'معتمدة',
-        color: const Color(0xFF0D9488),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PharmacyScreen()),
-        ),
-      ),
-      _SmartServiceItem(
-        title: 'المؤونة الذكية',
-        subtitle: 'جرد المطبخ والثلاجة',
-        icon: Icons.kitchen_rounded,
-        badge: 'Pantry',
-        color: const Color(0xFF9333EA),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const KitchenWandScreen()),
         ),
       ),
       _SmartServiceItem(
@@ -1156,14 +1071,6 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(builder: (_) => const SmartCartIoTScreen()),
         ),
-      ),
-      _SmartServiceItem(
-        title: 'ضمان أقل سعر',
-        subtitle: 'مطابقة أسعار المنافسين',
-        icon: Icons.verified_rounded,
-        badge: 'استرداد',
-        color: const Color(0xFF15803D),
-        onTap: () => PriceMatchModal.show(context),
       ),
       _SmartServiceItem(
         title: 'الأثر البيئي',

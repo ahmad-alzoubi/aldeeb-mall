@@ -226,13 +226,13 @@ export const ZonesPage: React.FC<ZonesPageProps> = ({
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-300 mb-1">
             <Compass className="w-4 h-4 text-blue-400" />
-            نظام النطاقات الجغرافية والتسعير اللوجستي — محافظة درعا وسوريا
+            نظام النطاقات الجغرافية والتغطية اللوجستية السورية (استبعاد درعا افتراضياً ومطابقة المحافظات)
           </div>
           <h2 className="text-xl font-black">
             إدارة أقطار التوصيل والحد الأدنى للطلب ورسوم الذروة
           </h2>
           <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-            يتم تحديد نطاقات الخدمة اللوجستية لكل مستودع وفرع لضمان وصول الطلب مبرداً وطازجاً في الوقت القياسي المتعهد به (15 - 45 دقيقة).
+            يتم تحديد نطاقات الخدمة اللوجستية لكل مستودع وفرع لضمان وصول الطلب مبرداً وطازجاً في الوقت القياسي المتعهد به (15 - 45 دقيقة). درعا مستبعدة افتراضياً من التغطية ويمكن إدارتها وتفعيلها استثنائياً.
           </p>
           <div className="flex items-center gap-2 mt-3 text-xs text-blue-200">
             <Building2 className="w-3.5 h-3.5 text-blue-400" />
@@ -318,18 +318,24 @@ export const ZonesPage: React.FC<ZonesPageProps> = ({
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    {zone.zone_name_ar.includes('درعا') && (
+                      <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
+                        مستبعدة افتراضياً
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-bold text-slate-900 text-sm mt-1.5">{zone.zone_name_ar}</h3>
                 </div>
                 <button
                   onClick={() => handleToggleActive(zone.id)}
-                  className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-colors ${
+                  className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
                     zone.is_active
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-rose-100 text-rose-800'
+                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                      : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
                   }`}
+                  title={zone.is_active ? 'تعطيل النطاق' : 'تفعيل النطاق استثنائياً'}
                 >
-                  {zone.is_active ? 'مفعل' : 'معطل'}
+                  {zone.is_active ? 'مفعل وجاهز' : 'معطل ومستبعد'}
                 </button>
               </div>
 

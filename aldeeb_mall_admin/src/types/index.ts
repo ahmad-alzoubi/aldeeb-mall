@@ -43,6 +43,7 @@ export interface Category {
 
 export interface OrderItem {
   id: string;
+  product_id?: string;
   product_name_ar: string;
   product_name_en: string;
   product_image?: string;
@@ -223,7 +224,7 @@ export interface Courier {
   vehicle_type: 'motorbike' | 'van' | 'electric_scooter';
   license_plate: string;
   current_location: string;
-  status: 'idle' | 'on_delivery' | 'returning' | 'offline';
+  status: 'idle' | 'on_delivery' | 'returning' | 'offline' | 'break';
   shift_status?: 'active' | 'break' | 'off_duty';
   earnings_today?: number;
   tips_today?: number;

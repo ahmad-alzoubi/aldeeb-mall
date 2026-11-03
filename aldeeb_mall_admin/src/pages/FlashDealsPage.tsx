@@ -405,6 +405,43 @@ export const FlashDealsPage: React.FC<FlashDealsPageProps> = ({
                 </div>
               </div>
 
+              {/* Live Flash Deal Preview */}
+              {selectedProductIds.length > 0 && (() => {
+                const previewProd = products.find((p) => p.id === selectedProductIds[0]);
+                if (!previewProd) return null;
+                const calcPrice = Number((previewProd.price * (1 - discountPercent / 100)).toFixed(2));
+                return (
+                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 space-y-2">
+                    <span className="text-[10px] font-extrabold text-amber-900 flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
+                      معاينة حية لبطاقة العرض الخاطف للمستخدمين:
+                    </span>
+                    <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-amber-100 shadow-2xs">
+                      <img
+                        src={previewProd.images[0] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'}
+                        alt=""
+                        className="w-12 h-12 rounded-lg object-cover border"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-extrabold text-slate-900 truncate text-xs">{previewProd.name_ar}</p>
+                          <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                            -{discountPercent}%
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <span className="font-mono font-black text-rose-600 text-xs">{calcPrice.toFixed(2)} ل.س</span>
+                          <span className="line-through text-slate-400 text-[10px] font-mono">{previewProd.price.toFixed(2)} ل.س</span>
+                        </div>
+                        <p className="text-[9px] text-slate-500 mt-0.5">
+                          الحصة: {quota} قطعة • المدة: {durationHours} ساعة
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"

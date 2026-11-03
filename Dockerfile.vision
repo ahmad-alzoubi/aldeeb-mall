@@ -1,0 +1,38 @@
+# ==============================================================================
+# ALDEEB MALL EDGE VISION & SENSING SERVICE - PRODUCTION DOCKERFILE
+# Python 3.11 Slim with Multi-threaded OpenCV & Hardware Acceleration
+# ==============================================================================
+
+FROM python:3.11-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8095
+
+WORKDIR /app
+
+# Install system dependencies for networking and video codecs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy services
+COPY services/vision_service /app/vision_service
+COPY services/forecasting /app/forecasting
+
+# Create non-root edge user for defense in depth
+RUN useradd -m -u 1001 edgeuser && \
+    chown -R edgeuser:edgeuser /app
+
+USER edgeuser
+
+WORKDIR /app/vision_service
+
+EXPOSE 8095
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8095/health || exit 1
+
+CMD ["python3", "vision_api_server.py", "8095"]
