@@ -7,6 +7,22 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Frictionless Auth Schema Stub for Standard PostgreSQL / PostgREST compatibility
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE TABLE IF NOT EXISTS auth.users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE OR REPLACE FUNCTION auth.uid()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$$;
+
 -- 1. Profiles Table (Linked to Supabase Auth)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -97,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.banners (
 CREATE TABLE IF NOT EXISTS public.coupons (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL,
-    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed', 'percent')),
     discount_value NUMERIC(10, 2) NOT NULL CHECK (discount_value > 0),
     min_order_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     max_discount NUMERIC(10, 2),
@@ -1927,6 +1943,9 @@ END $$;
 -- ==============================================================================
 -- Active Promotional Coupons Seed
 -- ==============================================================================
+ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_discount_type_check;
+ALTER TABLE public.coupons ADD CONSTRAINT coupons_discount_type_check CHECK (discount_type IN ('percentage', 'fixed', 'percent'));
+
 INSERT INTO public.coupons (code, discount_type, discount_value, min_order_amount, max_discount, usage_limit, times_used, expires_at, is_active)
 VALUES
 ('WELCOME10', 'percent', 10.0, 50.0, 20.0, 1000, 14, now() + interval '365 days', true),
@@ -2066,3 +2085,110 @@ ON CONFLICT (id) DO UPDATE SET
     images = EXCLUDED.images,
     is_featured = EXCLUDED.is_featured,
     is_daily_deal = EXCLUDED.is_daily_deal;
+
+-- ==============================================================================
+-- 🏬 ALDEEB MALL: MULTI-BRANCH INDEPENDENT DATABASE & SCHEMA PROVISIONING ENGINE
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.provision_isolated_branch_schema(
+    p_branch_code TEXT,
+    p_branch_name TEXT,
+    p_city TEXT,
+    p_currency TEXT DEFAULT 'ل.س'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_schema_name TEXT;
+    v_result JSONB;
+BEGIN
+    v_schema_name := 'branch_' || lower(regexp_replace(p_branch_code, '[^a-zA-Z0-9]', '_', 'g'));
+    EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', v_schema_name);
+
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.products (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            catalog_product_id UUID NOT NULL,
+            barcode TEXT,
+            name_ar TEXT NOT NULL,
+            name_en TEXT,
+            branch_price NUMERIC(14,2) NOT NULL,
+            cost_price NUMERIC(14,2) NOT NULL DEFAULT 0.00,
+            stock_quantity INTEGER NOT NULL DEFAULT 0,
+            reserved_quantity INTEGER NOT NULL DEFAULT 0,
+            in_transit_quantity INTEGER NOT NULL DEFAULT 0,
+            damaged_quantity INTEGER NOT NULL DEFAULT 0,
+            min_stock_alert INTEGER NOT NULL DEFAULT 5,
+            is_available BOOLEAN NOT NULL DEFAULT true,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone(''utc''::text, now())
+        )', v_schema_name);
+
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.orders (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            order_number TEXT UNIQUE NOT NULL,
+            customer_name TEXT,
+            customer_phone TEXT,
+            status TEXT NOT NULL DEFAULT ''pending'',
+            total_amount NUMERIC(14,2) NOT NULL,
+            tax_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00,
+            payment_method TEXT NOT NULL,
+            payment_status TEXT NOT NULL DEFAULT ''unpaid'',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT timezone(''utc''::text, now()),
+            completed_at TIMESTAMPTZ
+        )', v_schema_name);
+
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.pos_transactions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            receipt_number TEXT UNIQUE NOT NULL,
+            terminal_code TEXT NOT NULL,
+            cashier_name TEXT NOT NULL,
+            subtotal NUMERIC(14,2) NOT NULL,
+            tax_amount NUMERIC(14,2) NOT NULL,
+            grand_total NUMERIC(14,2) NOT NULL,
+            payment_method TEXT NOT NULL,
+            cash_received NUMERIC(14,2),
+            change_given NUMERIC(14,2),
+            idempotency_key TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT timezone(''utc''::text, now())
+        )', v_schema_name);
+
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.inventory_movements (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            product_id UUID NOT NULL,
+            movement_type TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            balance_after INTEGER NOT NULL,
+            reference_id TEXT,
+            reason TEXT,
+            created_by TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT timezone(''utc''::text, now())
+        )', v_schema_name);
+
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.event_outbox (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            event_type TEXT NOT NULL,
+            payload JSONB NOT NULL,
+            status TEXT NOT NULL DEFAULT ''pending'',
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT timezone(''utc''::text, now()),
+            synced_at TIMESTAMPTZ
+        )', v_schema_name);
+
+    v_result := jsonb_build_object(
+        'status', 'success',
+        'branch_code', p_branch_code,
+        'schema_name', v_schema_name,
+        'provisioned_at', now(),
+        'isolation_level', 'physical_schema_isolation'
+    );
+
+    RETURN v_result;
+END;
+$$;
+

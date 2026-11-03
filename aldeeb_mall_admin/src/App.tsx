@@ -31,16 +31,7 @@ import { ElectronicInvoicePage } from './pages/ElectronicInvoicePage';
 import { StaffManagementPage } from './pages/StaffManagementPage';
 import { AccountingPayrollPage } from './pages/AccountingPayrollPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
-import { ButcherOperationsPage } from './pages/ButcherOperationsPage';
-import { ColdChainPage } from './pages/ColdChainPage';
 import { CorporateB2BPage } from './pages/CorporateB2BPage';
-import { LiveShoppingPage } from './pages/LiveShoppingPage';
-import { MarketplaceVendorsPage } from './pages/MarketplaceVendorsPage';
-import { MealKitsPage } from './pages/MealKitsPage';
-import { PharmacyPage } from './pages/PharmacyPage';
-import { PriceMatchPage } from './pages/PriceMatchPage';
-import { SmartLockersPage } from './pages/SmartLockersPage';
-import { ZeroWastePage } from './pages/ZeroWastePage';
 import { 
   INITIAL_STAFF, 
   INITIAL_PAYROLL_TRANSACTIONS, 
@@ -1722,16 +1713,25 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeTab === 'butcher_operations' && <ButcherOperationsPage />}
-          {activeTab === 'cold_chain' && <ColdChainPage />}
           {activeTab === 'corporate_b2b' && <CorporateB2BPage />}
-          {activeTab === 'live_shopping' && <LiveShoppingPage />}
-          {activeTab === 'marketplace_vendors' && <MarketplaceVendorsPage />}
-          {activeTab === 'meal_kits' && <MealKitsPage />}
-          {activeTab === 'pharmacy' && <PharmacyPage />}
-          {activeTab === 'price_match' && <PriceMatchPage />}
-          {activeTab === 'smart_lockers' && <SmartLockersPage />}
-          {activeTab === 'zero_waste' && <ZeroWastePage />}
+
+          {['butcher_operations', 'cold_chain', 'live_shopping', 'marketplace_vendors', 'meal_kits', 'pharmacy', 'price_match', 'smart_lockers', 'zero_waste'].includes(activeTab) && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center max-w-2xl mx-auto my-12">
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-black">
+                ⚠️
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">هذه الوحدة ملغاة بقرار تشغيلي معتمد</h2>
+              <p className="text-sm text-slate-400 leading-relaxed mb-6">
+                تم إلغاء هذه الوحدة من الواجهات والتشغيل الفعلي بناءً على توجيهات الإدارة المركزية (المادة 18)، مع الحفاظ التام على السجلات التاريخية والقيود المالية وقواعد البيانات المعتمدة لأغراض التدقيق المحاسبي.
+              </p>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                العودة للوحة التحكم المركزية
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>

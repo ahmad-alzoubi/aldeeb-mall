@@ -60,6 +60,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const allMenuItems = [
     { id: 'dashboard', label: 'لوحة التحكم والعمليات', icon: LayoutDashboard },
     { 
+      id: 'pos_terminal', 
+      label: 'نقطة بيع الكاشير (POS)', 
+      icon: Store, 
+      badge: 'POS' 
+    },
+    { 
       id: 'staff_management', 
       label: 'إدارة الموظفين والصلاحيات', 
       icon: Users, 

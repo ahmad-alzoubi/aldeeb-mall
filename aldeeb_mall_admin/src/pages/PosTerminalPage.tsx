@@ -669,6 +669,29 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
           total_price: item.total || item.price * item.quantity,
         }));
         await supabase.from('order_items').insert(itemsPayload);
+
+        // Deduct branch stock & record sales count
+        for (const item of cart) {
+          if (isUuid(item.product_id)) {
+            try {
+              const { data: prod } = await supabase
+                .from('products')
+                .select('stock_quantity, sales_count')
+                .eq('id', item.product_id)
+                .maybeSingle();
+              if (prod) {
+                const newStock = Math.max(0, (prod.stock_quantity || 0) - item.quantity);
+                const newSales = (prod.sales_count || 0) + item.quantity;
+                await supabase
+                  .from('products')
+                  .update({ stock_quantity: newStock, sales_count: newSales })
+                  .eq('id', item.product_id);
+              }
+            } catch (invErr) {
+              console.warn('POS stock deduction note:', invErr);
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn('POS order sync note:', e);

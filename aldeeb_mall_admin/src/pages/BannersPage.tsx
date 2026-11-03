@@ -30,16 +30,10 @@ interface BannersPageProps {
 }
 
 const IN_APP_SCREENS = [
-  { id: 'flash_deals', name: 'عروض الفلاش والصفقات الخاطفة (Noon Deals)', icon: '⚡' },
-  { id: 'live_shopping', name: 'الديب لايف والتسوق الحي (Live)', icon: '🔴' },
+  { id: 'flash_deals', name: 'عروض الفلاش والصفقات الخاطفة (Flash Deals)', icon: '⚡' },
   { id: 'loyalty', name: 'نادي مكافآت الديب ونقاط الولاء (Loyalty)', icon: '⭐' },
-  { id: 'pharmacy', name: 'صيدلية الديب الذكية (Pharmacy & SFDA)', icon: '💊' },
-  { id: 'smart_lockers', name: 'خزائن الاستلام الذكية 24/7 (Lockers)', icon: '📦' },
   { id: 'group_deals', name: 'الشراء الجماعي وتوفير الجيران (Group Deals)', icon: '👥' },
   { id: 'grocery_list', name: 'القائمة الذكية ومخطط المقاضي (Smart List)', icon: '📝' },
-  { id: 'butcher', name: 'الملحمة الذكية والتقطيع المخصص (Butcher)', icon: '🥩' },
-  { id: 'meal_kits', name: 'بوكسات تجهيز الطبخ والوجبات (Meal Kits)', icon: '🍲' },
-  { id: 'zero_waste', name: 'سوق إنقاذ الغذاء والتخفيض الذكي (-70%)', icon: '🌱' },
   { id: 'flyer', name: 'مجلة عروض الديب الأسبوعية الرقمية (Flyer)', icon: '📰' },
   { id: 'cart', name: 'سلة المشتريات (Cart)', icon: '🛒' },
   { id: 'orders', name: 'متابعة وتتبع الطلبات (Orders Tracking)', icon: '🛵' },

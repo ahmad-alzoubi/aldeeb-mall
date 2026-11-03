@@ -12,7 +12,6 @@ import '../../features/flyer/flyer_screen.dart';
 import '../../features/deals/flash_deals_screen.dart';
 import '../../features/loyalty/loyalty_screen.dart';
 import '../../features/grocery_list/grocery_list_screen.dart';
-import '../../features/recipes/recipes_screen.dart';
 import '../../features/group_buying/group_deals_screen.dart';
 import '../../features/subscriptions/subscriptions_screen.dart';
 import '../../features/ai_nutritionist/ai_nutritionist_screen.dart';
@@ -21,15 +20,6 @@ import '../../features/scanner/barcode_scanner_screen.dart';
 import '../../features/cart/cart_screen.dart';
 import '../../features/orders/order_tracking_screen.dart';
 import '../../features/navigation/in_store_navigator_screen.dart';
-import '../../features/zero_waste/zero_waste_screen.dart';
-import '../../features/meal_kits/meal_kits_screen.dart';
-import '../../features/butcher/butcher_customizer_screen.dart';
-import '../../features/live_shopping/live_shopping_screen.dart';
-import '../../features/lockers/smart_locker_pickup_screen.dart';
-import '../../features/pickup/curbside_pickup_screen.dart';
-import '../../features/pharmacy/pharmacy_screen.dart';
-import '../../features/kitchen_wand/kitchen_wand_screen.dart';
-import '../../features/price_match/price_match_modal.dart';
 import '../../features/sustainability/eco_tracker_modal.dart';
 
 class BannerNavigator {
@@ -152,11 +142,6 @@ class BannerNavigator {
         destination = const FlyerScreen();
         break;
 
-      case 'zero_waste':
-      case 'food_rescue':
-        destination = const ZeroWasteScreen();
-        break;
-
       case 'loyalty':
       case 'rewards':
       case 'points':
@@ -174,55 +159,24 @@ class BannerNavigator {
         destination = const GroceryListScreen();
         break;
 
+      case 'zero_waste':
+      case 'food_rescue':
       case 'meal_kits':
       case 'recipes_kits':
       case 'cooking_box':
-        destination = const MealKitsScreen();
-        break;
-
       case 'recipes':
       case 'cooking':
-        destination = const RecipesScreen();
-        break;
-
       case 'butcher':
-      case 'meat_cutting':
-      case 'meat':
-        destination = const ButcherCustomizerScreen();
-        break;
-
       case 'live_shopping':
-      case 'live':
-      case 'stream':
-        destination = const LiveShoppingScreen();
-        break;
-
       case 'smart_lockers':
       case 'lockers':
-      case 'smart_locker':
-        destination = const SmartLockerPickupScreen();
-        break;
-
-      case 'curbside':
-      case 'curbside_pickup':
-      case 'pickup':
-        destination = const CurbsidePickupScreen();
-        break;
-
       case 'pharmacy':
       case 'wasfaty':
-        destination = const PharmacyScreen();
-        break;
-
       case 'kitchen_wand':
-      case 'smart_pantry':
-      case 'pantry':
-        destination = const KitchenWandScreen();
-        break;
-
       case 'price_match':
-        PriceMatchModal.show(context);
-        return;
+        // 9 Decommissioned modules: safely route to active flyer
+        destination = const FlyerScreen();
+        break;
 
       case 'eco_tracker':
       case 'sustainability':
