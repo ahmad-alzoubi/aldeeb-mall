@@ -22,6 +22,7 @@ import '../pickup/curbside_pickup_screen.dart';
 import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../sustainability/eco_tracker_modal.dart';
 import '../group_buying/group_deals_screen.dart';
+import '../deals/flash_deals_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -957,6 +958,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _divider(settings),
 
           // 12. صفقات الشراء الجماعي التشاركي (Group Deals)
+          // عروض الفلاش الخاطفة (Flash Deals)
+          _menuItem(
+            icon: Icons.bolt_rounded,
+            title: 'عروض الفلاش الخاطفة (Flash Sale)',
+            subtitle: 'تخفيضات كبرى بأسعار نارية تنتهي قريباً مع عد تنازلي حي',
+            iconColor: const Color(0xFFD97706),
+            settings: settings,
+            badgeText: 'خصم 50% 🔥',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FlashDealsScreen()),
+              );
+            },
+          ),
+          _divider(settings),
+
           _menuItem(
             icon: Icons.group_work_rounded,
             title: 'صفقات الشراء الجماعي مع الجيران والأصدقاء',

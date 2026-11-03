@@ -9,6 +9,7 @@ import '../../features/category/department_screen.dart';
 import '../../features/category/categories_screen.dart';
 import '../../features/product/product_detail_screen.dart';
 import '../../features/flyer/flyer_screen.dart';
+import '../../features/deals/flash_deals_screen.dart';
 import '../../features/loyalty/loyalty_screen.dart';
 import '../../features/grocery_list/grocery_list_screen.dart';
 import '../../features/recipes/recipes_screen.dart';
@@ -138,9 +139,15 @@ class BannerNavigator {
     Widget? destination;
 
     switch (key) {
+      case 'flash':
+      case 'flash_deals':
+      case 'flash_sale':
+      case 'deals_flash':
+        destination = const FlashDealsScreen();
+        break;
+
       case 'flyer':
       case 'deals':
-      case 'flash_deals':
       case 'offers':
         destination = const FlyerScreen();
         break;

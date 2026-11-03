@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/category_model.dart';
 import '../models/product_model.dart';
 import '../models/banner_model.dart';
+import '../models/flash_deal_model.dart';
 import '../services/supabase_service.dart';
 
 enum ProductSortOption {
@@ -23,6 +24,73 @@ class MallProvider extends ChangeNotifier {
   List<CategoryModel> _categories = [];
   List<ProductModel> _products = [];
   List<BannerModel> _banners = [];
+  final List<FlashDealModel> _flashDeals = [
+    const FlashDealModel(
+      id: 'fd-1',
+      productId: 'p1',
+      productNameAr: 'موز فلبيني طازج كافنديش درجة أولى',
+      productImage: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=400&q=80',
+      originalPrice: 22000.0,
+      dealPrice: 16500.0,
+      discountPercent: 25,
+      totalQuota: 250,
+      claimedQuota: 195,
+      endsAt: '03:45:20',
+      isActive: true,
+    ),
+    const FlashDealModel(
+      id: 'fd-2',
+      productId: 'p3',
+      productNameAr: 'طماطم مزارع محلية قطاف الصباح',
+      productImage: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
+      originalPrice: 15000.0,
+      dealPrice: 9500.0,
+      discountPercent: 36,
+      totalQuota: 180,
+      claimedQuota: 154,
+      endsAt: '02:30:15',
+      isActive: true,
+    ),
+    const FlashDealModel(
+      id: 'fd-3',
+      productId: 'p5',
+      productNameAr: 'دجاج التنمية طازج مبرد 1000 غرام',
+      productImage: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=400&q=80',
+      originalPrice: 42000.0,
+      dealPrice: 31500.0,
+      discountPercent: 25,
+      totalQuota: 120,
+      claimedQuota: 88,
+      endsAt: '05:15:00',
+      isActive: true,
+    ),
+    const FlashDealModel(
+      id: 'fd-4',
+      productId: 'p8',
+      productNameAr: 'زيت دوار الشمس عافية نقي 2 لتر',
+      productImage: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80',
+      originalPrice: 65000.0,
+      dealPrice: 49000.0,
+      discountPercent: 24,
+      totalQuota: 100,
+      claimedQuota: 72,
+      endsAt: '04:10:45',
+      isActive: true,
+    ),
+    const FlashDealModel(
+      id: 'fd-5',
+      productId: 'p12',
+      productNameAr: 'أرز بسمتي هندي كلاسيك 5 كغ',
+      productImage: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80',
+      originalPrice: 110000.0,
+      dealPrice: 82000.0,
+      discountPercent: 25,
+      totalQuota: 80,
+      claimedQuota: 64,
+      endsAt: '01:50:30',
+      isActive: true,
+    ),
+  ];
   final Set<String> _favoriteProductIds = {};
 
   String? _selectedCategoryId;
@@ -78,6 +146,28 @@ class MallProvider extends ChangeNotifier {
   List<ProductModel> get weeklyDeals {
     final list = _products.where((p) => p.isDailyDeal || p.discountPercent >= 20).toList();
     return list.isNotEmpty ? list : _products.take(6).toList();
+  }
+
+  List<FlashDealModel> get flashDeals => _flashDeals.where((d) => d.isActive).toList();
+
+  ProductModel getProductForFlashDeal(FlashDealModel deal) {
+    try {
+      return _products.firstWhere(
+        (p) => p.id == deal.productId || p.nameAr == deal.productNameAr,
+      );
+    } catch (_) {
+      return ProductModel(
+        id: deal.productId.isNotEmpty ? deal.productId : deal.id,
+        nameAr: deal.productNameAr,
+        nameEn: 'Flash Deal',
+        price: deal.dealPrice,
+        originalPrice: deal.originalPrice,
+        discountPercent: deal.discountPercent,
+        images: [deal.productImage],
+        stockQuantity: deal.remainingUnits,
+        isDailyDeal: true,
+      );
+    }
   }
 
   List<ProductModel> get cantMissDeals {

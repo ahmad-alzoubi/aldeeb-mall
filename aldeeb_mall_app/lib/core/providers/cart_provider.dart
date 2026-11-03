@@ -81,6 +81,11 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Alias for addToCart
+  void addItem(ProductModel product, {double? quantity}) {
+    addToCart(product, quantity: quantity);
+  }
+
   // 1.1 Add Complete Bundle with Promised Discount
   void addBundleToCart(ProductModel mainProduct, List<ProductModel> complementary, int discountPercent) {
     final multiplier = (1.0 - (discountPercent / 100.0));

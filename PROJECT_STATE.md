@@ -10,6 +10,8 @@
 
 | Module / Path | Responsibility | Connected Dependencies (Imports/Exports) | Current Status |
 | :--- | :--- | :--- | :--- |
+| `aldeeb_mall_app/lib/core/models/flash_deal_model.dart` | Flash Deal model with countdown & claimed quota | `ProductModel`, JSON serialization | 100% Complete & Verified |
+| `aldeeb_mall_app/lib/features/deals/flash_deals_screen.dart` | Dedicated Flash Deals view with live timer & filters | `FlashDealModel`, `CartProvider`, `MallProvider` | 100% Complete & Verified |
 | `aldeeb_mall_app/lib/main.dart` | Flutter Mobile/Web Entry point | Providers, SupabaseService, AppRouter | 100% Complete & Verified |
 | `aldeeb_mall_app/lib/core/services/supabase_service.dart` | Supabase Cloud API Client & RPC caller | `package:supabase_flutter`, Order/Product/Profile models | 100% Complete & Verified |
 | `aldeeb_mall_app/lib/core/providers/mall_provider.dart` | State store for catalog, banners, categories | `supabase_service.dart`, `Product`, `Category` | 100% Complete & Verified |
@@ -65,6 +67,7 @@
 | Platform | Route / Path | View Component | Access Level | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **Flutter App** | `/` | `HomeScreen` | Public / Customer | 100% Active & Connected |
+| **Flutter App** | `/flash-deals` | `FlashDealsScreen` | Public / Customer | 100% Active & Connected |
 | **Flutter App** | `/category/:id` | `CategoryProductsScreen` | Public / Customer | 100% Active & Connected |
 | **Flutter App** | `/product/:id` | `ProductDetailScreen` | Public / Customer | 100% Active & Connected |
 | **Flutter App** | `/cart` | `CartScreen` | Public / Customer | 100% Active & Connected |
@@ -106,6 +109,7 @@ All historical accounting entries, orders, and database tables remain preserved 
 | **REQ-04 / REQ-05** | `branch_database_provisioning.sql`, `branchDatabaseManager.ts` | Multi-branch schema isolation & 2-phase stock transfer | Tested `provision_isolated_branch_schema` and stock conservation across schemas | 100% Verified |
 | **REQ-06 / REQ-07** | `services/vision_service/`, `services/forecasting/` | Edge RTSP stream ingestion, line crossing footfall, spatial heatmapping, and censored demand forecasting | Tested Python service modules with realistic disconnected status and unbiased velocity | 100% Verified |
 | **REQ-28** | `docker-compose.yml`, `Dockerfile.admin`, `Dockerfile.vision`, `nginx/nginx.conf`, `scripts/` | Production deployment topology & zero-secret bootstrapping | Validated Docker configurations and tested `bootstrap_admin.py` | 100% Verified |
+| **REQ-FLASH-01** | `aldeeb_mall_app/` (`flash_deal_model.dart`, `flash_deals_screen.dart`, `mall_provider.dart`, `home_screen.dart`, `banner_navigator.dart`, `profile_screen.dart`) | Customer Flash Deals shelf with live ticking countdown, dedicated Flash Deals screen, banner & profile routing, quota meters | Flutter analyze 0 issues, flutter test 12/12 passed (100%) | 100% Verified |
 
 ---
 
@@ -122,3 +126,4 @@ All historical accounting entries, orders, and database tables remain preserved 
 | 2026-11-03T10:25:00+03:00 | RBAC & Recovery | Verified salary locks and offline one-time recovery tokens in `StaffManagementPage.tsx` | Admin Vite build clean in 3.54s. |
 | 2026-11-03T10:30:00+03:00 | Acceptance Verification | Ran `run_acceptance_tests.py` verifying all 18 cross-department scenarios (SCN-01 to SCN-18) | 18/18 scenarios passed (100% rate). |
 | 2026-11-03T10:35:00+03:00 | Deployment Packaging | Created `Dockerfile.admin`, `Dockerfile.vision`, `nginx/nginx.conf`, `docker-compose.yml`, `bootstrap_admin.py`, `backup_restore.sh` | Tested bootstrap script; ready for production. |
+| 2026-11-03T12:15:00+03:00 | Customer Flash Deals Integration | Added FlashDealModel, FlashDealsScreen, live countdown timer, home showcase shelf, banner navigator & profile links | Flutter analyze 0 errors, 12/12 tests passing. Admin build verified. |

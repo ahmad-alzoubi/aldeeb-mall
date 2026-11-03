@@ -27,6 +27,9 @@ import '../ai_nutritionist/ai_nutritionist_screen.dart';
 import '../navigation/in_store_navigator_screen.dart';
 import '../smart_cart_iot/smart_cart_iot_screen.dart';
 import '../sustainability/eco_tracker_modal.dart';
+import '../deals/flash_deals_screen.dart';
+import '../product/product_detail_screen.dart';
+import '../../core/models/flash_deal_model.dart';
 import 'widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -221,6 +224,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: MaxWidthContainer(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _buildHeroSection(mall, isDesktop),
+                  ),
+                ),
+
+                // 2.5 Prominent Live Flash Deals Shelf (عروض الفلاش الخاطفة ⚡)
+                SliverToBoxAdapter(
+                  child: MaxWidthContainer(
+                    child: _buildProminentFlashDealsShelf(mall, context, isDesktop),
                   ),
                 ),
 
@@ -1017,6 +1027,17 @@ class _HomeScreenState extends State<HomeScreen> {
   // ===========================================================================
   Widget _buildSmartServicesHub(BuildContext context, bool isDesktop) {
     final services = [
+      _SmartServiceItem(
+        title: 'عروض الفلاش',
+        subtitle: 'صفقات نارية بوقت محدد',
+        icon: Icons.bolt_rounded,
+        badge: 'خصم 50% 🔥',
+        color: const Color(0xFFD97706),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FlashDealsScreen()),
+        ),
+      ),
       _SmartServiceItem(
         title: 'الشراء الجماعي',
         subtitle: 'اشترِ مع جيرانك ووفر',
@@ -2124,6 +2145,372 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Prominent Live Flash Deals Shelf (عروض الفلاش الخاطفة ⚡)
+  // ===========================================================================
+  Widget _buildProminentFlashDealsShelf(MallProvider mall, BuildContext context, bool isDesktop) {
+    final flashDeals = mall.flashDeals;
+    if (flashDeals.isEmpty) return const SizedBox();
+
+    final cart = Provider.of<CartProvider>(context, listen: false);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFFFBEB),
+            const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+            Colors.white,
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'عروض الفلاش الخاطفة ⚡',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF92400E),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'Flash Sale',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Text(
+                              'تخفيضات كبرى تنتهي قريباً - أسرع قبل نفاد الكمية!',
+                              style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Countdown badge & "View All" Button
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, color: Colors.amber, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDuration(_remainingTime),
+                            style: const TextStyle(
+                              color: Colors.amber,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FlashDealsScreen()),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Row(
+                        children: [
+                          Text(
+                            'عرض الكل',
+                            style: TextStyle(
+                              color: Color(0xFFD97706),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Icon(Icons.chevron_left_rounded, color: Color(0xFFD97706), size: 18),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Deals Horizontal Carousel
+          SizedBox(
+            height: 290,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: flashDeals.length,
+              itemBuilder: (ctx, index) {
+                final deal = flashDeals[index];
+                final product = mall.getProductForFlashDeal(deal);
+                return Container(
+                  width: isDesktop ? 210 : 175,
+                  margin: const EdgeInsetsDirectional.only(end: 12),
+                  child: _buildFlashDealHomeCard(context, deal, product, cart),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlashDealHomeCard(
+    BuildContext context,
+    FlashDealModel deal,
+    ProductModel product,
+    CartProvider cart,
+  ) {
+    final percent = deal.percentClaimed;
+    final isAlmostGone = deal.remainingUnits <= 25;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image with -X% badge
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 1.15,
+                        child: CachedNetworkImage(
+                          imageUrl: deal.productImage,
+                          fit: BoxFit.cover,
+                          placeholder: (ctx, url) => Container(color: Colors.grey.shade100),
+                          errorWidget: (ctx, url, err) => const Icon(Icons.image_not_supported_outlined),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '-${deal.discountPercent}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Title
+                Text(
+                  deal.productNameAr,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+
+                // Price
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '${deal.dealPrice.toStringAsFixed(0)} ل.س',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${deal.originalPrice.toStringAsFixed(0)} ل.س',
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: percent / 100.0,
+                    minHeight: 4.5,
+                    backgroundColor: Colors.grey.shade100,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isAlmostGone ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'تم حجز $percent% (باقي ${deal.remainingUnits})',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: isAlmostGone ? Colors.red : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Fast Add Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      cart.addToCart(product);
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✓ أضيف "${deal.productNameAr}" بسعر الفلاش!'),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'أضف للعربة ⚡',
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
