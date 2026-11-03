@@ -36,7 +36,7 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category } from '../types';
+import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category, Order } from '../types';
 import { supabase, initialProducts, initialCategories } from '../lib/supabase';
 import { getStoredBranches, getActiveBranchId, setActiveBranchId } from '../lib/branchesData';
 import { ThermalReceiptView } from '../components/ThermalReceiptView';
@@ -226,24 +226,28 @@ const playSound = (type: 'beep' | 'success' | 'cash' | 'error', enabled: boolean
 };
 
 interface PosTerminalPageProps {
+  products?: Product[];
   onExitPos?: () => void;
   targetBranchId?: string;
   onNavigateToInvoiceDesigner?: () => void;
   isBranchLocked?: boolean;
   currentCashierName?: string;
+  onOrderCompleted?: (order: Order) => void;
 }
 
 export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({ 
+  products: externalProducts,
   onExitPos, 
   targetBranchId,
   onNavigateToInvoiceDesigner,
   isBranchLocked = false,
   currentCashierName,
+  onOrderCompleted,
 }) => {
   const [invoiceSettings] = useInvoiceSettings();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [activeBranch, setActiveBranch] = useState<Branch | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => externalProducts && externalProducts.length > 0 ? externalProducts : []);
   
   // Terminal Info
   const [terminalCode, setTerminalCode] = useState('POS-01');
@@ -321,7 +325,35 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     const found = list.find((b) => b.id === bId) || list[0];
     setActiveBranch(found);
 
-    setProducts(initialProducts);
+    if (externalProducts && externalProducts.length > 0) {
+      setProducts(externalProducts);
+    } else {
+      supabase.from('products').select('*').then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          const mapped: Product[] = data.map((p: any) => ({
+            id: p.id,
+            name_ar: p.name_ar,
+            name_en: p.name_en || p.name_ar,
+            brand: p.brand || 'طازج',
+            category_id: p.category_id,
+            barcode: p.barcode,
+            price: Number(p.price),
+            original_price: p.original_price ? Number(p.original_price) : Number(p.price),
+            discount_percent: p.discount_percent || 0,
+            unit: p.unit || 'piece',
+            weight_step: Number(p.weight_step || 1.0),
+            stock_quantity: Number(p.stock_quantity || 0),
+            images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [],
+            is_featured: !!p.is_featured,
+            is_daily_deal: !!p.is_daily_deal,
+            is_active: p.is_active !== false,
+            rating: Number(p.rating || 4.8),
+            sales_count: Number(p.sales_count || 0),
+          }));
+          setProducts(mapped);
+        }
+      });
+    }
 
     // Initialize or load current shift
     const savedShift = localStorage.getItem(`pos_shift_${found?.id || 'default'}`);
@@ -405,6 +437,12 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, isPaymentModalOpen]);
 
+  useEffect(() => {
+    if (externalProducts && externalProducts.length > 0) {
+      setProducts(externalProducts);
+    }
+  }, [externalProducts]);
+
   // Handle Barcode Scan / Enter
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,6 +458,12 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     );
 
     if (found) {
+      if (found.is_active === false) {
+        playPosSound('error');
+        alert(`⚠️ الصنف "${found.name_ar}" موقوف ومعطل عن البيع حالياً من قبل الإدارة المركزية.`);
+        setBarcodeInput('');
+        return;
+      }
       handleAddToCart(found);
       setBarcodeInput('');
     } else {
@@ -431,6 +475,11 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
 
   // Add Product to Cart
   const handleAddToCart = (product: Product) => {
+    if (product.is_active === false) {
+      playPosSound('error');
+      alert(`⚠️ الصنف "${product.name_ar}" موقوف ومعطل عن البيع حالياً.`);
+      return;
+    }
     playPosSound('beep');
     setCart((prev) => {
       const idx = prev.findIndex((item) => item.product_id === product.id);
@@ -641,12 +690,19 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     // Sync POS Transaction with Supabase Orders & Order Items
     try {
       const isUuid = (id?: string) => !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+      const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
+      const effectiveBranchName = activeBranch?.name_ar || 'فرع جدة الكورنيش (واجهة البحر)';
+
       const { data } = await supabase
         .from('orders')
         .insert({
           order_number: receiptNum,
+          customer_name: customerName || 'عميل نقدي مباشر',
+          customer_phone: customerPhone || '+966 50 000 0000',
+          branch_id: effectiveBranchId,
+          branch_name: effectiveBranchName,
           status: 'delivered',
-          delivery_slot: `كاشير مباشر - ${activeBranch?.name_ar || 'الفرع الرئيسي'}`,
+          delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
           payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
           payment_status: 'paid',
           subtotal: subtotal - taxAmount,
@@ -657,9 +713,11 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         .select('id')
         .maybeSingle();
 
-      if (data?.id && cart.length > 0) {
+      const orderId = data?.id || `ord-pos-${Date.now()}`;
+
+      if (cart.length > 0) {
         const itemsPayload = cart.map((item) => ({
-          order_id: data.id,
+          order_id: orderId,
           product_id: isUuid(item.product_id) ? item.product_id : null,
           product_name_ar: item.name_ar,
           product_name_en: item.name_en || item.name_ar,
@@ -693,6 +751,63 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
           }
         }
       }
+
+      // Notify Vision Edge Server of cashier scans for realtime footfall/loss prevention correlation
+      try {
+        for (const item of cart) {
+          fetch('http://127.0.0.1:8095/api/pos/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              barcode: item.barcode || 'POS-ITEM',
+              product_name: item.name_ar,
+              cashier_id: terminalCode,
+            })
+          }).catch(() => {});
+        }
+      } catch (_) {}
+
+      // Construct live Order for immediate local synchronization with Admin Dashboard
+      const createdOrder: Order = {
+        id: orderId,
+        order_number: receiptNum,
+        customer_name: customerName || 'عميل نقدي مباشر',
+        customer_phone: customerPhone || '+966 50 000 0000',
+        customer_address: `نقطة بيع كاشير - ${effectiveBranchName}`,
+        status: 'delivered',
+        delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
+        payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
+        subtotal: subtotal - taxAmount,
+        delivery_fee: 0,
+        discount_amount: 0,
+        loyalty_discount: 0,
+        total_amount: grandTotal,
+        created_at: new Date().toISOString(),
+        notes: `نقطة بيع POS • الكاشير: ${cashierName}`,
+        items: cart.map((item, idx) => ({
+          id: `it-${Date.now()}-${idx}`,
+          product_name_ar: item.name_ar,
+          product_name_en: item.name_en || item.name_ar,
+          product_image: item.image_url || '',
+          unit_price: item.price,
+          quantity: item.quantity,
+          unit: item.unit || 'piece',
+          total_price: item.total || (item.price * item.quantity),
+        })),
+        branch_id: effectiveBranchId,
+        branch_name: effectiveBranchName,
+      };
+
+      if (onOrderCompleted) {
+        onOrderCompleted(createdOrder);
+      }
+
+      try {
+        const raw = localStorage.getItem('aldeeb_admin_orders_v5');
+        const existing: Order[] = raw ? JSON.parse(raw) : [];
+        const merged = [createdOrder, ...existing.filter(o => o.id !== createdOrder.id && o.order_number !== createdOrder.order_number)];
+        localStorage.setItem('aldeeb_admin_orders_v5', JSON.stringify(merged));
+      } catch (_) {}
     } catch (e) {
       console.warn('POS order sync note:', e);
     } finally {
@@ -1162,47 +1277,68 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
           {/* Speed Touch Tiles Grid */}
           <div className="flex-1 p-4 overflow-y-auto">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleAddToCart(product)}
-                  className="group bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-500 rounded-2xl p-2.5 text-right transition-all duration-150 flex flex-col justify-between shadow-xs hover:shadow-md active:scale-95"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-full aspect-square rounded-xl bg-slate-50 overflow-hidden relative mb-2 border border-slate-100">
-                    {product.images?.[0] ? (
-                      <img
-                        src={product.images[0]}
-                        alt=""
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-300">
-                        <ShoppingBag className="w-8 h-8" />
-                      </div>
-                    )}
-                    <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-slate-900/70 text-white text-[9px] font-mono">
-                      {product.unit || 'حبة'}
-                    </span>
-                  </div>
-
-                  {/* Title & Price */}
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-blue-700 transition-colors">
-                      {product.name_ar}
-                    </h4>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="font-mono text-sm font-black text-emerald-700">
-                        {product.price.toFixed(2)}
+              {filteredProducts.map((product) => {
+                const isDeactivated = product.is_active === false;
+                return (
+                  <button
+                    key={product.id}
+                    disabled={isDeactivated}
+                    onClick={() => handleAddToCart(product)}
+                    className={`group rounded-2xl p-2.5 text-right transition-all duration-150 flex flex-col justify-between shadow-xs ${
+                      isDeactivated
+                        ? 'bg-slate-50 border border-slate-200 opacity-50 cursor-not-allowed'
+                        : 'bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-500 hover:shadow-md active:scale-95'
+                    }`}
+                  >
+                    {/* Thumbnail */}
+                    <div className="w-full aspect-square rounded-xl bg-slate-50 overflow-hidden relative mb-2 border border-slate-100">
+                      {product.images?.[0] ? (
+                        <img
+                          src={product.images[0]}
+                          alt=""
+                          className={`w-full h-full object-cover transition-transform duration-200 ${
+                            isDeactivated ? 'grayscale' : 'group-hover:scale-105'
+                          }`}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                          <ShoppingBag className="w-8 h-8" />
+                        </div>
+                      )}
+                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-slate-900/70 text-white text-[9px] font-mono">
+                        {product.unit || 'حبة'}
                       </span>
-                      <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-all shadow-xs">
-                        <Plus className="w-3.5 h-3.5" />
+                      {isDeactivated && (
+                        <span className="absolute inset-0 bg-rose-950/40 backdrop-blur-[1px] flex items-center justify-center text-white text-[10px] font-black tracking-wider">
+                          معطل بالمول ⏸️
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title & Price */}
+                    <div>
+                      <h4 className={`text-xs font-bold line-clamp-2 leading-tight transition-colors ${
+                        isDeactivated ? 'text-slate-400 line-through' : 'text-slate-800 group-hover:text-blue-700'
+                      }`}>
+                        {product.name_ar}
+                      </h4>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className={`font-mono text-sm font-black ${
+                          isDeactivated ? 'text-slate-400' : 'text-emerald-700'
+                        }`}>
+                          {product.price.toFixed(2)}
+                        </span>
+                        {!isDeactivated && (
+                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-all shadow-xs">
+                            <Plus className="w-3.5 h-3.5" />
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </main>

@@ -4,6 +4,8 @@ import threading
 import sys
 import os
 import json
+import urllib.request
+import urllib.error
 
 STORE_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'store_settings.json')
 SUPPORT_TICKETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'support_tickets.json')
@@ -95,16 +97,73 @@ class RobustHandler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, apikey, Prefer, Range')
         super().end_headers()
+
+    def proxy_postgrest(self, method):
+        target_path = self.path
+        if target_path.startswith('/rest/v1'):
+            target_path = target_path[8:]
+        if not target_path.startswith('/'):
+            target_path = '/' + target_path
+        target_url = f"http://127.0.0.1:54321{target_path}"
+
+        headers = {}
+        for k, v in self.headers.items():
+            if k.lower() not in ['host', 'content-length']:
+                headers[k] = v
+
+        body = None
+        if method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            length = int(self.headers.get('Content-Length', 0))
+            if length > 0:
+                body = self.rfile.read(length)
+
+        req = urllib.request.Request(target_url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                self.send_response(resp.status)
+                for k, v in resp.headers.items():
+                    if k.lower() not in ['transfer-encoding', 'content-length', 'access-control-allow-origin']:
+                        self.send_header(k, v)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                resp_body = resp.read()
+                self.send_header('Content-Length', str(len(resp_body)))
+                self.end_headers()
+                self.wfile.write(resp_body)
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            for k, v in e.headers.items():
+                if k.lower() not in ['transfer-encoding', 'content-length', 'access-control-allow-origin']:
+                    self.send_header(k, v)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            err_body = e.read()
+            self.send_header('Content-Length', str(len(err_body)))
+            self.end_headers()
+            self.wfile.write(err_body)
+        except Exception as e:
+            err = json.dumps({'error': str(e)}).encode('utf-8')
+            self.send_response(502)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
 
     def do_OPTIONS(self):
         self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, apikey, Prefer, Range')
         self.send_header('Content-Length', '0')
         self.end_headers()
 
     def do_GET(self):
+        if self.path.startswith('/rest/v1'):
+            self.proxy_postgrest('GET')
+            return
+
         if self.path.startswith('/api/store_settings'):
             data = get_current_settings()
             body = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -128,6 +187,10 @@ class RobustHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
+        if self.path.startswith('/rest/v1'):
+            self.proxy_postgrest('POST')
+            return
+
         if self.path.startswith('/api/store_settings'):
             try:
                 length = int(self.headers.get('Content-Length', 0))
@@ -188,6 +251,27 @@ class RobustHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_resp)
                 return
 
+        self.send_response(404)
+        self.end_headers()
+
+    def do_PATCH(self):
+        if self.path.startswith('/rest/v1'):
+            self.proxy_postgrest('PATCH')
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_DELETE(self):
+        if self.path.startswith('/rest/v1'):
+            self.proxy_postgrest('DELETE')
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_PUT(self):
+        if self.path.startswith('/rest/v1'):
+            self.proxy_postgrest('PUT')
+            return
         self.send_response(404)
         self.end_headers()
 

@@ -13,9 +13,15 @@ import {
   Camera,
   CheckCircle2,
   AlertCircle,
-  FileQuestion
+  FileQuestion,
+  Eye,
+  EyeOff,
+  Power,
+  ShieldAlert,
+  SlidersHorizontal,
+  Building2
 } from 'lucide-react';
-import { Product, Category } from '../types';
+import { Product, Category, Branch, StaffRole } from '../types';
 import { lookupBarcodeOpenFoodFacts, ScannedProductResult } from '../lib/openFoodFacts';
 import { MediaUploadManager } from '../components/common/MediaUploadManager';
 import { BundleProductPicker } from '../components/common/BundleProductPicker';
@@ -24,20 +30,29 @@ import { generateUUID, ensureUUID, toCanonicalCategoryId } from '../lib/uuidUtil
 interface ProductsPageProps {
   products: Product[];
   categories: Category[];
+  branches?: Branch[];
+  activeBranchId?: string;
+  userRole?: StaffRole;
   onAddProduct: (product: Product) => void;
   onUpdateProduct?: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
+  onToggleProductActive?: (product: Product) => void;
 }
 
 export const ProductsPage: React.FC<ProductsPageProps> = ({
   products,
   categories,
+  branches,
+  activeBranchId,
+  userRole,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
+  onToggleProductActive,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'disabled' | 'low_stock'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -50,11 +65,15 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [price, setPrice] = useState<number>(9.95);
   const [originalPrice, setOriginalPrice] = useState<number>(12.50);
   const [unit, setUnit] = useState('kg');
+  const [weightStep, setWeightStep] = useState<number>(1.0);
   const [stockQuantity, setStockQuantity] = useState<number>(150);
   const [images, setImages] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>('');
-  const [isDailyDeal, setIsDailyDeal] = useState(true);
-  const [isFeatured, setIsFeatured] = useState(true);
+  const [isDailyDeal, setIsDailyDeal] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isActive, setIsActive] = useState<boolean>(true);
+  const [branchId, setBranchId] = useState<string>('all');
+  const [barcodeDuplicateError, setBarcodeDuplicateError] = useState<string | null>(null);
 
   // Open Food Facts barcode lookup state
   const [isLookingUpBarcode, setIsLookingUpBarcode] = useState<boolean>(false);
@@ -73,7 +92,10 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       if (res.name_ar && !nameAr) setNameAr(res.name_ar);
       if (res.name_en && !nameEn) setNameEn(res.name_en);
       if (res.brand && (brand === 'طازج' || !brand)) setBrand(res.brand);
-      if (res.unit) setUnit(res.unit);
+      if (res.unit) {
+        setUnit(res.unit);
+        setWeightStep(res.unit === 'kg' ? 0.5 : 1.0);
+      }
       if (res.image_url && images.length === 0) setImages([res.image_url]);
     }
   };
@@ -84,6 +106,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [bundleTitle, setBundleTitle] = useState('');
   const [bundleProductIds, setBundleProductIds] = useState<string[]>([]);
 
+  // Filtered products calculation
   const filteredProducts = products.filter((p) => {
     const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
     const matchesSearch = 
@@ -91,8 +114,22 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       p.name_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
       (p.barcode?.includes(searchQuery) ?? false);
-    return matchesCategory && matchesSearch;
+
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      matchesStatus = p.is_active !== false;
+    } else if (statusFilter === 'disabled') {
+      matchesStatus = p.is_active === false;
+    } else if (statusFilter === 'low_stock') {
+      matchesStatus = p.stock_quantity < 25;
+    }
+
+    return matchesCategory && matchesSearch && matchesStatus;
   });
+
+  const activeCount = products.filter((p) => p.is_active !== false).length;
+  const disabledCount = products.filter((p) => p.is_active === false).length;
+  const lowStockCount = products.filter((p) => p.stock_quantity < 25).length;
 
   const openAddModal = () => {
     setEditingProduct(null);
@@ -104,12 +141,16 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     setPrice(9.95);
     setOriginalPrice(12.50);
     setUnit('kg');
+    setWeightStep(0.5);
     setStockQuantity(150);
     setImages([]);
     setVideoUrl('');
     setBarcodeLookupResult(null);
     setIsDailyDeal(false);
     setIsFeatured(false);
+    setIsActive(true);
+    setBranchId(activeBranchId || 'all');
+    setBarcodeDuplicateError(null);
     setBundleEnabled(false);
     setBundleDiscountPercent(15);
     setBundleTitle('');
@@ -127,12 +168,16 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     setPrice(p.price);
     setOriginalPrice(p.original_price || p.price);
     setUnit(p.unit || 'piece');
+    setWeightStep(p.weight_step || (p.unit === 'kg' ? 0.5 : 1.0));
     setStockQuantity(p.stock_quantity);
     setImages(p.images && p.images.length > 0 ? [...p.images] : []);
     setVideoUrl('');
     setBarcodeLookupResult(null);
     setIsDailyDeal(p.is_daily_deal);
     setIsFeatured(p.is_featured);
+    setIsActive(p.is_active !== false);
+    setBranchId(p.branch_id || 'all');
+    setBarcodeDuplicateError(null);
     setBundleEnabled(p.bundle_enabled ?? false);
     setBundleDiscountPercent(p.bundle_discount_percent ?? 15);
     setBundleTitle(p.bundle_title || '');
@@ -150,9 +195,47 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     onUpdateProduct(updated);
   };
 
+  const handleBarcodeChange = (val: string) => {
+    setBarcode(val);
+    if (!val.trim()) {
+      setBarcodeDuplicateError(null);
+      return;
+    }
+    const clean = val.trim();
+    const duplicate = products.find(
+      (p) => p.barcode && p.barcode.trim() === clean && p.id !== editingProduct?.id
+    );
+    if (duplicate) {
+      setBarcodeDuplicateError(`⚠️ الباركود "${clean}" مستخدم بالفعل لصنف آخر: "${duplicate.name_ar}".`);
+    } else {
+      setBarcodeDuplicateError(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameAr.trim()) return;
+
+    if (barcode.trim()) {
+      const clean = barcode.trim();
+      const duplicate = products.find(
+        (p) => p.barcode && p.barcode.trim() === clean && p.id !== editingProduct?.id
+      );
+      if (duplicate) {
+        setBarcodeDuplicateError(`⚠️ الباركود "${clean}" مستخدم بالفعل لصنف آخر: "${duplicate.name_ar}". يرجى إدخال باركود فريد.`);
+        return;
+      }
+    }
+
+    if (price <= 0) {
+      alert('يجب أن يكون سعر البيع أكبر من الصفر.');
+      return;
+    }
+
+    if (originalPrice > 0 && originalPrice < price) {
+      alert('لا يمكن أن يكون السعر الأصلي أقل من سعر البيع بعد الخصم.');
+      return;
+    }
 
     const discountPercent = originalPrice > price 
       ? Math.round(((originalPrice - price) / originalPrice) * 100) 
@@ -175,11 +258,13 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         original_price: Number(originalPrice),
         discount_percent: discountPercent,
         unit,
-        weight_step: unit === 'kg' ? 0.5 : 1.0,
+        weight_step: Number(weightStep || (unit === 'kg' ? 0.5 : 1.0)),
         stock_quantity: Number(stockQuantity),
         images: finalImages,
         is_daily_deal: isDailyDeal,
         is_featured: isFeatured,
+        is_active: isActive,
+        branch_id: branchId === 'all' ? undefined : branchId,
         bundle_enabled: bundleEnabled,
         bundle_discount_percent: Number(bundleDiscountPercent),
         bundle_title: bundleTitle.trim() || undefined,
@@ -198,11 +283,13 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         original_price: Number(originalPrice),
         discount_percent: discountPercent,
         unit,
-        weight_step: unit === 'kg' ? 0.5 : 1.0,
+        weight_step: Number(weightStep || (unit === 'kg' ? 0.5 : 1.0)),
         stock_quantity: Number(stockQuantity),
         images: finalImages,
         is_daily_deal: isDailyDeal,
         is_featured: isFeatured,
+        is_active: isActive,
+        branch_id: branchId === 'all' ? undefined : branchId,
         rating: 4.9,
         sales_count: 0,
         bundle_enabled: bundleEnabled,
@@ -527,16 +614,38 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                 </div>
               </div>
 
+              {/* Active Toggle Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                <div>
+                  <p className="text-xs font-black text-slate-900">حالة توفر الصنف للبيع والطلب</p>
+                  <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                    {isActive 
+                      ? 'الصنف نشط ومتاح فوراً للطلب عبر تطبيق العملاء ونقاط بيع الكاشير' 
+                      : 'الصنف معطل ومحجوب عن الكاشير وتطبيق العملاء'}
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <label className="block mb-1">سعر البيع (ل.س) *</label>
                   <input
                     type="number"
                     step="0.05"
+                    min="0.01"
                     required
                     value={price}
                     onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 font-bold"
                   />
                 </div>
                 <div>
@@ -544,33 +653,72 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                   <input
                     type="number"
                     step="0.05"
+                    min="0"
                     value={originalPrice}
                     onChange={(e) => setOriginalPrice(Number(e.target.value))}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
                   />
                 </div>
                 <div>
-                  <label className="block mb-1">الوحدة</label>
+                  <label className="block mb-1">الوحدة المعتمدة</label>
                   <select
                     value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
+                    onChange={(e) => {
+                      const u = e.target.value;
+                      setUnit(u);
+                      if (u === 'kg') setWeightStep(0.5);
+                      else if (u === 'g') setWeightStep(100);
+                      else setWeightStep(1.0);
+                    }}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
                   >
-                    <option value="kg">كيلوجرام (kg)</option>
                     <option value="piece">حبة (Piece)</option>
+                    <option value="kg">كيلوجرام (kg)</option>
+                    <option value="g">غرام (g)</option>
                     <option value="pack">علبة / باكت (Pack)</option>
                     <option value="bottle">زجاجة (Bottle)</option>
                     <option value="carton">كرتون (Carton)</option>
+                    <option value="litre">لتر (Litre)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block mb-1">الكمية بالمستودع</label>
                   <input
                     type="number"
+                    min="0"
                     value={stockQuantity}
                     onChange={(e) => setStockQuantity(Number(e.target.value))}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1">خطوة الوزن / التجزئة (Weight Step)</label>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min="0.01"
+                    value={weightStep}
+                    onChange={(e) => setWeightStep(Number(e.target.value))}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 font-mono text-xs"
+                    placeholder="مثال: 0.5 للكيلو أو 1 للحبة"
+                  />
+                  <span className="text-[10px] text-slate-400 font-normal">الزيادة التلقائية عند تحديد وزن المنتج بالكاشير والميزان</span>
+                </div>
+                <div>
+                  <label className="block mb-1">فرع التوفر المخصص</label>
+                  <select
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="all">كافة الفروع (الكتالوج المركزي الموحد)</option>
+                    {branches && branches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name_ar}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -706,9 +854,10 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30"
+                  disabled={!!barcodeDuplicateError}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30"
                 >
-                  {editingProduct ? 'حفظ التعديلات وتحديث الباقة فوراً' : 'حفظ ونشر المنتج فوراً'}
+                  {editingProduct ? 'حفظ التعديلات في قاعدة البيانات' : 'حفظ ونشر المنتج في قاعدة البيانات'}
                 </button>
               </div>
             </form>

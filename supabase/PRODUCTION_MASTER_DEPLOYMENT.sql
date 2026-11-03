@@ -2192,3 +2192,137 @@ BEGIN
 END;
 $$;
 
+
+
+-- ==============================================================================
+-- 🚀 ALDEEB MALL & HYPERMARKET — STAFF, BRANCHES & SECURITY LIVE SYNC MIGRATION
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.branches (
+    id VARCHAR(64) PRIMARY KEY,
+    code VARCHAR(32) NOT NULL UNIQUE,
+    name_ar VARCHAR(128) NOT NULL,
+    name_en VARCHAR(128) NOT NULL,
+    city VARCHAR(64) NOT NULL,
+    district VARCHAR(128),
+    address TEXT,
+    phone VARCHAR(32),
+    manager_name VARCHAR(128),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    terminals_count INT NOT NULL DEFAULT 4,
+    daily_sales NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+    currency VARCHAR(16) NOT NULL DEFAULT 'ل.س',
+    type VARCHAR(32) NOT NULL DEFAULT 'supermarket',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE IF EXISTS public.payroll_transactions DROP CONSTRAINT IF EXISTS payroll_transactions_employee_id_fkey;
+ALTER TABLE IF EXISTS public.password_change_requests DROP CONSTRAINT IF EXISTS password_change_requests_employee_id_fkey;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'staff_members' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.staff_members ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
+
+  ALTER TABLE public.staff_members ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'payroll_transactions' 
+      AND column_name = 'employee_id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.payroll_transactions ALTER COLUMN employee_id TYPE VARCHAR(64);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'payroll_transactions' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.payroll_transactions ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
+
+  ALTER TABLE public.payroll_transactions ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'password_change_requests' 
+      AND column_name = 'employee_id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.password_change_requests ALTER COLUMN employee_id TYPE VARCHAR(64);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'password_change_requests' 
+      AND column_name = 'id' 
+      AND data_type <> 'character varying'
+  ) THEN
+    ALTER TABLE public.password_change_requests ALTER COLUMN id TYPE VARCHAR(64);
+  END IF;
+
+  ALTER TABLE public.password_change_requests ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'payroll_transactions_employee_id_fkey'
+  ) THEN
+    ALTER TABLE public.payroll_transactions 
+      ADD CONSTRAINT payroll_transactions_employee_id_fkey 
+      FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'password_change_requests_employee_id_fkey'
+  ) THEN
+    ALTER TABLE public.password_change_requests 
+      ADD CONSTRAINT password_change_requests_employee_id_fkey 
+      FOREIGN KEY (employee_id) REFERENCES public.staff_members(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+ALTER TABLE IF EXISTS public.staff_members ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE IF EXISTS public.staff_members ADD COLUMN IF NOT EXISTS session_revoked_at TIMESTAMPTZ;
+
+ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all operations on branches" ON public.branches;
+CREATE POLICY "Allow all operations on branches" ON public.branches FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE public.staff_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read staff" ON public.staff_members;
+DROP POLICY IF EXISTS "Allow all operations on staff_members" ON public.staff_members;
+CREATE POLICY "Allow all operations on staff_members" ON public.staff_members FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE public.password_change_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read password requests" ON public.password_change_requests;
+DROP POLICY IF EXISTS "Allow all operations on password_change_requests" ON public.password_change_requests FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE public.payroll_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read payroll" ON public.payroll_transactions;
+DROP POLICY IF EXISTS "Allow accountant and admin insert payroll" ON public.payroll_transactions;
+DROP POLICY IF EXISTS "Allow all operations on payroll_transactions" ON public.payroll_transactions FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "orders_select_policy" ON public.orders;
+CREATE POLICY "orders_select_policy" ON public.orders FOR SELECT TO authenticated, anon USING (true);
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "order_items_select_policy" ON public.order_items;
+CREATE POLICY "order_items_select_policy" ON public.order_items FOR SELECT TO authenticated, anon USING (true);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;

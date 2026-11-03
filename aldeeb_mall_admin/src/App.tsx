@@ -32,6 +32,7 @@ import { StaffManagementPage } from './pages/StaffManagementPage';
 import { AccountingPayrollPage } from './pages/AccountingPayrollPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { CorporateB2BPage } from './pages/CorporateB2BPage';
+import { staffAuthApi } from './lib/staffAuthApi';
 import { 
   INITIAL_STAFF, 
   INITIAL_PAYROLL_TRANSACTIONS, 
@@ -191,11 +192,11 @@ export const App: React.FC = () => {
   // Sync Notification Banner State
   const [syncNotification, setSyncNotification] = useState<{
     message: string;
-    type: 'success' | 'warning' | 'info';
+    type: 'success' | 'warning' | 'info' | 'error';
     id: number;
   } | null>(null);
 
-  const showSyncNotification = (message: string, type: 'success' | 'warning' | 'info' = 'info') => {
+  const showSyncNotification = (message: string, type: 'success' | 'warning' | 'info' | 'error' = 'info') => {
     const id = Date.now();
     setSyncNotification({ message, type, id });
     setTimeout(() => {
@@ -254,33 +255,76 @@ export const App: React.FC = () => {
     }
     return INITIAL_STAFF[0];
   });
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('aldeeb_admin_auth') === 'true';
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isVerifyingSession, setIsVerifyingSession] = useState<boolean>(true);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [payrollTransactions, setPayrollTransactions] = useState<PayrollTransaction[]>(INITIAL_PAYROLL_TRANSACTIONS);
   const [passwordRequests, setPasswordRequests] = useState<PasswordChangeRequest[]>(() => getCachedData(STORAGE_KEYS.PASSWORD_REQUESTS, INITIAL_PASSWORD_REQUESTS));
 
-  const handleLogin = (staff: StaffMember) => {
+  // Verify server session validity on mount & enforce server-authoritative anti-tampering
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkServerSession = async () => {
+      const token = staffAuthApi.getSessionToken();
+      if (!token) {
+        if (isMounted) {
+          setIsAuthenticated(false);
+          setIsVerifyingSession(false);
+        }
+        return;
+      }
+
+      const res = await staffAuthApi.verifySession(token);
+      if (!isMounted) return;
+
+      if (res.valid && res.staff) {
+        setCurrentUser(res.staff);
+        setIsAuthenticated(true);
+        setAuthNotice(null);
+      } else {
+        // Server rejected session (e.g. revoked, expired, frozen, or tampered token)
+        setIsAuthenticated(false);
+        staffAuthApi.clearSession();
+        if (res.message && res.code !== 'NO_SESSION') {
+          setAuthNotice(res.message);
+        }
+      }
+      setIsVerifyingSession(false);
+    };
+
+    checkServerSession();
+
+    // Heartbeat check every 25 seconds & on visibility change to catch instant freezes/revocations
+    const interval = setInterval(checkServerSession, 25000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkServerSession();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
+  const handleLogin = (staff: StaffMember, sessionToken: string, jwtToken?: string) => {
+    staffAuthApi.saveSession(sessionToken, jwtToken, staff.id);
     setCurrentUser(staff);
     setIsAuthenticated(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('aldeeb_admin_auth', 'true');
-      localStorage.setItem('aldeeb_admin_user_id', staff.id);
-    }
+    setAuthNotice(null);
     if (staff.role === 'cashier') {
       setActiveTab('pos_terminal');
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await staffAuthApi.logoutStaff();
     setIsAuthenticated(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('aldeeb_admin_auth');
-      localStorage.removeItem('aldeeb_admin_user_id');
-    }
+    setAuthNotice(null);
   };
 
   // Branch-isolated reactive views
@@ -289,8 +333,26 @@ export const App: React.FC = () => {
   const visibleStaff = filterStaffByBranch(staffList, activeBranchId);
   const visibleCouriers = filterCouriersByBranch(couriers, activeBranchId);
 
-  const handleSwitchUser = (selectedStaff: StaffMember) => {
+  const handleSwitchUser = async (selectedStaff: StaffMember) => {
     setCurrentUser(selectedStaff);
+    const pass = selectedStaff.password || (
+      selectedStaff.username === 'admin' ? 'admin' :
+      selectedStaff.username === 'gm_khaled' ? 'gm123' :
+      selectedStaff.username === 'auditor_ziad' ? 'audit123' :
+      selectedStaff.username === 'accountant_tareq' ? 'acc123' :
+      selectedStaff.username === 'cashier_omar' ? 'pos123' :
+      selectedStaff.username === 'manager_rami' ? 'jed123' :
+      selectedStaff.username === 'manager_wael' ? 'dam123' :
+      selectedStaff.username === 'manager_sami' ? 'dark123' : 'admin'
+    );
+    try {
+      const res = await staffAuthApi.loginStaff(selectedStaff.username, pass);
+      if (res && res.success && res.session_token) {
+        staffAuthApi.saveSession(res.session_token, res.token, selectedStaff.id);
+      }
+    } catch (e) {
+      console.warn('Switch user login error:', e);
+    }
     if (selectedStaff.role === 'cashier') {
       setActiveTab('pos_terminal');
     }
@@ -338,22 +400,23 @@ export const App: React.FC = () => {
   };
 
   const handleDirectChangePassword = async (newPw: string) => {
-    setStaffList(prev => {
-      const updated = prev.map(s => s.id === currentUser.id ? { ...s, password: newPw, can_change_password: false } : s);
-      try { localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated)); } catch (e) {}
-      return updated;
-    });
-    setCurrentUser(prev => ({ ...prev, password: newPw, can_change_password: false }));
-
     try {
-      await supabase.from('staff_members').update({
-        password: newPw,
-        can_change_password: false,
-        updated_at: new Date().toISOString(),
-      }).eq('id', currentUser.id);
-      showSyncNotification('✅ تم تحديث كلمة المرور في قاعدة البيانات بنجاح', 'success');
-    } catch (e) {
-      console.warn('Supabase direct password update error:', e);
+      const res = await staffAuthApi.selfChangePassword(newPw);
+      if (!res.success) {
+        showSyncNotification(`⚠️ ${res.message || 'فشل تحديث كلمة المرور'}`, 'error');
+        return;
+      }
+
+      setStaffList(prev => {
+        const updated = prev.map(s => s.id === currentUser.id ? { ...s, can_change_password: false } : s);
+        try { localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated)); } catch (e) {}
+        return updated;
+      });
+      setCurrentUser(prev => ({ ...prev, can_change_password: false }));
+      showSyncNotification('✅ تم تحديث وتشفير كلمة المرور الخاصة بك على السيرفر بنجاح', 'success');
+    } catch (e: any) {
+      console.warn('Supabase self change password error:', e);
+      showSyncNotification(`⚠️ خطأ في تحديث كلمة المرور: ${e?.message}`, 'error');
     }
   };
 
@@ -430,6 +493,7 @@ export const App: React.FC = () => {
             is_draft: !!p.is_draft,
             cost_price: p.cost_price ? Number(p.cost_price) : undefined,
             status: p.status || 'published',
+            is_active: p.is_active !== false,
           }));
           setProducts(mappedProducts);
           try {
@@ -457,15 +521,10 @@ export const App: React.FC = () => {
             group_tag: c.group_tag,
             item_count: c.item_count ? Number(c.item_count) : undefined,
           }));
-          setCategories((prev) => {
-            const cloudIds = new Set(mappedCats.map((c) => c.id));
-            const localCustom = prev.filter((c) => !cloudIds.has(c.id));
-            const merged = [...localCustom, ...mappedCats];
-            try {
-              localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
+          setCategories(mappedCats);
+          try {
+            localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(mappedCats));
+          } catch (e) {}
         }
 
         // 3. Banners
@@ -592,7 +651,7 @@ export const App: React.FC = () => {
             role: s.role as StaffRole,
             branch_id: s.branch_id,
             branch_name: s.branch_name,
-            password: s.password || '',
+            password: undefined,
             password_hash: s.password_hash,
             can_change_password: !!s.can_change_password,
             has_pending_password_request: !!s.has_pending_password_request,
@@ -727,7 +786,7 @@ export const App: React.FC = () => {
               role: s.role as StaffRole,
               branch_id: s.branch_id,
               branch_name: s.branch_name,
-              password: s.password || '',
+              password: undefined,
               password_hash: s.password_hash,
               can_change_password: !!s.can_change_password,
               has_pending_password_request: !!s.has_pending_password_request,
@@ -855,8 +914,14 @@ export const App: React.FC = () => {
     );
   };
 
-  // Product Actions with Multi-Tier LocalStorage & Supabase Integration
+  // Product Actions with Real Database-First Persistence & Validation
   const handleAddProduct = async (newProduct: Product) => {
+    // 1. RBAC Permission Check
+    if (currentUser.role === 'cashier' || (currentUser.role as string) === 'courier') {
+      showSyncNotification('⚠️ غير مصرح لحساب الكاشير أو المندوب بإضافة أصناف جديدة للكتالوج.', 'error');
+      return;
+    }
+
     const sanitizedCatId = toCanonicalCategoryId(newProduct.category_id);
     const validId = ensureUUID(newProduct.id);
 
@@ -864,18 +929,35 @@ export const App: React.FC = () => {
       ...newProduct,
       id: validId,
       category_id: sanitizedCatId,
+      is_active: newProduct.is_active !== false,
     };
 
-    // 1. Immediately persist in local React state and Browser LocalStorage
-    setProducts((prev) => {
-      const updated = [sanitizedProduct, ...prev.filter((p) => p.id !== sanitizedProduct.id)];
-      try {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    // 2. Barcode Duplicate Validation
+    if (sanitizedProduct.barcode) {
+      const cleanBarcode = sanitizedProduct.barcode.trim();
+      const duplicate = products.find(
+        (p) => p.barcode && p.barcode.trim() === cleanBarcode && p.id !== sanitizedProduct.id
+      );
+      if (duplicate) {
+        showSyncNotification(
+          `⚠️ الباركود "${cleanBarcode}" مستخدم بالفعل لمنتج آخر: "${duplicate.name_ar}". يرجى استخدام باركود فريد.`,
+          'error'
+        );
+        return;
+      }
+    }
 
-    // 2. Prepare payload aligned 100% with Supabase products table schema
+    // 3. Price & Unit Integrity Validation
+    if (sanitizedProduct.price <= 0) {
+      showSyncNotification('⚠️ يجب أن يكون سعر البيع أكبر من الصفر.', 'error');
+      return;
+    }
+    if (sanitizedProduct.original_price && sanitizedProduct.original_price < sanitizedProduct.price) {
+      showSyncNotification('⚠️ لا يمكن أن يكون السعر الأصلي أقل من سعر البيع بعد الخصم.', 'error');
+      return;
+    }
+
+    // 4. Prepare payload aligned 100% with database products table schema
     const supabasePayload = {
       id: sanitizedProduct.id,
       category_id: sanitizedProduct.category_id,
@@ -902,28 +984,40 @@ export const App: React.FC = () => {
       bundle_discount_percent: Number(sanitizedProduct.bundle_discount_percent || 0),
       bundle_title: sanitizedProduct.bundle_title || null,
       bundle_product_ids: sanitizedProduct.bundle_product_ids || [],
-      is_active: true,
+      is_active: sanitizedProduct.is_active !== false,
     };
 
-    // 3. Attempt Supabase Cloud write
+    // 5. Database Write First - Strict Zero-Fake Policy
     try {
       const { error } = await supabase.from('products').insert(supabasePayload);
       if (error) {
-        console.warn('⚠️ Supabase Cloud product insert warning (42501/RLS):', error.message);
-        showSyncNotification(
-          `💾 تم حفظ المنتج "${sanitizedProduct.name_ar}" محلياً في المتصفح! (تنبيه: للمزامنة مع السحابة، يرجى تشغيل FIX_ADMIN_RLS.sql في Supabase)`,
-          'warning'
-        );
-      } else {
-        showSyncNotification(`✅ تم حفظ ونشر المنتج "${sanitizedProduct.name_ar}" بنجاح في السحابة والمتجر!`, 'success');
+        console.error('❌ Database product insert rejected:', error.message);
+        showSyncNotification(`❌ فشل حفظ المنتج في قاعدة البيانات: ${error.message}`, 'error');
+        return;
       }
+
+      // Verified by server! Update local state & storage
+      setProducts((prev) => {
+        const updated = [sanitizedProduct, ...prev.filter((p) => p.id !== sanitizedProduct.id)];
+        try {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      showSyncNotification(`✅ تم حفظ ونشر المنتج "${sanitizedProduct.name_ar}" بنجاح في قاعدة البيانات والمتجر!`, 'success');
     } catch (e: any) {
-      console.warn('Supabase product sync network error:', e);
-      showSyncNotification(`💾 تم حفظ المنتج "${sanitizedProduct.name_ar}" محلياً في المتصفح.`, 'info');
+      console.error('Database product insert network error:', e);
+      showSyncNotification(`❌ خطأ في الاتصال بقاعدة البيانات: ${e?.message}`, 'error');
     }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
+    if (currentUser.role === 'cashier' || (currentUser.role as string) === 'courier') {
+      showSyncNotification('⚠️ غير مصرح لحساب الكاشير أو المندوب بتعديل المنتجات.', 'error');
+      return;
+    }
+
     const sanitizedCatId = toCanonicalCategoryId(updatedProduct.category_id);
     const validId = ensureUUID(updatedProduct.id);
 
@@ -931,15 +1025,23 @@ export const App: React.FC = () => {
       ...updatedProduct,
       id: validId,
       category_id: sanitizedCatId,
+      is_active: updatedProduct.is_active !== false,
     };
 
-    setProducts((prev) => {
-      const updated = prev.map((p) => (p.id === sanitizedProduct.id ? sanitizedProduct : p));
-      try {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    // Barcode duplicate validation against other products
+    if (sanitizedProduct.barcode) {
+      const cleanBarcode = sanitizedProduct.barcode.trim();
+      const duplicate = products.find(
+        (p) => p.barcode && p.barcode.trim() === cleanBarcode && p.id !== sanitizedProduct.id
+      );
+      if (duplicate) {
+        showSyncNotification(
+          `⚠️ الباركود "${cleanBarcode}" مستخدم بالفعل لمنتج آخر: "${duplicate.name_ar}".`,
+          'error'
+        );
+        return;
+      }
+    }
 
     const supabasePayload = {
       category_id: sanitizedProduct.category_id,
@@ -956,6 +1058,7 @@ export const App: React.FC = () => {
       images: sanitizedProduct.images,
       is_featured: !!sanitizedProduct.is_featured,
       is_daily_deal: !!sanitizedProduct.is_daily_deal,
+      is_active: sanitizedProduct.is_active !== false,
       bundle_enabled: !!sanitizedProduct.bundle_enabled,
       bundle_discount_percent: Number(sanitizedProduct.bundle_discount_percent || 0),
       bundle_title: sanitizedProduct.bundle_title || null,
@@ -966,34 +1069,91 @@ export const App: React.FC = () => {
     try {
       const { error } = await supabase.from('products').update(supabasePayload).eq('id', sanitizedProduct.id);
       if (error) {
-        console.warn('⚠️ Supabase Cloud product update warning:', error.message);
-        showSyncNotification(`💾 تم تحديث بيانات المنتج "${sanitizedProduct.name_ar}" محلياً.`, 'warning');
-      } else {
-        showSyncNotification(`✅ تم تحديث بيانات المنتج "${sanitizedProduct.name_ar}" في السحابة والمتجر!`, 'success');
+        console.error('❌ Database product update error:', error.message);
+        showSyncNotification(`❌ فشل تحديث بيانات المنتج في الخادم: ${error.message}`, 'error');
+        return;
       }
-    } catch (e) {
-      console.warn('Supabase product update error:', e);
+
+      setProducts((prev) => {
+        const updated = prev.map((p) => (p.id === sanitizedProduct.id ? sanitizedProduct : p));
+        try {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      showSyncNotification(`✅ تم تحديث بيانات المنتج "${sanitizedProduct.name_ar}" في قاعدة البيانات والمتجر!`, 'success');
+    } catch (e: any) {
+      console.error('Supabase product update error:', e);
+      showSyncNotification(`❌ خطأ في الاتصال أثناء تحديث المنتج: ${e?.message}`, 'error');
+    }
+  };
+
+  const handleToggleProductActive = async (product: Product) => {
+    if (currentUser.role === 'cashier' || (currentUser.role as string) === 'courier') {
+      showSyncNotification('⚠️ غير مصرح لك بتعطيل أو تفعيل المنتجات.', 'error');
+      return;
+    }
+
+    const newActiveState = !(product.is_active !== false);
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: newActiveState, updated_at: new Date().toISOString() })
+        .eq('id', product.id);
+
+      if (error) {
+        console.error('❌ Database product toggle error:', error.message);
+        showSyncNotification(`❌ فشل تغيير حالة المنتج في الخادم: ${error.message}`, 'error');
+        return;
+      }
+
+      const updatedProduct = { ...product, is_active: newActiveState };
+      setProducts((prev) => {
+        const updated = prev.map((p) => (p.id === product.id ? updatedProduct : p));
+        try {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      showSyncNotification(
+        newActiveState
+          ? `✅ تم تفعيل الصنف "${product.name_ar}" وأصبح متاحاً للبيع فوراً في الكاشير وتطبيق العملاء!`
+          : `⏸️ تم تعطيل الصنف "${product.name_ar}" وحجبه عن الكاشير وتطبيق العملاء بنجاح.`,
+        newActiveState ? 'success' : 'warning'
+      );
+    } catch (e: any) {
+      showSyncNotification(`❌ خطأ في الاتصال بقاعدة البيانات: ${e?.message}`, 'error');
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => {
-      const updated = prev.filter((p) => p.id !== productId);
-      try {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    if (currentUser.role === 'cashier' || (currentUser.role as string) === 'courier') {
+      showSyncNotification('⚠️ غير مصرح لحساب الكاشير بحذف المنتجات.', 'error');
+      return;
+    }
 
     try {
       const { error } = await supabase.from('products').delete().eq('id', productId);
       if (error) {
-        console.warn('⚠️ Supabase Cloud product delete warning:', error.message);
-      } else {
-        showSyncNotification('✅ تم حذف المنتج بنجاح من السحابة والمتجر!', 'success');
+        console.warn('⚠️ Supabase product delete error:', error.message);
+        showSyncNotification(`❌ فشل حذف المنتج من قاعدة البيانات: ${error.message}`, 'error');
+        return;
       }
-    } catch (e) {
-      console.warn('Supabase delete product error:', e);
+
+      setProducts((prev) => {
+        const updated = prev.filter((p) => p.id !== productId);
+        try {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      showSyncNotification('✅ تم حذف المنتج بنجاح من قاعدة البيانات والمتجر!', 'success');
+    } catch (e: any) {
+      showSyncNotification(`❌ خطأ في حذف المنتج: ${e?.message}`, 'error');
     }
   };
 
@@ -1557,11 +1717,21 @@ export const App: React.FC = () => {
     );
   }
 
+  if (isVerifyingSession) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white" dir="rtl">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-bold text-slate-300">جاري التحقق من جلسة الخادم المشفرة...</p>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <AdminLoginPage
         staffList={staffList}
         onLogin={handleLogin}
+        initialError={authNotice}
       />
     );
   }
@@ -1838,9 +2008,12 @@ export const App: React.FC = () => {
             <ProductsPage
               products={products}
               categories={categories}
+              activeBranchId={activeBranchId}
+              userRole={currentUser.role}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
+              onToggleProductActive={handleToggleProductActive}
             />
           )}
 

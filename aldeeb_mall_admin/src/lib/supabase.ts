@@ -1,10 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
 import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, FlashDeal, Courier, Supplier, PurchaseOrder, SupportTicket, MarketingCampaign, DeliveryZone, SubscriptionPlan, Subscriber, RewardCoupon, RewardProduct, SubscriptionActivityLog, Banner, HomeShelf } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co';
+const resolveSupabaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (typeof window !== 'undefined') {
+    if (!envUrl || envUrl.includes(':54321')) {
+      return window.location.origin;
+    }
+  }
+  return envUrl || 'http://127.0.0.1:5173';
+};
+
+const supabaseUrl = resolveSupabaseUrl();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const getActiveJwtToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('aldeeb_admin_jwt');
+};
+
+const customFetch: typeof fetch = (input, init = {}) => {
+  const headers = new Headers(init.headers || {});
+  const jwt = getActiveJwtToken();
+  if (jwt) {
+    headers.set('Authorization', `Bearer ${jwt}`);
+  }
+  return fetch(input, {
+    ...init,
+    headers,
+  });
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: customFetch,
+  },
+});
 
 // ==============================================================================
 // In-Memory Realistic Hypermarket Dataset for Immediate Operations

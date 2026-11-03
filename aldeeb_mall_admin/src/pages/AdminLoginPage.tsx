@@ -72,7 +72,13 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
 
   const handleSelectPresetUsername = (demoStaff: StaffMember) => {
     setUsername(demoStaff.username);
-    setPassword('');
+    const demoPassword = demoStaff.username === 'admin' ? 'admin' 
+      : demoStaff.username === 'gm_khaled' ? 'gm123'
+      : demoStaff.username === 'cashier_omar' ? 'pos123'
+      : demoStaff.username === 'auditor_ziad' ? 'audit123'
+      : demoStaff.username === 'accountant_tareq' ? 'acc123'
+      : 'admin';
+    setPassword(demoPassword);
     setError(null);
     const passField = document.getElementById('admin-password-field');
     if (passField) {

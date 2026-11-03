@@ -27,16 +27,20 @@ FOOTFALL_COUNTER = FootfallLineCounter()
 LOSS_PREVENTION = LossPreventionEngine()
 
 # Initialize realistic operational footfall
-FOOTFALL_COUNTER.total_in = 384
-FOOTFALL_COUNTER.total_out = 332
+FOOTFALL_COUNTER.total_in = 864
+FOOTFALL_COUNTER.total_out = 812
 current_h = time.strftime("%Y-%m-%d %H:00")
 FOOTFALL_COUNTER.hourly_in = {
     "08:00": 24, "09:00": 42, "10:00": 58, "11:00": 64,
-    "12:00": 48, "13:00": 36, "14:00": 52, "15:00": 60
+    "12:00": 48, "13:00": 72, "14:00": 52, "15:00": 60,
+    "16:00": 85, "17:00": 115, "18:00": 142, "19:00": 158,
+    "20:00": 136, "21:00": 94, "22:00": 56, "23:00": 22
 }
 FOOTFALL_COUNTER.hourly_out = {
     "08:00": 10, "09:00": 28, "10:00": 46, "11:00": 56,
-    "12:00": 54, "13:00": 40, "14:00": 48, "15:00": 50
+    "12:00": 54, "13:00": 60, "14:00": 48, "15:00": 50,
+    "16:00": 70, "17:00": 95, "18:00": 120, "19:00": 135,
+    "20:00": 128, "21:00": 88, "22:00": 65, "23:00": 30
 }
 
 # Seed Heatmap with 52 shoppers distributed across active departments
