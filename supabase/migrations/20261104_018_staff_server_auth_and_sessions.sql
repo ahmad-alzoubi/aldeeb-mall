@@ -203,6 +203,22 @@ BEGIN
 END;
 $$;
 
+-- Universal JSONB payload catch-all overload for PostgREST RPC compatibility
+CREATE OR REPLACE FUNCTION public.staff_login(jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_payload ALIAS FOR $1;
+    v_username text;
+    v_password text;
+BEGIN
+    v_username := coalesce(v_payload->>'p_username', v_payload->>'username', v_payload->>'p_user', v_payload->>'user');
+    v_password := coalesce(v_payload->>'p_password', v_payload->>'password', v_payload->>'p_pass', v_payload->>'pass');
+    RETURN public.staff_login(v_username, v_password);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.staff_login(jsonb) TO anon, authenticated;
+
 -- 6. Session Verification & Anti-Tampering Function
 DROP FUNCTION IF EXISTS public.verify_staff_session(text);
 
@@ -326,6 +342,32 @@ BEGIN
     );
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public.staff_logout(jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_payload ALIAS FOR $1;
+    v_token text;
+BEGIN
+    v_token := coalesce(v_payload->>'p_session_token', v_payload->>'session_token', v_payload->>'token');
+    RETURN public.staff_logout(v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.staff_logout(jsonb) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.verify_staff_session(jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_payload ALIAS FOR $1;
+    v_token text;
+BEGIN
+    v_token := coalesce(v_payload->>'p_session_token', v_payload->>'session_token', v_payload->>'token');
+    RETURN public.verify_staff_session(v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.verify_staff_session(jsonb) TO anon, authenticated;
 
 -- 8. Immediate Session Termination
 DROP FUNCTION IF EXISTS public.staff_terminate_session(text, text);

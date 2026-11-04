@@ -463,10 +463,7 @@ export const App: React.FC = () => {
   };
 
   // Synchronize Core Datasets with Supabase Cloud
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadCloudData = async () => {
+  const loadCloudData = useCallback(async (notify = false) => {
       try {
         // 1. Products
         const { data: dbProducts } = await supabase
@@ -719,10 +716,77 @@ export const App: React.FC = () => {
         }
       } catch (err) {
         console.warn('⚠️ Supabase data sync note:', err);
+      } finally {
+        if (notify) {
+          setSyncNotification({
+            message: 'تمت مزامنة كافة الطلبات والمبيعات والمخزون مع السيرفر بنجاح ⚡',
+            type: 'success',
+          });
+          setTimeout(() => setSyncNotification(null), 3500);
+        }
       }
-    };
+    },
+    [staffList]
+  );
 
+  // Handle live completed orders from POS Terminal
+  const handlePosOrderCompleted = useCallback(
+    (newOrder: Order) => {
+      setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id && o.order_number !== newOrder.order_number)]);
+      if (newOrder.items && newOrder.items.length > 0) {
+        setProducts((prev) =>
+          prev.map((p) => {
+            const sold = newOrder.items.find((it) => it.product_name_ar === p.name_ar || it.id === p.id);
+            if (sold) {
+              return {
+                ...p,
+                stock_quantity: Math.max(0, p.stock_quantity - sold.quantity),
+                sales_count: (p.sales_count || 0) + sold.quantity,
+              };
+            }
+            return p;
+          })
+        );
+      }
+      if (soundEnabled) {
+        playOrderChime();
+      }
+      setSyncNotification({
+        message: `تم تسجيل فاتورة كاشير جديدة بنجاح (${newOrder.order_number}) بمبلغ ${newOrder.total_amount.toFixed(2)} ل.س ✅`,
+        type: 'success',
+      });
+      setTimeout(() => setSyncNotification(null), 4000);
+      loadCloudData();
+    },
+    [soundEnabled, loadCloudData]
+  );
+
+  // Synchronize on mount and background poll every 8 seconds
+  useEffect(() => {
+    let isMounted = true;
     loadCloudData();
+
+    const interval = setInterval(() => {
+      if (isMounted) {
+        loadCloudData();
+      }
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [loadCloudData]);
+
+  // Auto-sync when navigating to operations, orders, or analytics
+  useEffect(() => {
+    if (activeTab === 'dashboard' || activeTab === 'orders' || activeTab === 'analytics' || activeTab === 'branches') {
+      loadCloudData();
+    }
+  }, [activeTab, loadCloudData]);
+
+  useEffect(() => {
+    let isMounted = true;
 
     // Setup Realtime Subscription for incoming orders
     const ordersChannel = supabase

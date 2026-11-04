@@ -12,8 +12,12 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT,
+    phone TEXT,
+    raw_user_meta_data JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS raw_user_meta_data JSONB DEFAULT '{}'::jsonb;
 
 CREATE OR REPLACE FUNCTION auth.uid()
 RETURNS UUID

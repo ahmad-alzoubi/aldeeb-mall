@@ -390,8 +390,39 @@ ALTER TABLE public.user_claimed_rewards FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions FORCE ROW LEVEL SECURITY;
 
--- Ensure orders has branch_id for multi-branch isolation
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS branch_id VARCHAR(64) DEFAULT 'b-dam-01';
+-- Ensure orders has branch_id and branch_name for multi-branch isolation
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS branch_id VARCHAR(64);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS branch_name VARCHAR(255);
+
+-- Intelligent migration for legacy orders without branch_id (resolve from customer address or delivery slot)
+UPDATE public.orders o
+SET branch_id = CASE
+  WHEN a.city ILIKE '%رياض%' OR a.city ILIKE '%ruh%' OR a.city ILIKE '%riyadh%' THEN 'b-ruh-01'
+  WHEN a.city ILIKE '%جدة%' OR a.city ILIKE '%jed%' OR a.city ILIKE '%jeddah%' THEN 'b-jed-01'
+  WHEN a.city ILIKE '%دمام%' OR a.city ILIKE '%dmm%' OR a.city ILIKE '%dammam%' THEN 'b-dmm-01'
+  WHEN a.city ILIKE '%دمشق%' OR a.city ILIKE '%dam%' OR a.city ILIKE '%damascus%' THEN 'b-dam-01'
+  WHEN o.delivery_slot ILIKE '%رياض%' THEN 'b-ruh-01'
+  WHEN o.delivery_slot ILIKE '%جدة%' THEN 'b-jed-01'
+  WHEN o.delivery_slot ILIKE '%دمام%' THEN 'b-dmm-01'
+  WHEN o.delivery_slot ILIKE '%دمشق%' THEN 'b-dam-01'
+  ELSE 'b-ruh-01'
+END
+FROM public.addresses a
+WHERE o.address_id = a.id AND o.branch_id IS NULL;
+
+-- Backfill remaining unassigned orders to primary flagship branch
+UPDATE public.orders
+SET branch_id = 'b-ruh-01'
+WHERE branch_id IS NULL;
+
+-- Sync branch_name from branches catalog
+UPDATE public.orders o
+SET branch_name = b.name_ar
+FROM public.branches b
+WHERE o.branch_id = b.id AND (o.branch_name IS NULL OR o.branch_name = '');
+
+-- Set default for new rows to flagship branch
+ALTER TABLE public.orders ALTER COLUMN branch_id SET DEFAULT 'b-ruh-01';
 CREATE INDEX IF NOT EXISTS idx_orders_branch_id ON public.orders(branch_id);
 
 -- 7. Surgical RLS Policies
