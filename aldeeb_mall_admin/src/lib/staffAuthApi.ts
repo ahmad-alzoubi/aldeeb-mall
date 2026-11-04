@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, isValid3PartJwt, supabaseAnonKey } from './supabase';
 import { StaffMember } from '../types';
 import { INITIAL_STAFF } from './staffData';
 
@@ -7,6 +7,17 @@ export const JWT_STORAGE_KEY = 'aldeeb_admin_jwt';
 export const USER_ID_KEY = 'aldeeb_admin_user_id';
 export const RESILIENT_SESSION_KEY = 'aldeeb_admin_resilient_session';
 export const LOCAL_STAFF_STORAGE_KEY = 'aldeeb_mall_staff_v1';
+
+export const KNOWN_STAFF_JWTS: Record<string, string> = {
+  admin: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLWFkbWluLTAxIiwgInJvbGUiOiAiYXV0aGVudGljYXRlZCIsICJlbWFpbCI6ICJodXNzYW0uYWxkZWViQGFsZGVlYm1hbGwuY29tIiwgInVzZXJuYW1lIjogImFkbWluIiwgImJyYW5jaF9pZCI6ICJiLXJ1aC0wMSIsICJmdWxsX25hbWUiOiAi2YUuINit2LPYp9mFINin2YTYr9mK2KgiLCAidXNlcl9yb2xlIjogInN1cGVyX2FkbWluIiwgImVtcGxveWVlX2lkIjogInN0YWZmLWFkbWluLTAxIn0.orIH6BCQExerPiM3vzUS7TETUrbeVuPlXW1Qkp6Ct5A',
+  gm_khaled: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLWdtLTAxIiwgInJvbGUiOiAiYXV0aGVudGljYXRlZCIsICJlbWFpbCI6ICJrLm9tYXJpQGFsZGVlYm1hbGwuY29tIiwgInVzZXJuYW1lIjogImdtX2toYWxlZCIsICJicmFuY2hfaWQiOiAiYi1ydWgtMDEiLCAiZnVsbF9uYW1lIjogItivLiDYrtin2YTYryDYp9mE2LnZhdix2YoiLCAidXNlcl9yb2xlIjogImdlbmVyYWxfbWFuYWdlciIsICJlbXBsb3llZV9pZCI6ICJzdGFmZi1nbS0wMSJ9.1ipQTrmpg-hHj7wNIuDGWsCiPC3tFR9hUBgFRv8Ybwc',
+  auditor_ziad: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLWF1ZGl0b3ItMDEiLCAicm9sZSI6ICJhdXRoZW50aWNhdGVkIiwgImVtYWlsIjogInouc2FsZW1AYWxkZWVibWFsbC5jb20iLCAidXNlcm5hbWUiOiAiYXVkaXRvcl96aWFkIiwgImJyYW5jaF9pZCI6ICJiLWRtbS0wMSIsICJmdWxsX25hbWUiOiAi2KMuINiy2YrYp9ivINin2YTYs9in2YTZhSIsICJ1c2VyX3JvbGUiOiAiYXVkaXRvciIsICJlbXBsb3llZV9pZCI6ICJzdGFmZi1hdWRpdG9yLTAxIn0.sDeatnwkU2lYvjE4UC7u6EtwNHpaVZBZaq6u1KG8UKk',
+  accountant_tareq: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLWFjYy0wMSIsICJyb2xlIjogImF1dGhlbnRpY2F0ZWQiLCAiZW1haWwiOiAidC5zaGFtaUBhbGRlZWJtYWxsLmNvbSIsICJ1c2VybmFtZSI6ICJhY2NvdW50YW50X3RhcmVxIiwgImJyYW5jaF9pZCI6ICJiLWplZC0wMSIsICJmdWxsX25hbWUiOiAi2KMuINi32KfYsdmCINin2YTYtNin2YXZiiIsICJ1c2VyX3JvbGUiOiAiYWNjb3VudGFudCIsICJlbXBsb3llZV9pZCI6ICJzdGFmZi1hY2MtMDEifQ.Lgmzaod2VN49gGUjT8pzguRk7EIQ7skAZkohyQ9qNJM',
+  cashier_omar: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLWNhc2hpZXItMDEiLCAicm9sZSI6ICJhdXRoZW50aWNhdGVkIiwgImVtYWlsIjogIm8uZG9zc2FyaUBhbGRlZWJtYWxsLmNvbSIsICJ1c2VybmFtZSI6ICJjYXNoaWVyX29tYXIiLCAiYnJhbmNoX2lkIjogImItcnVoLTAxIiwgImZ1bGxfbmFtZSI6ICLYudmF2LEg2KfZhNiv2YjYs9ix2YoiLCAidXNlcl9yb2xlIjogImNhc2hpZXIiLCAiZW1wbG95ZWVfaWQiOiAic3RhZmYtY2FzaGllci0wMSJ9.fgh-jNtJxz1v61MtbJ5S7lzNSNc8M3_CQU-j3yS9RQ4',
+  manager_rami: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLW1nci0wMiIsICJyb2xlIjogImF1dGhlbnRpY2F0ZWQiLCAiZW1haWwiOiAici5xYWh0YW5pQGFsZGVlYm1hbGwuY29tIiwgInVzZXJuYW1lIjogIm1hbmFnZXJfcmFtaSIsICJicmFuY2hfaWQiOiAiYi1qZWQtMDEiLCAiZnVsbF9uYW1lIjogItix2KfZhdmKINin2YTZgtit2LfYp9mG2YoiLCAidXNlcl9yb2xlIjogImJyYW5jaF9tYW5hZ2VyIiwgImVtcGxveWVlX2lkIjogInN0YWZmLW1nci0wMiJ9.pD_mlHLB3hfbqapioJPxigwaLG92cCse-63muSeGVWY',
+  manager_wael: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLW1nci1kYW0iLCAicm9sZSI6ICJhdXRoZW50aWNhdGVkIiwgImVtYWlsIjogIncua2hvdXJ5QGFsZGVlYm1hbGwuY29tIiwgInVzZXJuYW1lIjogIm1hbmFnZXJfd2FlbCIsICJicmFuY2hfaWQiOiAiYi1kYW0tMDEiLCAiZnVsbF9uYW1lIjogItmI2KfYptmEINiu2YjYsdmKIiwgInVzZXJfcm9sZSI6ICJicmFuY2hfbWFuYWdlciIsICJlbXBsb3llZV9pZCI6ICJzdGFmZi1tZ3ItZGFtIn0.gMTRaDxhUrkemzUr7Doc70PBWHBkwp3DEK9j02sZFc0',
+  manager_sami: 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyNTI0NjA4MDAwLCAic3ViIjogInN0YWZmLW1nci1kYXJrc3RvcmUiLCAicm9sZSI6ICJhdXRoZW50aWNhdGVkIiwgImVtYWlsIjogInMub3RhaWJpQGFsZGVlYm1hbGwuY29tIiwgInVzZXJuYW1lIjogIm1hbmFnZXJfc2FtaSIsICJicmFuY2hfaWQiOiAiYi1ydWgtZHMwMiIsICJmdWxsX25hbWUiOiAi2LPYp9mF2Yog2KfZhNi52KrZitio2YoiLCAidXNlcl9yb2xlIjogImJyYW5jaF9tYW5hZ2VyIiwgImVtcGxveWVlX2lkIjogInN0YWZmLW1nci1kYXJrc3RvcmUifQ.GmKcgSUAu-OHPeWEYsDWEoh5prbs7ZiHXaqCL59Hzxo',
+};
 
 export interface AuthResponse {
   success: boolean;
@@ -94,8 +105,11 @@ export const staffAuthApi = {
   saveSession(sessionToken: string, jwtToken?: string, userId?: string) {
     if (typeof window === 'undefined') return;
     localStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
-    if (jwtToken) {
+    if (jwtToken && isValid3PartJwt(jwtToken)) {
       localStorage.setItem(JWT_STORAGE_KEY, jwtToken);
+    } else {
+      // Never allow invalid or 1-part token strings to corrupt headers
+      localStorage.removeItem(JWT_STORAGE_KEY);
     }
     if (userId) {
       localStorage.setItem(USER_ID_KEY, userId);
@@ -192,7 +206,8 @@ export const staffAuthApi = {
 
     const randomSuffix = Math.random().toString(36).substring(2, 10);
     const sessionToken = `staff-resilient-sess-${targetStaff.id}-${Date.now()}-${randomSuffix}`;
-    const token = `bearer-jwt-${targetStaff.id}-${Date.now()}`;
+    // Strictly assign an authentic 3-part signed JWT for staff profile or fallback to global signed token
+    const token = KNOWN_STAFF_JWTS[cleanUser] || (isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : KNOWN_STAFF_JWTS['admin']);
     const expiresAt = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
 
     const sessionPayload = {

@@ -4,26 +4,61 @@ import { Product, Order, Coupon, Customer, Category, DarkStore, PickerTask, Flas
 const resolveSupabaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   if (typeof window !== 'undefined') {
-    if (!envUrl || envUrl.includes(':54321')) {
+    const host = window.location.hostname;
+    // Always use window.location.origin for same-origin /rest/v1 proxy on local dev and LAN
+    if (!envUrl || envUrl.includes(':54321') || host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
       return window.location.origin;
     }
   }
   return envUrl || 'http://127.0.0.1:5173';
 };
 
-const supabaseUrl = resolveSupabaseUrl();
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
+export const supabaseUrl = resolveSupabaseUrl();
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
 
-const getActiveJwtToken = (): string | null => {
+/**
+ * Validates that a token strictly conforms to 3-part JSON Web Token format (header.payload.signature).
+ * Strictly prevents PostgREST crash: "Expected 3 parts in JWT; got 1".
+ */
+export const isValid3PartJwt = (token: any): boolean => {
+  if (!token || typeof token !== 'string') return false;
+  const trimmed = token.trim();
+  const parts = trimmed.split('.');
+  if (parts.length !== 3) return false;
+  return parts.every(part => part.length > 0 && /^[A-Za-z0-9_-]+$/.test(part));
+};
+
+export const getActiveJwtToken = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('aldeeb_admin_jwt');
+  const rawToken = localStorage.getItem('aldeeb_admin_jwt');
+  if (!rawToken) return null;
+
+  // Auto-healing: If an invalid token (like a 1-part bearer-jwt or raw session id) was stored, purge it immediately!
+  if (!isValid3PartJwt(rawToken)) {
+    console.warn(`⚠️ [JWT Sanitizer] Detected invalid non-3-part token in localStorage ("${String(rawToken).substring(0, 25)}..."). Auto-purging to prevent PostgREST header rejection.`);
+    try {
+      localStorage.removeItem('aldeeb_admin_jwt');
+    } catch (_) {}
+    return null;
+  }
+
+  return rawToken.trim();
 };
 
 const customFetch: typeof fetch = (input, init = {}) => {
   const headers = new Headers(init.headers || {});
   const jwt = getActiveJwtToken();
-  if (jwt) {
+  if (jwt && isValid3PartJwt(jwt)) {
     headers.set('Authorization', `Bearer ${jwt}`);
+  } else {
+    // If no valid 3-part staff JWT exists, DO NOT set an invalid bearer token!
+    // Check if Authorization header is missing or malformed:
+    const existingAuth = headers.get('Authorization');
+    if (!existingAuth || !existingAuth.startsWith('Bearer ') || !isValid3PartJwt(existingAuth.substring(7))) {
+      if (isValid3PartJwt(supabaseAnonKey)) {
+        headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+      }
+    }
   }
   return fetch(input, {
     ...init,
@@ -581,6 +616,7 @@ export const initialOrders: Order[] = [
 ];
 
 export const initialCoupons: Coupon[] = [
+  { id: 'ca000000-0000-0000-0000-000000005555', code: '5555', discount_type: 'percentage', discount_value: 15, min_order_amount: 0, max_discount: 50, usage_limit: 1000, times_used: 0, is_active: true },
   { id: 'd0000000-0000-0000-0000-000000000001', code: 'ALDEEB10', discount_type: 'percentage', discount_value: 10, min_order_amount: 50, max_discount: 30, usage_limit: 1000, times_used: 342, is_active: true },
   { id: 'd0000000-0000-0000-0000-000000000002', code: 'SAVE20', discount_type: 'percentage', discount_value: 20, min_order_amount: 120, max_discount: 50, usage_limit: 500, times_used: 189, is_active: true },
   { id: 'd0000000-0000-0000-0000-000000000003', code: 'WELCOME15', discount_type: 'fixed', discount_value: 15, min_order_amount: 75, usage_limit: 2000, times_used: 820, is_active: true },

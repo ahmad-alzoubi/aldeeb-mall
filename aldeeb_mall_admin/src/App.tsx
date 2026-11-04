@@ -50,6 +50,7 @@ import {
 } from './lib/branchContext';
 import { 
   supabase,
+  isValid3PartJwt,
   initialOrders, 
   initialProducts, 
   initialCategories, 
@@ -272,6 +273,15 @@ export const App: React.FC = () => {
   // Verify server session validity on mount & enforce server-authoritative anti-tampering
   useEffect(() => {
     let isMounted = true;
+
+    // Self-heal any legacy malformed or 1-part token stored in client storage
+    try {
+      const storedJwt = localStorage.getItem('aldeeb_admin_jwt');
+      if (storedJwt && !isValid3PartJwt(storedJwt)) {
+        console.warn('⚠️ [Boot Sanitizer] Purging malformed non-3-part token from client storage:', storedJwt);
+        localStorage.removeItem('aldeeb_admin_jwt');
+      }
+    } catch (_) {}
 
     const checkServerSession = async () => {
       const token = staffAuthApi.getSessionToken();
@@ -1767,7 +1777,7 @@ export const App: React.FC = () => {
     });
 
     try {
-      const { error } = await supabase.from('coupons').insert({
+      const { error } = await supabase.from('coupons').upsert({
         id: sanitizedCoupon.id,
         code: sanitizedCoupon.code,
         discount_type: sanitizedCoupon.discount_type,
@@ -1778,7 +1788,7 @@ export const App: React.FC = () => {
         times_used: 0,
         expires_at: sanitizedCoupon.expires_at || null,
         is_active: sanitizedCoupon.is_active,
-      });
+      }, { onConflict: 'code' });
       if (error) {
         console.warn('⚠️ Supabase Cloud coupon insert warning:', error.message);
         showSyncNotification(`💾 تم حفظ كود الخصم "${sanitizedCoupon.code}" محلياً.`, 'warning');

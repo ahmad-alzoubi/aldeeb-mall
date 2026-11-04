@@ -719,14 +719,59 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         .select('id')
         .maybeSingle();
 
+      let effectiveOrderId = data?.id || orderUuid;
+
       if (insertError) {
-        console.error('POS order insertion error:', insertError);
-        alert(`⚠️ فشل تسجيل الطلب في الخادم: ${insertError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
-        setIsSubmittingPayment(false);
-        return;
+        console.warn('POS order insertion initial attempt failed:', insertError);
+
+        // Defensive self-healing for JWT/Auth errors (e.g. malformed or single-part token in client cache)
+        const errMsg = String(insertError.message || '');
+        const isJwtIssue = errMsg.includes('JWT') || errMsg.includes('token') || (insertError as any).code === 'PGRST301';
+
+        if (isJwtIssue) {
+          console.warn('⚠️ [POS Self-Healing] Auto-purging corrupted client JWT and retrying order insertion with validated clean headers...');
+          try {
+            localStorage.removeItem('aldeeb_admin_jwt');
+          } catch (_) {}
+
+          const { data: retryData, error: retryError } = await supabase
+            .from('orders')
+            .insert({
+              id: orderUuid,
+              order_number: receiptNum,
+              customer_name: customerName || 'عميل نقدي مباشر',
+              customer_phone: customerPhone || '+966 50 000 0000',
+              branch_id: effectiveBranchId,
+              branch_name: effectiveBranchName,
+              status: 'delivered',
+              delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
+              payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
+              payment_status: 'paid',
+              subtotal: subtotal - taxAmount,
+              delivery_fee: 0,
+              total_amount: grandTotal,
+              notes: `نقطة بيع POS • الكاشير: ${cashierName} • العميل: ${customerName || 'عميل نقدي'} • ${idempotencyToken}`,
+            })
+            .select('id')
+            .maybeSingle();
+
+          if (retryError) {
+            console.error('POS order retry insertion error:', retryError);
+            alert(`⚠️ فشل تسجيل الطلب في الخادم: ${retryError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
+            setIsSubmittingPayment(false);
+            return;
+          }
+          if (retryData?.id) {
+            effectiveOrderId = retryData.id;
+          }
+        } else {
+          alert(`⚠️ فشل تسجيل الطلب في الخادم: ${insertError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
+          setIsSubmittingPayment(false);
+          return;
+        }
       }
 
-      const orderId = data?.id || orderUuid;
+      const orderId = effectiveOrderId;
 
       if (cart.length > 0) {
         const itemsPayload = cart.map((item) => ({

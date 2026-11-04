@@ -22,6 +22,7 @@
 | **Local Database Engine** | `postgrest` + PostgreSQL 16 (`localhost:54321`) | REST API Gateway over `aldeeb_mall_prod` | **100% Active & Responding** (`db-anon-role = "anon"`) |
 | **Order & Pricing Core Suite (Task 10)** | `test_scenarios/test_order_pricing_atomic_core.py` | Python 3 Forensic Assertions | **17/17 Tests Passed (100% Zero Defect)** |
 | **Corporate B2B Sales Suite (Task 9)** | `test_scenarios/test_corporate_b2b_suite.py` | Python 3 Forensic Assertions | **21/21 Tests Passed (100% Zero Defect)** |
+| **JWT Sanitization & Order Placement Suite** | `test_scenarios/test_jwt_sanitizer_and_order_placement.py` | Python 3 Forensic Assertions | **8/8 Tests Passed (100% Zero Defect)** |
 | **Suppliers & Procurement Suite (Task 8)** | `test_scenarios/test_suppliers_and_procurement_suite.py` | Python 3 Forensic Assertions | **17/17 Tests Passed (100% Zero Defect)** |
 | **Suppliers Browser Forensic Suite (Task 8)** | `test_scenarios/test_suppliers_browser_e2e.js` | Puppeteer + Google Chrome 156 (Headless) | **8/8 Tests Passed (100% Zero Defect)** |
 | **Branches & Transfers Forensic Suite (Task 7)** | `test_scenarios/test_branches_and_transfers_forensic.py` | Python 3 Forensic Assertions | **36/36 Tests Passed (100% Zero Defect)** |
@@ -215,6 +216,7 @@
 | حزمة الاختبار (Test Suite) | الأداة والمنهجية | السيناريوهات المغطاة | النتيجة الدقيقة والأدلة |
 | :--- | :--- | :--- | :--- |
 | **Order & Pricing Core Suite (Task 10)** | Python 3 (`test_scenarios/test_order_pricing_atomic_core.py`) | 17 سيناريو: الإنشاء الذري، إعادة المحاولة الآمنة، سباق التزامن وقفل الصفوف، تصادم المفاتيح المتزامنة، رفض الصنف غير الموجود، رفض الصنف المعطل، رفض التلاعب بالسعر، رفض التلاعب بالمجموع الفرعي، رفض التلاعب بالإجمالي، رفض نقص المخزون، رفض الفرع غير الصالح، التحقق من الكوبون، رفض الكوبون تحت الحد الأدنى، خصم نقاط الولاء، رفض نقص النقاط، التراجع الذري عند الفشل الجزئي، واستمرارية قاعدة البيانات | **17/17 اجتيز بنجاح 100% (صفر عيوب)** |
+| **JWT Sanitization & Order Integrity Suite** | Python 3 (`test_scenarios/test_jwt_sanitizer_and_order_placement.py`) | 8 سيناريوهات جنائية: إعادة إنتاج رفض PostgREST 401 للرموز أحادية المقطع بدقة، إثبات مطابقة وصلاحية رموز الكاشير والإدارة ثلاثية الأجزاء، تسجيل الطلبات الذري بنقطة البيع عبر PostgREST (201 Created)، إدراج بنود السلة وخصم المخزون الذري، واستمرارية حزم الإنتاج المجمعة بـ Vite | **8/8 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Corporate B2B Sales Suite (Task 9)** | Python 3 (`test_scenarios/test_corporate_b2b_suite.py`) | 21 سيناريو: حسابات الشركات، عروض الأسعار، سقف الائتمان، الفواتير الذرية، خصم المخزون، السداد، المرتجعات، عزل الفروع، ومنع الوصول المجهول | **21/21 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Suppliers & Procurement Suite (Task 8)** | Python 3 (`test_scenarios/test_suppliers_and_procurement_suite.py`) | 17 سيناريو: الموردون، تسلسل أوامر الشراء الذري، التسعير، الاستلام الجزئي والتالف، قفل الاستلام الزائد، سداد الموردين، قفل السداد الزائد، وحجر مسودات الكتالوج | **17/17 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Suppliers Browser Forensic Suite (Task 8)** | Puppeteer + Chrome (`test_scenarios/test_suppliers_browser_e2e.js`) | 8 سيناريوهات متصفح حقيقية: التبويبات الأربعة، جداول الأوامر، بطاقات المستحقات، سجل الموردين، مسودات المنتجات، نماذج الإضافة، وخلو وحدة التحكم من الأخطاء | **8/8 اجتيز بنجاح 100% (صفر عيوب)** |
@@ -227,7 +229,7 @@
 | **Plan 2 Environment & DB Suite** | Python 3 (`scripts/verify_plan02_environment_db.py`) | 5 سيناريوهات: فحص Docker، وPostgREST، وتطبيق 22 ترحيلاً من الصفر على قاعدة نظيفة، وترقية الطلبات القديمة | **5/5 اجتيز بنجاح 100%** |
 | **Browser Forensic E2E Suite** | Puppeteer + Chrome (`test_scenarios/browser_e2e_suite.js`) | 7 سيناريوهات حقيقية للمتصفح لفحص ملخص POS الثابت، وبوابات الكابتن، والتأثير الذري في PostgreSQL | **7/7 اجتيز بنجاح 100%** |
 | **Flutter Widget & Logic Suite** | Flutter Test (`aldeeb_mall_app/test/`) | 12 اختباراً لوحدات فلاتر ومنطق الحسابات والواجهات | **12/12 اجتيز بنجاح 100%** |
-| **المجموع الكلي للاختبارات المؤتمتة** | **مزيج متكامل خادمي وتصفحي** | **181 اختباراً شاملاً** | **181/181 اجتيز بنجاح 100% (صفر انحدار)** |
+| **المجموع الكلي للاختبارات المؤتمتة** | **مزيج متكامل خادمي وتصفحي** | **189 اختباراً شاملاً** | **189/189 اجتيز بنجاح 100% (صفر انحدار)** |
 
 ---
 
@@ -235,7 +237,7 @@
 
 | المنصة / الخدمة | حالة النشر الدقيقة | المسار / الرابط / الإصدار | دليل التحقق والتشغيل |
 | :--- | :--- | :--- | :--- |
-| **لوحة الإدارة ونقاط البيع (Admin & POS Web)** | **بُني 100%، منشور محلياً وعبر Nginx** | `http://127.0.0.1:5173` و `dist/` | خادم Vite مجمّع، 0 أخطاء بناء، حزمة `index-CR9qt029.js` جاهزة |
+| **لوحة الإدارة ونقاط البيع (Admin & POS Web)** | **بُني 100%، منشور محلياً وعبر Nginx** | `http://127.0.0.1:5173` و `dist/` | خادم Vite مجمّع، 0 أخطاء بناء، حزمة `index-CTJo5Jqv.js` جاهزة ومحمية بـ JWT Sanitizer |
 | **قاعدة البيانات وسياسات الأمان (PostgreSQL RLS)** | **100% مطبق ومنشور على الإنتاج** | قاعدة `aldeeb_mall_prod` المنفذ 5432 | 41 جدولاً خاضعاً لـ FORCE RLS، 22 ترحيل معتمد في `_schema_migrations` |
 | **بوابة واجهة البرمجة (PostgREST API)** | **100% نشط ومنشور كخدمة دائمة** | `http://127.0.0.1:54321` | يعمل كـ Daemon مع `db-anon-role="anon"`، تم التحقق من صد كافة الهجمات |
 | **تطبيق العميل فلاتر ويب (Flutter Web)** | **بُني 100%، منشور محلياً** | `aldeeb_mall_app/build/web/` | مجمّع بأحدث كود ومطابق لـ RLS الخادمي بنسبة 100% |

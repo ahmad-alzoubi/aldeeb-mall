@@ -5,7 +5,7 @@
  */
 
 import { Branch } from '../types';
-import { supabase } from './supabase';
+import { supabase, isValid3PartJwt } from './supabase';
 
 export interface BranchDbConnection {
   branch_id: string;
@@ -90,7 +90,7 @@ export async function pingBranchDatabase(
     const cleanCode = branchCode.trim();
     const token = typeof window !== 'undefined' ? localStorage.getItem('aldeeb_admin_jwt') : null;
     const headers: Record<string, string> = { 'Accept': 'application/json' };
-    if (token) {
+    if (token && isValid3PartJwt(token)) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
