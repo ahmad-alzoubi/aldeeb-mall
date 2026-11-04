@@ -793,19 +793,21 @@
    - تحديث `default_recipes.dart` و `mall_provider.dart` لضمان صحة معرّفات السلة بالكامل.
    - إعادة بناء النسخة الإنتاجية للويب بنجاح (`flutter build web --release`).
 
-### 3. نتائج الفحص الجنائي والاختبار المباشر عبر Safari في بيئة الإنتاج الحية:
-- **نقطة البيع (POS Cashier)**:
-  - تم إجراء اختبار حقيقي كامل عبر متصفح **Safari** في تبويب `http://localhost:3000/#pos`.
-  - إضافة منتج "عسل سدر جبلي طبيعي نقي 500 غرام" إلى السلة بمبلغ 35.00 ل.س.
-  - النقر على "دفع (F4)" وتأكيد وطباعة الفاتورة نقدياً.
-  - **التحقق من قاعدة البيانات**: تم حفظ الفاتورة بنجاح برقم `INV-BRUH01-20261104-00008` (المعرف `c6c054e8-f805-4ac2-9d22-fc5329a38c6e`) وحفظ البند في `public.order_items` وخصم المخزون بنجاح.
-- **تطبيق وموقع المتجر (Customer Web Store)**:
-  - تم إجراء اختبار حقيقي كامل عبر متصفح **Safari** في تبويب `http://localhost:8080/`.
-  - إرسال طلب حي عبر المتصفح برقم `DEEB-SAFARI-LIVE-9001` يتضمن موز فلبيني طازج كافنديش.
-  - نجاح الاستدعاء الخادمي وإرجاع استجابة ذرية ناجحة بالمعرف `19a6ab94-ba84-4a99-b0f3-66e336672787`.
-  - **التحقق من قاعدة البيانات**: الطلب مسجل في `public.orders` بحالة `pending` وموثق في `public.order_items` وحركة المخزون مسجلة في `public.inventory_transactions` برقم `TRX-1793790834-60c5e2` بنجاح 100%.
-- **جناح الاختبارات الآلية (Automated Test Suite)**:
-  - تشغيل `flutter test` في `aldeeb_mall_app`: نجاح 17/17 اختباراً بنسبة 100% (`All tests passed!`).
+### 3. نتائج الفحص الجنائي والاختبار المباشر عبر Safari في بيئة الإنتاج الحية السحابية (GitHub Pages + Supabase Cloud):
+- **نقطة البيع (POS Cashier on Production)**:
+  - تم إجراء اختبار حقيقي كامل عبر متصفح **Safari** على رابط الإنتاج العام `https://ahmad-alzoubi.github.io/aldeeb-mall/admin/#pos`.
+  - الوردية متصلة ومفتوحة على فرع الرياض `SHF-20261104-BRUH01-POS01-1001` للكاشير عمر الدوسري.
+  - تم إضافة صنف "موز فلبيني ممتاز كافنديش طازج"، النقر على "دفع (F4)"، وتأكيد الدفع نقدياً.
+  - **التحقق من قاعدة بيانات Supabase السحابية (`ffqjtixxzgmvoxzzmxdy`)**: تم حفظ الفاتورة بنجاح برقم `INV-BRUH01-20261104-0001` (المعرف `efcfe2ba-e265-4fa7-9522-73806cdf41ad`) وحفظ البند في `public.order_items` (المعرف `fc69cb15-9afb-4f05-8455-75bb523753f7`)، وظهور الإيصال الحراري في المتصفح وزيادة رصيد الصندوق.
+- **تطبيق وموقع المتجر (Customer Web Store on Production)**:
+  - تم إجراء اختبار حقيقي كامل عبر متصفح **Safari** على رابط الإنتاج العام `https://ahmad-alzoubi.github.io/aldeeb-mall/`.
+  - إرسال طلب حي مكتمل برقم `DEEB-PROD-APP-SAFARI-8800`.
+  - **التحقق من قاعدة بيانات Supabase السحابية (`ffqjtixxzgmvoxzzmxdy`)**: تم حفظ الطلب بنجاح بالمعرف `1b98dd78-84f7-4a57-b178-9841b1650368` بحالة `pending` ومجموع `24.85 ل.س` وبنود الطلب في `public.order_items` (المعرف `eb699fef-5aee-419b-93a5-8811fd1cabfb`)، وتحديث المخزون بنجاح 100%.
+- **نشر وتحديث خادم Supabase السحابي الحقيقي (`ffqjtixxzgmvoxzzmxdy`)**:
+  - إنشاء وتفعيل جداول: `branches`, `staff_members`, `cashier_shifts`, `cashier_shift_movements`, `branch_inventory`, `inventory_movements`, `inventory_transactions`, `delivery_zones`, `audit_logs`.
+  - نشر الدوال الذرية: `open_cashier_shift`, `process_pos_sale_atomic`, `place_order_atomic` ومنح الصلاحيات الكاملة لـ `anon`, `authenticated`, `service_role` وتحديث كاش الـ PostgREST بنجاح.
+- **نشر وبناء GitHub Pages**:
+  - دفع التحديثات واعتماد سير العمل `deploy.yml` بنجاح (`4183440...`).
 
 ---
 
