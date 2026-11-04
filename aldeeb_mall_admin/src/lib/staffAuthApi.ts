@@ -206,8 +206,11 @@ export const staffAuthApi = {
 
     const randomSuffix = Math.random().toString(36).substring(2, 10);
     const sessionToken = `staff-resilient-sess-${targetStaff.id}-${Date.now()}-${randomSuffix}`;
-    // Strictly assign an authentic 3-part signed JWT for staff profile or fallback to global signed token
-    const token = KNOWN_STAFF_JWTS[cleanUser] || (isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : KNOWN_STAFF_JWTS['admin']);
+    // Assign authentic cloud anon key if running against Supabase cloud to prevent PGRST301 signature rejection
+    const isRemote = (typeof window !== 'undefined' && (window.location.hostname.includes('github.io') || !window.location.port)) || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL?.includes('supabase.co'));
+    const token = isRemote
+      ? (isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : KNOWN_STAFF_JWTS['admin'])
+      : (KNOWN_STAFF_JWTS[cleanUser] || (isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : KNOWN_STAFF_JWTS['admin']));
     const expiresAt = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
 
     const sessionPayload = {

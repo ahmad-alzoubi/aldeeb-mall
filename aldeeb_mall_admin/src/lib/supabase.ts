@@ -15,6 +15,7 @@ const resolveSupabaseUrl = (): string => {
 
 export const supabaseUrl = resolveSupabaseUrl();
 export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
+const isRemoteSupabase = supabaseUrl.includes('.supabase.co');
 
 /**
  * Validates that a token strictly conforms to 3-part JSON Web Token format (header.payload.signature).
@@ -40,6 +41,20 @@ export const getActiveJwtToken = (): string | null => {
       localStorage.removeItem('aldeeb_admin_jwt');
     } catch (_) {}
     return null;
+  }
+
+  // When communicating with Supabase Cloud, locally-signed mock tokens cause PGRST301
+  // ("None of the keys was able to decode the JWT"). Forward the cloud-authorized token.
+  if (isRemoteSupabase) {
+    try {
+      const payloadPart = rawToken.split('.')[1];
+      const payload = JSON.parse(atob(payloadPart));
+      if (payload.iss !== 'supabase') {
+        return isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : null;
+      }
+    } catch (_) {
+      return isValid3PartJwt(supabaseAnonKey) ? supabaseAnonKey : null;
+    }
   }
 
   return rawToken.trim();
