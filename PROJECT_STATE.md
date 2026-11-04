@@ -15,7 +15,7 @@
 | **Customer App Android Bundle (AAB)** | `aldeeb_mall_app/build/app/outputs/bundle/release/app-release.aab` | Android Gradle (54MB Release AAB) | **بُني 100%، جاهز للرفع (Google Play Console)** |
 | **Customer App Android APK** | `aldeeb_mall_app/build/app/outputs/apk/release/app-release.apk` | Android Gradle (73MB Sideload APK) | **بُني 100%، منشور للتحميل المباشر** |
 | **Remote Supabase Upgrade Artifact** | `supabase/DEPLOY_TO_REMOTE_SUPABASE_ALL_STAFF_AUTH.sql` | Idempotent PostgreSQL 16 DDL & Bcrypt RPCs | **جاهز للتشغيل في لوحة Supabase Dashboard** (تحديث فوري لـ Schema Cache) |
-| **Monotonic Migration Sequence (001-020)** | `supabase/migrations/` (23 Sequenced Files) | PostgreSQL 16 Idempotent DDL + Strict Security Definer | **100% مطبق ومنشور على الإنتاج وبيئة الاختبار المعزولة** |
+| **Monotonic Migration Sequence (001-023)** | `supabase/migrations/` (23 Sequenced Files) | PostgreSQL 16 Idempotent DDL + Strict Security Definer | **100% مطبق ومنشور على الإنتاج وبيئة الاختبار المعزولة** |
 | **Emergency Rollback Scripts** | `supabase/rollbacks/` | Transactional SQL Rollback Artifacts (Isolated from runner) | **100% منجز وموثق للاستعادة الفورية** |
 | **Master Production SQL** | `supabase/PRODUCTION_MASTER_DEPLOYMENT.sql` | PostgreSQL 16 Idempotent DDL + Branch Isolation Engine | **100% Deployed & Verified** (33 tables + RLS + Sessions) |
 | **Edge Vision REST Gateway** | `services/vision_service/vision_api_server.py` | Python 3.11 HTTP Server (Port 8095) | **100% Active & Responding** (Cached RTSP & Live Telemetry) |
@@ -34,7 +34,7 @@
 
 ---
 
-## 2. مصفوفة الترحيلات الموحدة (Single Monotonic Migration Sequence: 001 - 020)
+## 2. مصفوفة الترحيلات الموحدة (Single Monotonic Migration Sequence: 001 - 023)
 
 | # | اسم ملف الترحيل | الهدف الفني والمسؤولية | حالة التحقق والتنفيذ |
 | :-: | :--- | :--- | :--- |
@@ -45,7 +45,7 @@
 | **005** | `20261031_005_banners_management.sql` | إدارة البنرات والعروض الترويجية الحركية | **100% مطبق وموثق** |
 | **006** | `20261031_006_enterprise_fulfillment_and_loyalty.sql` | نظام نقاط الولاء ومحفظة العميل والمكافآت | **100% مطبق وموثق** |
 | **007** | `20261031_007_expanded_catalog_and_banners.sql` | توسعة الكتالوج بأصناف ومنتجات وأقسام تفصيلية | **100% مطبق وموثق** |
-| **008** | `20261031_008_vip_subscriptions_and_rewards_catalog.sql` | اشتراكات VIP وبرامج المكافآت المميزة | **100% مطبق وموثق** |
+| **008** | `20261031_008_vip_subscriptions_and_rewards_catalog.sql` | اشتراات VIP وبرامج المكافآت المميزة | **100% مطبق وموثق** |
 | **009** | `20261031_009_store_theme_and_dynamic_settings.sql` | إعدادات الثيم المرئي وإعدادات المتجر المتغيرة | **100% مطبق وموثق** |
 | **010** | `20261101_010_product_bundle_controls.sql` | حزم المنتجات والعروض المجمعة والخصومات النسبية | **100% مطبق وموثق** |
 | **011** | `20261101_011_staff_roles_payroll_system.sql` | جدول الموظفين وأدوار العمل وحركات الرواتب | **100% مطبق وموثق** |
@@ -56,11 +56,11 @@
 | **016** | `20261104_016_role_matrix_and_branch_isolation_rls.sql` | مصفوفة الصلاحيات الشاملة وعزل الفروع الصارم بـ FORCE RLS | **100% مطبق وموثق** |
 | **017** | `20261104_017_branch_database_provisioning.sql` | محرك تهيئة قواعد الفروع المعزولة في Schemas مستقلة | **100% مطبق وموثق** |
 | **018** | `20261104_018_staff_server_auth_and_sessions.sql` | ترقية تشفير كلمات مرور الموظفين وحذف النصوص الصريحة من قاعدة البيانات | **100% مطبق وموثق** |
-| **019** | `20261104_019_branch_transfers_and_audit_ledger.sql` | **المهمة 7**: الفروع والمستودعات ودورة المناقلات ذات الـ 7 مراحل وسجل التدقيق الشامل وقفل الاستلام المكرر والتعويضات | **100% مطبق وموثق** |
 | **019** | `20261104_019_real_inventory_and_movements.sql` | المخزون الحقيقي متعدد المستودعات وحركات التوريد والجرد والقفل الذري | **100% مطبق وموثق** |
-| **019** | `20261104_019_suppliers_and_procurement_system.sql` | نظام الموردين والمشتريات وأوامر الشراء وإدارة الدفعات | **100% مطبق وموثق** |
-| **020** | `20261104_020_corporate_b2b_sales_system.sql` | نظام مبيعات الشركات B2B، طلبات عروض الأسعار، وتسهيلات الدفع الآجل | **100% مطبق وموثق** |
-| **020** | `20261104_020_order_pricing_core_and_atomic_verification.sql` | محرك التسعير وحساب الضرائب السورية والتحقق الذري لمنع التلاعب | **100% مطبق وموثق** |
+| **020** | `20261104_020_branch_transfers_and_audit_ledger.sql` | **المهمة 7**: الفروع والمستودعات ودورة المناقلات ذات الـ 7 مراحل وسجل التدقيق الشامل وقفل الاستلام المكرر والتعويضات | **100% مطبق وموثق** |
+| **021** | `20261104_021_suppliers_and_procurement_system.sql` | نظام الموردين والمشتريات وأوامر الشراء وإدارة الدفعات | **100% مطبق وموثق** |
+| **022** | `20261104_022_order_pricing_core_and_atomic_verification.sql` | محرك التسعير وحساب الضرائب السورية والتحقق الذري لمنع التلاعب | **100% مطبق وموثق** |
+| **023** | `20261104_023_corporate_b2b_sales_system.sql` | نظام مبيعات الشركات B2B، طلبات عروض الأسعار، وتسهيلات الدفع الآجل | **100% مطبق وموثق** |
 
 ---
 
@@ -174,7 +174,7 @@
      ./scripts/backup_restore.sh restore ./backups/aldeeb_mall_task07_pre_migration_20261104_064216.dump
      ```
 2. **ملف التراجع البرمجي للمهمة 7 (Transactional Rollback Migration)**:
-   - المسار: `supabase/rollbacks/20261104_019_rollback_branch_transfers_and_audit_ledger.sql`
+   - المسار: `supabase/rollbacks/20261104_020_rollback_branch_transfers_and_audit_ledger.sql`
    - يلغي دوال الأمان والـ RPCs والجداول المضافة في كتلة معامَلة ذرية واحدة (`BEGIN ... COMMIT`) دون المساس بأي بيانات تجارية مسجلة مسبقاً.
 
 ---
