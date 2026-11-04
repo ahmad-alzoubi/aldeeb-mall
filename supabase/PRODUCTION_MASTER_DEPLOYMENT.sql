@@ -2326,3 +2326,2028 @@ DROP POLICY IF EXISTS "order_items_select_policy" ON public.order_items;
 CREATE POLICY "order_items_select_policy" ON public.order_items FOR SELECT TO authenticated, anon USING (true);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+
+-- ==============================================================================
+-- SECTION 23: CORPORATE B2B SALES, RFQ, CREDIT CEILINGS & STOCK SETTLEMENT
+-- Added in Migration 20261104_023_corporate_b2b_sales_system.sql
+-- ==============================================================================
+-- ==============================================================================
+-- 🏢 ALDEEB MALL & HYPERMARKET — CORPORATE B2B SALES, QUOTATIONS & INVOICES
+-- ==============================================================================
+-- Migration: 20261104_020_corporate_b2b_sales_system.sql
+-- Description: Comprehensive production implementation of B2B Corporate Sales:
+-- 1. Authorized Corporate Client Accounts & KYC (Credit Limits, Payment Terms)
+-- 2. Quotations & Pricing RFQs (Wholesale discounts, Multi-tier Approvals)
+-- 3. Corporate Tax Invoices with Atomic Inventory Deductions & Credit Verification
+-- 4. Payment Settlements & Real-time Debt Reduction (Net-15/30/60)
+-- 5. Returns, Credit Notes & Atomic Inventory Restorations
+-- 6. Multi-Branch Isolation & Strict RBAC Enforcement
+-- ==============================================================================
+
+-- 1. Ensure Table Dependencies and Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. Table: corporate_accounts (حسابات العملاء والشركات المفوضة)
+CREATE TABLE IF NOT EXISTS public.corporate_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_name TEXT NOT NULL,
+    cr_number TEXT NOT NULL UNIQUE,
+    vat_number TEXT NOT NULL,
+    contact_person TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT,
+    city TEXT NOT NULL DEFAULT 'دمشق',
+    address TEXT,
+    branch_id VARCHAR(64) NOT NULL REFERENCES public.branches(id) ON UPDATE CASCADE,
+    monthly_credit_limit NUMERIC(14,2) NOT NULL DEFAULT 5000000.00 CHECK (monthly_credit_limit >= 0),
+    current_balance NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (current_balance >= 0),
+    payment_terms TEXT NOT NULL DEFAULT 'Net-30' CHECK (payment_terms IN ('Cash', 'Net-15', 'Net-30', 'Net-60')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending_kyc', 'suspended', 'overdue')),
+    recurring_schedule TEXT DEFAULT 'شحنة أسبوعية مجدولة',
+    items_summary TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_accounts_branch_id ON public.corporate_accounts(branch_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_accounts_status ON public.corporate_accounts(status);
+CREATE INDEX IF NOT EXISTS idx_corporate_accounts_cr ON public.corporate_accounts(cr_number);
+
+-- 3. Table: corporate_quotations (عروض الأسعار وطلبات الشراء B2B Quotations)
+CREATE TABLE IF NOT EXISTS public.corporate_quotations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quotation_number TEXT NOT NULL UNIQUE,
+    corporate_account_id UUID NOT NULL REFERENCES public.corporate_accounts(id) ON DELETE CASCADE,
+    branch_id VARCHAR(64) NOT NULL REFERENCES public.branches(id) ON UPDATE CASCADE,
+    subtotal NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
+    discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (discount_percent >= 0 AND discount_percent <= 100),
+    discount_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (discount_amount >= 0),
+    tax_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (tax_amount >= 0),
+    total_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (total_amount >= 0),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_approval', 'approved', 'rejected', 'converted')),
+    valid_until DATE NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
+    notes TEXT,
+    approved_by TEXT,
+    approved_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_quotations_account ON public.corporate_quotations(corporate_account_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_quotations_branch ON public.corporate_quotations(branch_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_quotations_status ON public.corporate_quotations(status);
+
+-- 4. Table: corporate_quotation_items (بنود عرض السعر)
+CREATE TABLE IF NOT EXISTS public.corporate_quotation_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quotation_id UUID NOT NULL REFERENCES public.corporate_quotations(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON UPDATE CASCADE,
+    quantity NUMERIC(10,2) NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(14,2) NOT NULL CHECK (unit_price >= 0),
+    discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (discount_percent >= 0 AND discount_percent <= 100),
+    final_unit_price NUMERIC(14,2) NOT NULL CHECK (final_unit_price >= 0),
+    total_price NUMERIC(14,2) NOT NULL CHECK (total_price >= 0),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_quotation_items_qid ON public.corporate_quotation_items(quotation_id);
+
+-- 5. Table: corporate_invoices (فواتير مبيعات الشركات B2B Invoices)
+CREATE TABLE IF NOT EXISTS public.corporate_invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_number TEXT NOT NULL UNIQUE,
+    quotation_id UUID REFERENCES public.corporate_quotations(id) ON DELETE SET NULL,
+    corporate_account_id UUID NOT NULL REFERENCES public.corporate_accounts(id) ON DELETE RESTRICT,
+    branch_id VARCHAR(64) NOT NULL REFERENCES public.branches(id) ON UPDATE CASCADE,
+    subtotal NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
+    discount_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (discount_amount >= 0),
+    tax_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (tax_amount >= 0),
+    total_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (total_amount >= 0),
+    paid_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (paid_amount >= 0),
+    remaining_amount NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (remaining_amount >= 0),
+    payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partially_paid', 'paid', 'overdue')),
+    due_date DATE NOT NULL,
+    notes TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_invoices_account ON public.corporate_invoices(corporate_account_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_invoices_branch ON public.corporate_invoices(branch_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_invoices_status ON public.corporate_invoices(payment_status);
+
+-- 6. Table: corporate_invoice_items (بنود فاتورة الشركات)
+CREATE TABLE IF NOT EXISTS public.corporate_invoice_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id UUID NOT NULL REFERENCES public.corporate_invoices(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON UPDATE CASCADE,
+    quantity NUMERIC(10,2) NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(14,2) NOT NULL CHECK (unit_price >= 0),
+    discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (discount_percent >= 0 AND discount_percent <= 100),
+    final_unit_price NUMERIC(14,2) NOT NULL CHECK (final_unit_price >= 0),
+    total_price NUMERIC(14,2) NOT NULL CHECK (total_price >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_invoice_items_iid ON public.corporate_invoice_items(invoice_id);
+
+-- 7. Table: corporate_payments (سجلات سداد دفعات الشركات)
+CREATE TABLE IF NOT EXISTS public.corporate_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payment_number TEXT NOT NULL UNIQUE,
+    invoice_id UUID NOT NULL REFERENCES public.corporate_invoices(id) ON DELETE RESTRICT,
+    corporate_account_id UUID NOT NULL REFERENCES public.corporate_accounts(id) ON DELETE RESTRICT,
+    amount NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    payment_method TEXT NOT NULL DEFAULT 'bank_transfer' CHECK (payment_method IN ('bank_transfer', 'check', 'cash', 'credit_card')),
+    reference_number TEXT NOT NULL,
+    payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    notes TEXT,
+    received_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_payments_invoice ON public.corporate_payments(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_payments_account ON public.corporate_payments(corporate_account_id);
+
+-- 8. Table: corporate_returns (مرتجعات مبيعات الشركات وإشعارات دائنة)
+CREATE TABLE IF NOT EXISTS public.corporate_returns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    return_number TEXT NOT NULL UNIQUE,
+    invoice_id UUID NOT NULL REFERENCES public.corporate_invoices(id) ON DELETE RESTRICT,
+    corporate_account_id UUID NOT NULL REFERENCES public.corporate_accounts(id) ON DELETE RESTRICT,
+    branch_id VARCHAR(64) NOT NULL REFERENCES public.branches(id) ON UPDATE CASCADE,
+    total_refund_amount NUMERIC(14,2) NOT NULL CHECK (total_refund_amount >= 0),
+    status TEXT NOT NULL DEFAULT 'pending_approval' CHECK (status IN ('pending_approval', 'approved', 'rejected', 'completed')),
+    reason TEXT NOT NULL,
+    approved_by TEXT,
+    approved_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_returns_invoice ON public.corporate_returns(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_corporate_returns_branch ON public.corporate_returns(branch_id);
+
+-- 9. Table: corporate_return_items (بنود الإرجاع)
+CREATE TABLE IF NOT EXISTS public.corporate_return_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    return_id UUID NOT NULL REFERENCES public.corporate_returns(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON UPDATE CASCADE,
+    quantity NUMERIC(10,2) NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(14,2) NOT NULL CHECK (unit_price >= 0),
+    total_refund NUMERIC(14,2) NOT NULL CHECK (total_refund >= 0),
+    reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_return_items_rid ON public.corporate_return_items(return_id);
+
+-- 10. Enable & Force Row Level Security (RLS) on all corporate tables
+ALTER TABLE public.corporate_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_accounts FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_quotations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_quotations FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_quotation_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_quotation_items FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_invoices FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_invoice_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_invoice_items FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_payments FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_returns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_returns FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE public.corporate_return_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corporate_return_items FORCE ROW LEVEL SECURITY;
+
+-- 11. Define Strict RLS Policies for Multi-Branch Isolation & Staff Role Matrix
+-- Corporate Accounts Policies
+DROP POLICY IF EXISTS corporate_accounts_select ON public.corporate_accounts;
+CREATE POLICY corporate_accounts_select ON public.corporate_accounts FOR SELECT TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_accounts.branch_id = auth.branch_id())
+);
+
+DROP POLICY IF EXISTS corporate_accounts_mutation ON public.corporate_accounts;
+CREATE POLICY corporate_accounts_mutation ON public.corporate_accounts FOR ALL TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_accounts.branch_id = auth.branch_id())
+)
+WITH CHECK (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_accounts.branch_id = auth.branch_id())
+);
+
+-- Corporate Quotations Policies
+DROP POLICY IF EXISTS corporate_quotations_select ON public.corporate_quotations;
+CREATE POLICY corporate_quotations_select ON public.corporate_quotations FOR SELECT TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_quotations.branch_id = auth.branch_id())
+);
+
+DROP POLICY IF EXISTS corporate_quotations_mutation ON public.corporate_quotations;
+CREATE POLICY corporate_quotations_mutation ON public.corporate_quotations FOR ALL TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_quotations.branch_id = auth.branch_id())
+)
+WITH CHECK (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_quotations.branch_id = auth.branch_id())
+);
+
+-- Quotation Items Policies
+DROP POLICY IF EXISTS corporate_quotation_items_select ON public.corporate_quotation_items;
+CREATE POLICY corporate_quotation_items_select ON public.corporate_quotation_items FOR SELECT TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_quotations q 
+        WHERE q.id = corporate_quotation_items.quotation_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND q.branch_id = auth.branch_id())
+        )
+    )
+);
+
+DROP POLICY IF EXISTS corporate_quotation_items_mutation ON public.corporate_quotation_items;
+CREATE POLICY corporate_quotation_items_mutation ON public.corporate_quotation_items FOR ALL TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_quotations q 
+        WHERE q.id = corporate_quotation_items.quotation_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND q.branch_id = auth.branch_id())
+        )
+    )
+);
+
+-- Corporate Invoices Policies
+DROP POLICY IF EXISTS corporate_invoices_select ON public.corporate_invoices;
+CREATE POLICY corporate_invoices_select ON public.corporate_invoices FOR SELECT TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_invoices.branch_id = auth.branch_id())
+);
+
+DROP POLICY IF EXISTS corporate_invoices_mutation ON public.corporate_invoices;
+CREATE POLICY corporate_invoices_mutation ON public.corporate_invoices FOR ALL TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_invoices.branch_id = auth.branch_id())
+)
+WITH CHECK (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_invoices.branch_id = auth.branch_id())
+);
+
+-- Invoice Items Policies
+DROP POLICY IF EXISTS corporate_invoice_items_select ON public.corporate_invoice_items;
+CREATE POLICY corporate_invoice_items_select ON public.corporate_invoice_items FOR SELECT TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_invoices i 
+        WHERE i.id = corporate_invoice_items.invoice_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND i.branch_id = auth.branch_id())
+        )
+    )
+);
+
+DROP POLICY IF EXISTS corporate_invoice_items_mutation ON public.corporate_invoice_items;
+CREATE POLICY corporate_invoice_items_mutation ON public.corporate_invoice_items FOR ALL TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_invoices i 
+        WHERE i.id = corporate_invoice_items.invoice_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND i.branch_id = auth.branch_id())
+        )
+    )
+);
+
+-- Corporate Payments Policies
+DROP POLICY IF EXISTS corporate_payments_select ON public.corporate_payments;
+CREATE POLICY corporate_payments_select ON public.corporate_payments FOR SELECT TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_invoices i 
+        WHERE i.id = corporate_payments.invoice_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND i.branch_id = auth.branch_id())
+        )
+    )
+);
+
+DROP POLICY IF EXISTS corporate_payments_mutation ON public.corporate_payments;
+CREATE POLICY corporate_payments_mutation ON public.corporate_payments FOR ALL TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+);
+
+-- Corporate Returns Policies
+DROP POLICY IF EXISTS corporate_returns_select ON public.corporate_returns;
+CREATE POLICY corporate_returns_select ON public.corporate_returns FOR SELECT TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_returns.branch_id = auth.branch_id())
+);
+
+DROP POLICY IF EXISTS corporate_returns_mutation ON public.corporate_returns;
+CREATE POLICY corporate_returns_mutation ON public.corporate_returns FOR ALL TO authenticated
+USING (
+    auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+    OR (auth.user_role() = 'branch_manager' AND corporate_returns.branch_id = auth.branch_id())
+);
+
+-- Return Items Policies
+DROP POLICY IF EXISTS corporate_return_items_select ON public.corporate_return_items;
+CREATE POLICY corporate_return_items_select ON public.corporate_return_items FOR SELECT TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_returns r 
+        WHERE r.id = corporate_return_items.return_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'auditor', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND r.branch_id = auth.branch_id())
+        )
+    )
+);
+
+DROP POLICY IF EXISTS corporate_return_items_mutation ON public.corporate_return_items;
+CREATE POLICY corporate_return_items_mutation ON public.corporate_return_items FOR ALL TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.corporate_returns r 
+        WHERE r.id = corporate_return_items.return_id 
+        AND (
+            auth.user_role() IN ('super_admin', 'general_manager', 'accountant')
+            OR (auth.user_role() = 'branch_manager' AND r.branch_id = auth.branch_id())
+        )
+    )
+);
+
+-- 12. Update record_inventory_movement_atomic Permissions Guard
+-- Allow legitimate sales/returns from orders and corporate sales without 42501 error
+CREATE OR REPLACE FUNCTION public.record_inventory_movement_atomic(
+    p_branch_id text,
+    p_product_id uuid,
+    p_movement_type text,
+    p_qty_change numeric,
+    p_qty_reserved_change numeric DEFAULT 0,
+    p_ref_type text DEFAULT 'manual',
+    p_ref_id text DEFAULT 'MANUAL-ADJ',
+    p_actor_id text DEFAULT NULL,
+    p_actor_name text DEFAULT 'أمين المخزون',
+    p_actor_role text DEFAULT 'staff',
+    p_notes text DEFAULT ''
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_curr_on_hand numeric(12,2);
+    v_curr_reserved numeric(12,2);
+    v_new_on_hand numeric(12,2);
+    v_new_reserved numeric(12,2);
+    v_mov_number text;
+    v_caller_role text;
+    v_caller_branch text;
+    v_result jsonb;
+BEGIN
+    v_caller_role := auth.user_role();
+    v_caller_branch := auth.branch_id();
+
+    -- Role and Branch Permissions Guard
+    IF v_caller_role = 'cashier' THEN
+        IF p_movement_type NOT IN ('sale', 'return', 'release_reservation') THEN
+            RAISE EXCEPTION '42501: Cashiers are strictly limited to recording sales, returns and release reservations';
+        END IF;
+        IF v_caller_branch IS NOT NULL AND v_caller_branch <> p_branch_id THEN
+            RAISE EXCEPTION '42501: Cashier is unauthorized to operate on foreign branch %', p_branch_id;
+        END IF;
+    ELSIF v_caller_role = 'branch_manager' THEN
+        IF v_caller_branch IS NOT NULL AND v_caller_branch <> p_branch_id AND NOT auth.is_super_admin() THEN
+            RAISE EXCEPTION '42501: Branch manager is unauthorized to operate on foreign branch %', p_branch_id;
+        END IF;
+    ELSIF v_caller_role IN ('anon', 'customer', 'courier', 'driver') THEN
+        IF p_ref_type = 'order' AND p_movement_type IN ('sale', 'release_reservation') THEN
+            NULL;
+        ELSIF p_ref_type = 'return' AND p_movement_type IN ('return', 'damaged') THEN
+            NULL;
+        ELSIF p_ref_type = 'transfer' AND p_movement_type IN ('transfer_out', 'transfer_in') THEN
+            NULL;
+        ELSIF p_ref_type = 'audit' AND p_movement_type = 'audit_reconciliation' THEN
+            NULL;
+        ELSIF p_ref_type = 'corporate_sale' AND p_movement_type IN ('sale', 'return') THEN
+            NULL;
+        ELSIF NOT auth.is_staff() AND NOT auth.is_super_admin() THEN
+            RAISE EXCEPTION '42501: Unauthorized access to inventory movement engine';
+        END IF;
+    END IF;
+
+    -- Ensure product exists
+    IF NOT EXISTS (SELECT 1 FROM public.products WHERE id = p_product_id) THEN
+        RAISE EXCEPTION 'PRODUCT_NOT_FOUND: Product with id % does not exist', p_product_id;
+    END IF;
+
+    -- Ensure branch exists
+    IF NOT EXISTS (SELECT 1 FROM public.branches WHERE id = p_branch_id) THEN
+        RAISE EXCEPTION 'BRANCH_NOT_FOUND: Branch with id % does not exist', p_branch_id;
+    END IF;
+
+    -- Row Locking FOR UPDATE to prevent race conditions & concurrent overselling
+    SELECT quantity_on_hand, quantity_reserved
+    INTO v_curr_on_hand, v_curr_reserved
+    FROM public.branch_inventory
+    WHERE branch_id = p_branch_id AND product_id = p_product_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        -- Auto-provision row with products stock_quantity if present
+        INSERT INTO public.branch_inventory (branch_id, product_id, quantity_on_hand, quantity_reserved)
+        VALUES (p_branch_id, p_product_id, COALESCE((SELECT stock_quantity FROM public.products WHERE id = p_product_id), 0), 0)
+        RETURNING quantity_on_hand, quantity_reserved INTO v_curr_on_hand, v_curr_reserved;
+
+        -- Re-lock
+        SELECT quantity_on_hand, quantity_reserved
+        INTO v_curr_on_hand, v_curr_reserved
+        FROM public.branch_inventory
+        WHERE branch_id = p_branch_id AND product_id = p_product_id
+        FOR UPDATE;
+    END IF;
+
+    -- Prevent Negative Balances
+    v_new_on_hand := v_curr_on_hand + p_qty_change;
+    v_new_reserved := v_curr_reserved + COALESCE(p_qty_reserved_change, 0);
+
+    IF v_new_on_hand < 0 THEN
+        RAISE EXCEPTION 'INSUFFICIENT_STOCK: Branch % has only % units of product %, requested change %',
+            p_branch_id, v_curr_on_hand, p_product_id, p_qty_change;
+    END IF;
+
+    IF v_new_reserved < 0 THEN
+        v_new_reserved := 0;
+    END IF;
+
+    -- Update Branch Balance
+    UPDATE public.branch_inventory
+    SET quantity_on_hand = v_new_on_hand,
+        quantity_reserved = v_new_reserved,
+        updated_at = timezone('utc'::text, now())
+    WHERE branch_id = p_branch_id AND product_id = p_product_id;
+
+    -- Update Global Products Catalog Balance
+    UPDATE public.products
+    SET stock_quantity = (SELECT COALESCE(SUM(quantity_on_hand), 0)::int FROM public.branch_inventory WHERE product_id = p_product_id),
+        sales_count = CASE WHEN p_movement_type = 'sale' THEN COALESCE(sales_count, 0) + GREATEST(0, (-p_qty_change)::int) ELSE sales_count END,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_product_id;
+
+    -- Generate Unique Movement Number
+    v_mov_number := 'MOV-' || to_char(now(), 'YYYYMMDD-HH24MISS') || '-' || substr(md5(random()::text), 1, 6);
+
+    -- Insert movement record
+    INSERT INTO public.inventory_movements (
+        movement_number, branch_id, product_id, movement_type,
+        quantity_change, quantity_reserved_change,
+        resulting_on_hand, resulting_reserved,
+        reference_type, reference_id,
+        actor_id, actor_name, actor_role,
+        notes
+    ) VALUES (
+        v_mov_number, p_branch_id, p_product_id, p_movement_type,
+        p_qty_change, COALESCE(p_qty_reserved_change, 0),
+        v_new_on_hand, v_new_reserved,
+        p_ref_type, p_ref_id,
+        COALESCE(p_actor_id, auth.user_id()), p_actor_name, p_actor_role,
+        p_notes
+    );
+
+    v_result := jsonb_build_object(
+        'success', true,
+        'movement_number', v_mov_number,
+        'branch_id', p_branch_id,
+        'product_id', p_product_id,
+        'previous_on_hand', v_curr_on_hand,
+        'new_on_hand', v_new_on_hand,
+        'quantity_change', p_qty_change,
+        'movement_type', p_movement_type
+    );
+
+    RETURN v_result;
+END;
+$$;
+
+-- 13. High-Performance Atomic RPC: create_corporate_invoice_with_stock_deduction
+-- Verifies credit limits, locks and decrements product inventory, inserts invoice & items, updates balance
+CREATE OR REPLACE FUNCTION public.create_corporate_invoice_with_stock_deduction(p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_account_id UUID;
+    v_branch_id VARCHAR(64);
+    v_quotation_id UUID;
+    v_items JSONB;
+    v_item JSONB;
+    v_notes TEXT;
+    v_created_by TEXT;
+    
+    v_account public.corporate_accounts%ROWTYPE;
+    v_prod public.products%ROWTYPE;
+    
+    v_subtotal NUMERIC(14,2) := 0.00;
+    v_discount_amount NUMERIC(14,2) := 0.00;
+    v_tax_amount NUMERIC(14,2) := 0.00;
+    v_total_amount NUMERIC(14,2) := 0.00;
+    
+    v_item_qty NUMERIC(10,2);
+    v_item_price NUMERIC(14,2);
+    v_item_discount NUMERIC(5,2);
+    v_item_final_price NUMERIC(14,2);
+    v_item_total NUMERIC(14,2);
+    
+    v_invoice_id UUID;
+    v_invoice_number TEXT;
+    v_due_date DATE;
+    v_due_days INT := 30;
+    v_seq_num INT;
+BEGIN
+    -- Extract payload arguments
+    v_account_id := (p_payload->>'corporate_account_id')::UUID;
+    v_branch_id := p_payload->>'branch_id';
+    IF p_payload ? 'quotation_id' AND p_payload->>'quotation_id' IS NOT NULL AND p_payload->>'quotation_id' <> '' THEN
+        v_quotation_id := (p_payload->>'quotation_id')::UUID;
+    END IF;
+    v_items := p_payload->'items';
+    v_notes := p_payload->>'notes';
+    v_created_by := COALESCE(p_payload->>'created_by', auth.user_id(), 'مسؤول مبيعات الشركات');
+
+    -- Validate Corporate Account
+    SELECT * INTO v_account 
+    FROM public.corporate_accounts 
+    WHERE id = v_account_id 
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACCOUNT_NOT_FOUND: Corporate account % does not exist', v_account_id;
+    END IF;
+
+    IF v_account.status NOT IN ('active') THEN
+        RAISE EXCEPTION 'ACCOUNT_INACTIVE: Corporate account % is %', v_account.company_name, v_account.status;
+    END IF;
+
+    IF v_branch_id IS NULL OR v_branch_id = '' THEN
+        v_branch_id := v_account.branch_id;
+    END IF;
+
+    -- Validate Items array
+    IF v_items IS NULL OR jsonb_array_length(v_items) = 0 THEN
+        RAISE EXCEPTION 'EMPTY_ITEMS: Corporate invoice must contain at least one item';
+    END IF;
+
+    -- Calculate Totals & Validate Stock availability with Row Locks
+    FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
+    LOOP
+        v_item_qty := COALESCE((v_item->>'quantity')::NUMERIC, 0);
+        v_item_price := COALESCE((v_item->>'unit_price')::NUMERIC, 0);
+        v_item_discount := COALESCE((v_item->>'discount_percent')::NUMERIC, 0);
+
+        IF v_item_qty <= 0 THEN
+            RAISE EXCEPTION 'INVALID_QUANTITY: Item quantity must be greater than zero';
+        END IF;
+
+        -- Lock product row
+        SELECT * INTO v_prod 
+        FROM public.products 
+        WHERE id = (v_item->>'product_id')::UUID
+        FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'PRODUCT_NOT_FOUND: Product % does not exist in catalog', v_item->>'product_id';
+        END IF;
+
+        v_item_final_price := ROUND(v_item_price * (1 - (v_item_discount / 100.0)), 2);
+        v_item_total := ROUND(v_item_final_price * v_item_qty, 2);
+
+        v_subtotal := v_subtotal + ROUND(v_item_price * v_item_qty, 2);
+        v_discount_amount := v_discount_amount + (ROUND(v_item_price * v_item_qty, 2) - v_item_total);
+    END LOOP;
+
+    -- Compute VAT (15% Tax) and Grand Total
+    v_tax_amount := ROUND((v_subtotal - v_discount_amount) * 0.15, 2);
+    v_total_amount := (v_subtotal - v_discount_amount) + v_tax_amount;
+
+    -- Credit Limit Enforcement Guard
+    IF v_account.payment_terms <> 'Cash' THEN
+        IF (v_account.current_balance + v_total_amount) > v_account.monthly_credit_limit THEN
+            RAISE EXCEPTION 'CREDIT_LIMIT_EXCEEDED: Current balance (% ل.س) + Invoice (% ل.س) exceeds monthly credit limit (% ل.س)',
+                v_account.current_balance, v_total_amount, v_account.monthly_credit_limit;
+        END IF;
+    END IF;
+
+    -- Determine Due Date based on Payment Terms
+    IF v_account.payment_terms = 'Net-15' THEN
+        v_due_days := 15;
+    ELSIF v_account.payment_terms = 'Net-60' THEN
+        v_due_days := 60;
+    ELSIF v_account.payment_terms = 'Cash' THEN
+        v_due_days := 0;
+    ELSE
+        v_due_days := 30;
+    END IF;
+    v_due_date := CURRENT_DATE + (v_due_days || ' days')::INTERVAL;
+
+    -- Generate Invoice Number
+    SELECT COUNT(*) + 1 INTO v_seq_num FROM public.corporate_invoices;
+    v_invoice_number := 'INV-B2B-' || to_char(CURRENT_DATE, 'YYYYMM') || '-' || lpad(v_seq_num::TEXT, 4, '0');
+    v_invoice_id := gen_random_uuid();
+
+    -- Insert Invoice Record
+    INSERT INTO public.corporate_invoices (
+        id,
+        invoice_number,
+        quotation_id,
+        corporate_account_id,
+        branch_id,
+        subtotal,
+        discount_amount,
+        tax_amount,
+        total_amount,
+        paid_amount,
+        remaining_amount,
+        payment_status,
+        due_date,
+        notes,
+        created_by
+    ) VALUES (
+        v_invoice_id,
+        v_invoice_number,
+        v_quotation_id,
+        v_account_id,
+        v_branch_id,
+        v_subtotal,
+        v_discount_amount,
+        v_tax_amount,
+        v_total_amount,
+        0.00,
+        v_total_amount,
+        'unpaid',
+        v_due_date,
+        v_notes,
+        v_created_by
+    );
+
+    -- Insert Items and Decrement Inventory via atomic movements
+    FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
+    LOOP
+        v_item_qty := (v_item->>'quantity')::NUMERIC;
+        v_item_price := (v_item->>'unit_price')::NUMERIC;
+        v_item_discount := COALESCE((v_item->>'discount_percent')::NUMERIC, 0);
+        v_item_final_price := ROUND(v_item_price * (1 - (v_item_discount / 100.0)), 2);
+        v_item_total := ROUND(v_item_final_price * v_item_qty, 2);
+
+        INSERT INTO public.corporate_invoice_items (
+            invoice_id,
+            product_id,
+            quantity,
+            unit_price,
+            discount_percent,
+            final_unit_price,
+            total_price
+        ) VALUES (
+            v_invoice_id,
+            (v_item->>'product_id')::UUID,
+            v_item_qty,
+            v_item_price,
+            v_item_discount,
+            v_item_final_price,
+            v_item_total
+        );
+
+        -- Atomic stock reduction via record_inventory_movement_atomic
+        PERFORM public.record_inventory_movement_atomic(
+            v_branch_id,
+            (v_item->>'product_id')::UUID,
+            'sale',
+            -v_item_qty,
+            0,
+            'order',
+            v_invoice_number,
+            v_created_by,
+            'مبيعات شركات B2B',
+            'b2b_sales',
+            'صرف بضاعة فاتورة شركات رقم ' || v_invoice_number
+        );
+    END LOOP;
+
+    -- Update Corporate Account Outstanding Balance
+    UPDATE public.corporate_accounts
+    SET current_balance = current_balance + v_total_amount,
+        updated_at = NOW()
+    WHERE id = v_account_id;
+
+    -- If originated from quotation, mark quotation as converted
+    IF v_quotation_id IS NOT NULL THEN
+        UPDATE public.corporate_quotations
+        SET status = 'converted',
+            updated_at = NOW()
+        WHERE id = v_quotation_id;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'invoice_id', v_invoice_id,
+        'invoice_number', v_invoice_number,
+        'corporate_account_id', v_account_id,
+        'company_name', v_account.company_name,
+        'subtotal', v_subtotal,
+        'discount_amount', v_discount_amount,
+        'tax_amount', v_tax_amount,
+        'total_amount', v_total_amount,
+        'due_date', v_due_date,
+        'payment_status', 'unpaid',
+        'items_count', jsonb_array_length(v_items)
+    );
+END;
+$$;
+
+-- 14. High-Performance Atomic RPC: record_corporate_payment
+-- Records payment transaction, decrements remaining invoice debt, marks invoice paid, and credits account balance
+CREATE OR REPLACE FUNCTION public.record_corporate_payment(p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invoice_id UUID;
+    v_payment_amount NUMERIC(14,2);
+    v_payment_method TEXT;
+    v_reference_number TEXT;
+    v_notes TEXT;
+    v_received_by TEXT;
+    
+    v_invoice public.corporate_invoices%ROWTYPE;
+    v_payment_id UUID;
+    v_payment_number TEXT;
+    v_new_paid NUMERIC(14,2);
+    v_new_remaining NUMERIC(14,2);
+    v_new_status TEXT;
+    v_seq_num INT;
+BEGIN
+    v_invoice_id := (p_payload->>'invoice_id')::UUID;
+    v_payment_amount := (p_payload->>'amount')::NUMERIC;
+    v_payment_method := COALESCE(p_payload->>'payment_method', 'bank_transfer');
+    v_reference_number := COALESCE(p_payload->>'reference_number', 'REF-' || to_char(NOW(), 'YYYYMMDD-HH24MI'));
+    v_notes := p_payload->>'notes';
+    v_received_by := COALESCE(p_payload->>'received_by', auth.user_id(), 'محاسب الشركات');
+
+    IF v_payment_amount <= 0 THEN
+        RAISE EXCEPTION 'INVALID_AMOUNT: Payment amount must be greater than zero';
+    END IF;
+
+    -- Lock and retrieve invoice
+    SELECT * INTO v_invoice
+    FROM public.corporate_invoices
+    WHERE id = v_invoice_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'INVOICE_NOT_FOUND: Corporate invoice % does not exist', v_invoice_id;
+    END IF;
+
+    IF v_payment_amount > v_invoice.remaining_amount THEN
+        RAISE EXCEPTION 'OVERPAYMENT_PROHIBITED: Payment amount (% ل.س) exceeds invoice remaining balance (% ل.س)',
+            v_payment_amount, v_invoice.remaining_amount;
+    END IF;
+
+    v_new_paid := v_invoice.paid_amount + v_payment_amount;
+    v_new_remaining := v_invoice.remaining_amount - v_payment_amount;
+    v_new_status := CASE WHEN v_new_remaining <= 0.001 THEN 'paid' ELSE 'partially_paid' END;
+
+    -- Generate payment number
+    SELECT COUNT(*) + 1 INTO v_seq_num FROM public.corporate_payments;
+    v_payment_number := 'PAY-B2B-' || to_char(CURRENT_DATE, 'YYYYMM') || '-' || lpad(v_seq_num::TEXT, 4, '0');
+    v_payment_id := gen_random_uuid();
+
+    -- Insert payment ledger record
+    INSERT INTO public.corporate_payments (
+        id,
+        payment_number,
+        invoice_id,
+        corporate_account_id,
+        amount,
+        payment_method,
+        reference_number,
+        payment_date,
+        notes,
+        received_by
+    ) VALUES (
+        v_payment_id,
+        v_payment_number,
+        v_invoice_id,
+        v_invoice.corporate_account_id,
+        v_payment_amount,
+        v_payment_method,
+        v_reference_number,
+        CURRENT_DATE,
+        v_notes,
+        v_received_by
+    );
+
+    -- Update invoice financial state
+    UPDATE public.corporate_invoices
+    SET paid_amount = v_new_paid,
+        remaining_amount = v_new_remaining,
+        payment_status = v_new_status,
+        updated_at = NOW()
+    WHERE id = v_invoice_id;
+
+    -- Decrement corporate account balance (debt relief)
+    UPDATE public.corporate_accounts
+    SET current_balance = GREATEST(0.00, current_balance - v_payment_amount),
+        updated_at = NOW()
+    WHERE id = v_invoice.corporate_account_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'payment_id', v_payment_id,
+        'payment_number', v_payment_number,
+        'invoice_id', v_invoice_id,
+        'amount', v_payment_amount,
+        'remaining_amount', v_new_remaining,
+        'payment_status', v_new_status
+    );
+END;
+$$;
+
+-- 15. High-Performance Atomic RPC: process_corporate_return_with_stock_restoration
+-- Approves/completes goods return, restores product catalog stock, adjusts invoice & customer debt
+CREATE OR REPLACE FUNCTION public.process_corporate_return_with_stock_restoration(p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_return_id UUID;
+    v_approved_by TEXT;
+    v_return public.corporate_returns%ROWTYPE;
+    v_item RECORD;
+    v_invoice public.corporate_invoices%ROWTYPE;
+    v_restored_count INT := 0;
+BEGIN
+    v_return_id := (p_payload->>'return_id')::UUID;
+    v_approved_by := COALESCE(p_payload->>'approved_by', auth.user_id(), 'مدير مراقبة الجودة والمخزون');
+
+    -- Lock return record
+    SELECT * INTO v_return
+    FROM public.corporate_returns
+    WHERE id = v_return_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'RETURN_NOT_FOUND: Corporate return % does not exist', v_return_id;
+    END IF;
+
+    IF v_return.status = 'completed' THEN
+        RAISE EXCEPTION 'ALREADY_COMPLETED: Return % has already been processed and inventory restored', v_return.return_number;
+    END IF;
+
+    -- Restore stock for each returned item via record_inventory_movement_atomic
+    FOR v_item IN 
+        SELECT product_id, quantity, unit_price, total_refund 
+        FROM public.corporate_return_items 
+        WHERE return_id = v_return_id
+    LOOP
+        PERFORM public.record_inventory_movement_atomic(
+            v_return.branch_id,
+            v_item.product_id,
+            'return',
+            v_item.quantity,
+            0,
+            'return',
+            v_return.return_number,
+            v_approved_by,
+            'إرجاع مبيعات شركات B2B',
+            'b2b_returns',
+            'استرجاع بضاعة إشعار دائن رقم ' || v_return.return_number
+        );
+        
+        v_restored_count := v_restored_count + 1;
+    END LOOP;
+
+    -- Adjust invoice financials
+    SELECT * INTO v_invoice 
+    FROM public.corporate_invoices 
+    WHERE id = v_return.invoice_id 
+    FOR UPDATE;
+
+    IF FOUND THEN
+        UPDATE public.corporate_invoices
+        SET total_amount = GREATEST(0.00, total_amount - v_return.total_refund_amount),
+            remaining_amount = GREATEST(0.00, remaining_amount - v_return.total_refund_amount),
+            payment_status = CASE 
+                WHEN GREATEST(0.00, remaining_amount - v_return.total_refund_amount) <= 0.001 THEN 'paid'
+                ELSE payment_status 
+            END,
+            updated_at = NOW()
+        WHERE id = v_return.invoice_id;
+    END IF;
+
+    -- Adjust corporate account balance
+    UPDATE public.corporate_accounts
+    SET current_balance = GREATEST(0.00, current_balance - v_return.total_refund_amount),
+        updated_at = NOW()
+    WHERE id = v_return.corporate_account_id;
+
+    -- Mark return completed
+    UPDATE public.corporate_returns
+    SET status = 'completed',
+        approved_by = v_approved_by,
+        approved_at = NOW(),
+        updated_at = NOW()
+    WHERE id = v_return_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'return_id', v_return_id,
+        'return_number', v_return.return_number,
+        'restored_items_count', v_restored_count,
+        'total_refund_amount', v_return.total_refund_amount,
+        'status', 'completed'
+    );
+END;
+$$;
+
+-- 16. High-Performance Atomic RPC: approve_or_reject_corporate_quotation
+CREATE OR REPLACE FUNCTION public.approve_or_reject_corporate_quotation(p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_quotation_id UUID;
+    v_action TEXT;
+    v_staff_name TEXT;
+    v_notes TEXT;
+    v_reason TEXT;
+    v_quote public.corporate_quotations%ROWTYPE;
+BEGIN
+    v_quotation_id := (p_payload->>'quotation_id')::UUID;
+    v_action := lower(p_payload->>'action');
+    v_staff_name := COALESCE(p_payload->>'staff_name', auth.user_id(), 'المدير المالي المعتمد');
+    v_notes := p_payload->>'notes';
+    v_reason := p_payload->>'reason';
+
+    IF v_action NOT IN ('approve', 'reject') THEN
+        RAISE EXCEPTION 'INVALID_ACTION: Action must be either "approve" or "reject"';
+    END IF;
+
+    SELECT * INTO v_quote
+    FROM public.corporate_quotations
+    WHERE id = v_quotation_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'QUOTATION_NOT_FOUND: Quotation % does not exist', v_quotation_id;
+    END IF;
+
+    IF v_action = 'approve' THEN
+        UPDATE public.corporate_quotations
+        SET status = 'approved',
+            approved_by = v_staff_name,
+            approved_at = NOW(),
+            notes = COALESCE(v_notes, notes),
+            updated_at = NOW()
+        WHERE id = v_quotation_id;
+    ELSE
+        UPDATE public.corporate_quotations
+        SET status = 'rejected',
+            rejection_reason = COALESCE(v_reason, 'تم رفض عرض السعر بناءً على مراجعة شروط التوريد'),
+            updated_at = NOW()
+        WHERE id = v_quotation_id;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'quotation_id', v_quotation_id,
+        'quotation_number', v_quote.quotation_number,
+        'status', CASE WHEN v_action = 'approve' THEN 'approved' ELSE 'rejected' END,
+        'reviewed_by', v_staff_name
+    );
+END;
+$$;
+
+-- 17. Grant Schema & Table Access to authenticated & anon roles
+GRANT USAGE ON SCHEMA public TO authenticated, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+-- For anon, only permit specific catalog reads and guest RPC execution
+GRANT EXECUTE ON FUNCTION public.create_corporate_invoice_with_stock_deduction(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_corporate_payment(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.process_corporate_return_with_stock_restoration(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.approve_or_reject_corporate_quotation(JSONB) TO authenticated;
+
+-- 18. Seed Initial Realistic Corporate Accounts & Operational History
+DO $$
+DECLARE
+    v_dam_branch VARCHAR(64) := 'b-dam-01';
+    v_ruh_branch VARCHAR(64) := 'b-ruh-01';
+    v_jed_branch VARCHAR(64) := 'b-jed-01';
+    v_dmm_branch VARCHAR(64) := 'b-dmm-01';
+    
+    v_acc1 UUID := 'b2ba0000-0000-0000-0000-000000000001';
+    v_acc2 UUID := 'b2ba0000-0000-0000-0000-000000000002';
+    v_acc3 UUID := 'b2ba0000-0000-0000-0000-000000000003';
+    v_acc4 UUID := 'b2ba0000-0000-0000-0000-000000000004';
+    v_acc5 UUID := 'b2ba0000-0000-0000-0000-000000000005';
+BEGIN
+    -- Verify branches exist
+    IF NOT EXISTS (SELECT 1 FROM public.branches WHERE id = v_dam_branch) THEN
+        v_dam_branch := (SELECT id FROM public.branches LIMIT 1);
+    END IF;
+
+    -- Account 1: Syrian Telecom & Technology Corp (Damascus)
+    INSERT INTO public.corporate_accounts (
+        id, company_name, cr_number, vat_number, contact_person, phone, email,
+        city, address, branch_id, monthly_credit_limit, current_balance,
+        payment_terms, status, recurring_schedule, items_summary, notes
+    ) VALUES (
+        v_acc1,
+        'الشركة السورية للاتصالات والتقنية (سيريتل - المقر العام)',
+        '1010150261', '300000000000003', 'م. فهد السديري (مدير الخدمات والإعاشة)',
+        '+963 93 112 3456', 'procurement@syriatel.sy',
+        'دمشق', 'المزة - أوتوستراد المزة بجوار برج دمشق', v_dam_branch,
+        15000000.00, 3200000.00, 'Net-30', 'active',
+        'كل أحد 08:00 صباحاً (شحنة أسبوعية)',
+        'بن اسبريسو فاخر، مياه معبأة، سلال فواكه مكتبية، معقمات ومحارم',
+        'حساب استراتيجي - خصم تجاري معتمد 15%'
+    ) ON CONFLICT (cr_number) DO NOTHING;
+
+    -- Account 2: Cham Holding & Financial Services (Damascus)
+    INSERT INTO public.corporate_accounts (
+        id, company_name, cr_number, vat_number, contact_person, phone, email,
+        city, address, branch_id, monthly_credit_limit, current_balance,
+        payment_terms, status, recurring_schedule, items_summary, notes
+    ) VALUES (
+        v_acc2,
+        'شركة شام القابضة للخدمات والاستثمار',
+        '1010000096', '300000000000005', 'أ. ريم الشمري (المشتريات التشغيلية)',
+        '+963 94 987 6543', 'purchases@chamholding.sy',
+        'دمشق', 'كفرسوسة - مجمع الفردوس التجاري', v_dam_branch,
+        10000000.00, 1850000.00, 'Net-30', 'active',
+        'كل ثلاثاء 09:00 صباحاً',
+        'شاي سيلاني فاخر، قهوة الديب، سناكات ومكسرات صحية للموظفين',
+        'سداد منتظم عبر المصرف التجاري السوري'
+    ) ON CONFLICT (cr_number) DO NOTHING;
+
+    -- Account 3: Al-Aqeelah Takaful Insurance (Riyadh Branch)
+    INSERT INTO public.corporate_accounts (
+        id, company_name, cr_number, vat_number, contact_person, phone, email,
+        city, address, branch_id, monthly_credit_limit, current_balance,
+        payment_terms, status, recurring_schedule, items_summary, notes
+    ) VALUES (
+        v_acc3,
+        'شركة العقيلة للتأمين التكافلي وإدارة المخاطر',
+        '1010482910', '310928192000003', 'أ. ياسر العتيبي (الخدمات المشتركة)',
+        '+966 54 332 1199', 'facilities@alaqeelah.com',
+        'الرياض', 'طريق الملك فهد - حي العليا', v_ruh_branch,
+        8000000.00, 0.00, 'Net-15', 'active',
+        'كل أسبوعين صباح الإثنين',
+        'مياه شرب معبأة، كبسولات قهوة، أكواب ورقية صديقة للبيئة',
+        'عقد توريد مستمر لمقر الإدارة العامة'
+    ) ON CONFLICT (cr_number) DO NOTHING;
+
+    -- Account 4: Arab Medical Logistics & Hospital Restock (Jeddah)
+    INSERT INTO public.corporate_accounts (
+        id, company_name, cr_number, vat_number, contact_person, phone, email,
+        city, address, branch_id, monthly_credit_limit, current_balance,
+        payment_terms, status, recurring_schedule, items_summary, notes
+    ) VALUES (
+        v_acc4,
+        'مجموعة الشفاء الطبية ومستودعات التموين',
+        '1010928172', '310948291000003', 'د. طارق الحلبي (سلاسل الإمداد)',
+        '+966 56 441 8822', 'supply@alshifa-med.com',
+        'جدة', 'الكورنيش - طريق الأندلس', v_jed_branch,
+        12000000.00, 4200000.00, 'Net-30', 'active',
+        'الأحد والأربعاء مرتين أسبوعياً',
+        'تموين كافتيريا الأطباء والموظفين، عصائر طبيعية، حليب وألبان طازجة',
+        'تموين إعاشة متكامل لمستشفيات المجموعة'
+    ) ON CONFLICT (cr_number) DO NOTHING;
+
+    -- Account 5: Al-Badia Industrial & Construction Group (Dammam)
+    INSERT INTO public.corporate_accounts (
+        id, company_name, cr_number, vat_number, contact_person, phone, email,
+        city, address, branch_id, monthly_credit_limit, current_balance,
+        payment_terms, status, recurring_schedule, items_summary, notes
+    ) VALUES (
+        v_acc5,
+        'مجموعة البادية للصناعات الإنشائية والوجبات الجاهزة',
+        '2050001928', '300019281000003', 'م. نبيل كنعان (إدارة المشاريع)',
+        '+966 53 771 9900', 'canteen@albadia-group.com',
+        'الدمام', 'المنطقة الصناعية الأولى - شارع الميناء', v_dmm_branch,
+        6000000.00, 6150000.00, 'Net-30', 'overdue',
+        'أول يوم عمل من كل شهر',
+        'تموين سكن العمال والمستودعات: أرز، زيوت طهي، سكر، معلبات غذائية',
+        'تجاوز الحد الائتماني بمقدار 150,000 ل.س - يمنع إصدار فواتير آجلة جديدة قبل السداد'
+    ) ON CONFLICT (cr_number) DO NOTHING;
+END $$;
+
+-- ============================================================================
+-- MODULE 21: SUPPLIERS & PROCUREMENT SYSTEM (Task 8 Deliverable)
+-- ============================================================================
+-- ==============================================================================
+-- Aldeeb Mall & Hypermarket - Migration 019: Suppliers & Procurement System
+-- ==============================================================================
+-- 1. Sequences for Server-Generated Unique Monotonic Identifiers
+-- 2. Tables: suppliers, purchase_orders, purchase_order_items, inventory_transactions, supplier_payments
+-- 3. Product Table Alterations (cost_price, is_draft, status)
+-- 4. Atomic Stored Procedures / RPCs:
+--    - create_purchase_order
+--    - receive_purchase_order_items
+--    - record_supplier_payment
+--    - cancel_purchase_order
+--    - approve_draft_product
+-- 5. Row Level Security & RBAC Enforcement
+-- 6. Initial Certified Suppliers Seed
+-- ==============================================================================
+
+-- 1. Sequences
+CREATE SEQUENCE IF NOT EXISTS public.po_number_seq START WITH 1001 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.inv_trx_seq START WITH 1001 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.sup_pay_seq START WITH 1001 INCREMENT BY 1;
+
+-- 2. Enhance products table with cost and lifecycle tracking
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10,2) DEFAULT NULL;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_draft BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';
+
+-- 3. Suppliers Table
+CREATE TABLE IF NOT EXISTS public.suppliers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name_ar TEXT NOT NULL,
+    name_en TEXT,
+    contact_person TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    commercial_reg TEXT,
+    tax_number TEXT,
+    lead_time_days INTEGER NOT NULL DEFAULT 1,
+    payment_terms TEXT NOT NULL DEFAULT 'آجل 30 يوماً',
+    active_products_count INTEGER NOT NULL DEFAULT 0,
+    balance NUMERIC(15,2) NOT NULL DEFAULT 0.00,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'under_review', 'inactive')),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_status ON public.suppliers(status);
+CREATE INDEX IF NOT EXISTS idx_suppliers_name_ar ON public.suppliers(name_ar);
+
+-- 4. Purchase Orders Table
+CREATE TABLE IF NOT EXISTS public.purchase_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    po_number TEXT UNIQUE NOT NULL,
+    supplier_id UUID REFERENCES public.suppliers(id) ON DELETE RESTRICT,
+    supplier_name TEXT NOT NULL,
+    branch_id VARCHAR(64) REFERENCES public.branches(id) ON DELETE RESTRICT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'partially_received', 'received', 'cancelled')),
+    payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partial', 'paid')),
+    total_items NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    total_cost NUMERIC(15,2) NOT NULL DEFAULT 0.00,
+    paid_amount NUMERIC(15,2) NOT NULL DEFAULT 0.00,
+    order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    expected_arrival TEXT,
+    notes TEXT,
+    cancellation_reason TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON public.purchase_orders(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_branch ON public.purchase_orders(branch_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON public.purchase_orders(status);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_po_num ON public.purchase_orders(po_number);
+
+-- 5. Purchase Order Items Table
+CREATE TABLE IF NOT EXISTS public.purchase_order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    purchase_order_id UUID NOT NULL REFERENCES public.purchase_orders(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    name_ar TEXT NOT NULL,
+    barcode TEXT,
+    unit TEXT NOT NULL DEFAULT 'piece',
+    quantity_ordered NUMERIC(12,2) NOT NULL CHECK (quantity_ordered > 0),
+    quantity_received NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (quantity_received >= 0),
+    quantity_damaged NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (quantity_damaged >= 0),
+    unit_cost NUMERIC(15,2) NOT NULL CHECK (unit_cost >= 0),
+    total_cost NUMERIC(15,2) NOT NULL CHECK (total_cost >= 0),
+    is_new_draft_product BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_po_id ON public.purchase_order_items(purchase_order_id);
+CREATE INDEX IF NOT EXISTS idx_po_items_product_id ON public.purchase_order_items(product_id);
+
+-- 6. Inventory Transactions (Stock Movement Ledger)
+CREATE TABLE IF NOT EXISTS public.inventory_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_number TEXT UNIQUE NOT NULL,
+    branch_id VARCHAR(64) NOT NULL REFERENCES public.branches(id) ON DELETE RESTRICT,
+    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('purchase_receipt', 'damaged_loss', 'sales_deduction', 'inventory_transfer', 'inventory_adjustment')),
+    reference_type TEXT NOT NULL CHECK (reference_type IN ('purchase_order', 'order_sale', 'transfer', 'manual_audit')),
+    reference_id TEXT NOT NULL,
+    quantity_change NUMERIC(12,2) NOT NULL,
+    unit_cost NUMERIC(15,2) NOT NULL DEFAULT 0.00,
+    total_value NUMERIC(15,2) NOT NULL DEFAULT 0.00,
+    balance_after NUMERIC(12,2),
+    performed_by TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_inv_trx_branch ON public.inventory_transactions(branch_id);
+CREATE INDEX IF NOT EXISTS idx_inv_trx_product ON public.inventory_transactions(product_id);
+CREATE INDEX IF NOT EXISTS idx_inv_trx_type ON public.inventory_transactions(movement_type);
+CREATE INDEX IF NOT EXISTS idx_inv_trx_ref ON public.inventory_transactions(reference_type, reference_id);
+
+-- 7. Supplier Payments Table
+CREATE TABLE IF NOT EXISTS public.supplier_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payment_number TEXT UNIQUE NOT NULL,
+    purchase_order_id UUID NOT NULL REFERENCES public.purchase_orders(id) ON DELETE CASCADE,
+    supplier_id UUID REFERENCES public.suppliers(id) ON DELETE RESTRICT,
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('sham_cash', 'cash', 'bank_transfer')),
+    payment_reference TEXT,
+    paid_by TEXT,
+    notes TEXT,
+    paid_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_sup_payments_po_id ON public.supplier_payments(purchase_order_id);
+CREATE INDEX IF NOT EXISTS idx_sup_payments_supplier_id ON public.supplier_payments(supplier_id);
+
+-- ==============================================================================
+-- 8. Atomic Stored Procedures & Business Logic RPCs
+-- ==============================================================================
+
+-- Procedure: create_purchase_order
+CREATE OR REPLACE FUNCTION public.create_purchase_order(
+    p_supplier_id UUID,
+    p_supplier_name TEXT,
+    p_branch_id VARCHAR,
+    p_expected_arrival TEXT,
+    p_notes TEXT,
+    p_items JSONB,
+    p_created_by TEXT DEFAULT 'مدير المشتريات'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_po_id UUID;
+    v_po_number TEXT;
+    v_seq_val BIGINT;
+    v_item JSONB;
+    v_total_cost NUMERIC(15,2) := 0.00;
+    v_total_items NUMERIC(12,2) := 0.00;
+    v_item_qty NUMERIC(12,2);
+    v_item_cost NUMERIC(15,2);
+    v_item_total NUMERIC(15,2);
+    v_product_id UUID;
+    v_prod_id_raw TEXT;
+    v_is_draft BOOLEAN;
+    v_result JSONB;
+BEGIN
+    -- Enforce RBAC caller role checks
+    IF auth.user_role() IN ('cashier', 'auditor') THEN
+        RAISE EXCEPTION 'ليس لديك صلاحية لإصدار أوامر الشراء والتوريد';
+    END IF;
+
+    -- Validate Supplier exists
+    IF p_supplier_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.suppliers WHERE id = p_supplier_id) THEN
+        RAISE EXCEPTION 'المورد المحدد غير موجود في قاعدة البيانات';
+    END IF;
+
+    -- Validate Branch exists
+    IF p_branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.branches WHERE id = p_branch_id) THEN
+        RAISE EXCEPTION 'الفرع المحدد غير موجود في قاعدة البيانات';
+    END IF;
+
+    -- Validate items list is not empty
+    IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'لا يمكن إنشاء أمر شراء بدون بنود أو أصناف';
+    END IF;
+
+    -- Generate atomic sequential PO Number: PO-2026-XXXX
+    v_seq_val := nextval('public.po_number_seq');
+    v_po_number := 'PO-2026-' || LPAD(v_seq_val::TEXT, 4, '0');
+
+    -- Insert Master PO Record
+    INSERT INTO public.purchase_orders (
+        po_number,
+        supplier_id,
+        supplier_name,
+        branch_id,
+        status,
+        payment_status,
+        total_items,
+        total_cost,
+        paid_amount,
+        order_date,
+        expected_arrival,
+        notes,
+        created_by
+    ) VALUES (
+        v_po_number,
+        p_supplier_id,
+        p_supplier_name,
+        p_branch_id,
+        'sent',
+        'unpaid',
+        0,
+        0,
+        0,
+        CURRENT_DATE,
+        p_expected_arrival,
+        p_notes,
+        p_created_by
+    )
+    RETURNING id INTO v_po_id;
+
+    -- Process Each Item
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_item_qty := COALESCE((v_item->>'quantity_ordered')::NUMERIC, 0);
+        v_item_cost := COALESCE((v_item->>'unit_cost')::NUMERIC, 0);
+
+        IF v_item_qty <= 0 THEN
+            RAISE EXCEPTION 'كمية الصنف يجب أن تكون أكبر من صفر';
+        END IF;
+
+        IF v_item_cost < 0 THEN
+            RAISE EXCEPTION 'سعر تكلفة الصنف لا يمكن أن يكون سالباً';
+        END IF;
+
+        v_item_total := v_item_qty * v_item_cost;
+        v_total_cost := v_total_cost + v_item_total;
+        v_total_items := v_total_items + v_item_qty;
+
+        v_prod_id_raw := v_item->>'product_id';
+        v_is_draft := COALESCE((v_item->>'is_new_draft_product')::BOOLEAN, false);
+
+        -- Safe UUID parsing
+        BEGIN
+            IF v_prod_id_raw IS NOT NULL AND v_prod_id_raw <> '' THEN
+                v_product_id := v_prod_id_raw::UUID;
+            ELSE
+                v_product_id := NULL;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            v_product_id := NULL;
+        END;
+
+        -- If draft product with no existing UUID, check barcode or create in products as draft
+        IF v_is_draft AND v_product_id IS NULL THEN
+            IF v_item->>'barcode' IS NOT NULL AND v_item->>'barcode' <> '' THEN
+                SELECT id INTO v_product_id FROM public.products WHERE barcode = v_item->>'barcode';
+            END IF;
+
+            IF v_product_id IS NULL THEN
+                INSERT INTO public.products (
+                    name_ar,
+                    name_en,
+                    brand,
+                    barcode,
+                    category_id,
+                    price,
+                    cost_price,
+                    unit,
+                    stock_quantity,
+                    images,
+                    is_featured,
+                    is_daily_deal,
+                    rating,
+                    is_active,
+                    is_draft,
+                    status
+                ) VALUES (
+                    v_item->>'name_ar',
+                    COALESCE(v_item->>'name_en', v_item->>'name_ar'),
+                    COALESCE(p_supplier_name, 'توريد عام'),
+                    COALESCE(v_item->>'barcode', 'GEN-' || floor(random() * 899999999 + 100000000)::TEXT),
+                    (SELECT id FROM public.categories LIMIT 1),
+                    ROUND(v_item_cost * 1.35, 2),
+                    v_item_cost,
+                    COALESCE(v_item->>'unit', 'piece'),
+                    0, -- 0 initial stock until received at warehouse
+                    ARRAY['https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'],
+                    false,
+                    false,
+                    4.8,
+                    false, -- Inactive for customer app until approved
+                    true,
+                    'incomplete_data'
+                )
+                ON CONFLICT (barcode) DO UPDATE SET updated_at = timezone('utc'::text, now())
+                RETURNING id INTO v_product_id;
+            END IF;
+        END IF;
+
+        -- Insert Item
+        INSERT INTO public.purchase_order_items (
+            purchase_order_id,
+            product_id,
+            name_ar,
+            barcode,
+            unit,
+            quantity_ordered,
+            quantity_received,
+            quantity_damaged,
+            unit_cost,
+            total_cost,
+            is_new_draft_product
+        ) VALUES (
+            v_po_id,
+            v_product_id,
+            v_item->>'name_ar',
+            v_item->>'barcode',
+            COALESCE(v_item->>'unit', 'piece'),
+            v_item_qty,
+            0,
+            0,
+            v_item_cost,
+            v_item_total,
+            v_is_draft
+        );
+    END LOOP;
+
+    -- Update totals on PO record
+    UPDATE public.purchase_orders
+    SET total_items = v_total_items,
+        total_cost = v_total_cost,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = v_po_id;
+
+    -- Accrue supplier balance if supplier provided
+    IF p_supplier_id IS NOT NULL THEN
+        UPDATE public.suppliers
+        SET balance = balance + v_total_cost,
+            updated_at = timezone('utc'::text, now())
+        WHERE id = p_supplier_id;
+    END IF;
+
+    -- Return full JSON representation
+    SELECT jsonb_build_object(
+        'success', true,
+        'id', p.id,
+        'po_number', p.po_number,
+        'supplier_id', p.supplier_id,
+        'supplier_name', p.supplier_name,
+        'branch_id', p.branch_id,
+        'status', p.status,
+        'payment_status', p.payment_status,
+        'total_items', p.total_items,
+        'total_cost', p.total_cost,
+        'paid_amount', p.paid_amount,
+        'order_date', p.order_date,
+        'expected_arrival', p.expected_arrival,
+        'notes', p.notes,
+        'created_at', p.created_at
+    ) INTO v_result
+    FROM public.purchase_orders p
+    WHERE p.id = v_po_id;
+
+    RETURN v_result;
+END;
+$$;
+
+
+-- Procedure: receive_purchase_order_items
+CREATE OR REPLACE FUNCTION public.receive_purchase_order_items(
+    p_po_id UUID,
+    p_receipts JSONB,
+    p_receiver TEXT DEFAULT 'أمين المستودع',
+    p_branch_id VARCHAR DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_po RECORD;
+    v_receipt JSONB;
+    v_item_id UUID;
+    v_item RECORD;
+    v_newly_received NUMERIC(12,2);
+    v_damaged NUMERIC(12,2);
+    v_net_good NUMERIC(12,2);
+    v_new_total_received NUMERIC(12,2);
+    v_new_total_damaged NUMERIC(12,2);
+    v_all_fulfilled BOOLEAN := true;
+    v_any_received BOOLEAN := false;
+    v_target_branch VARCHAR(64);
+    v_trx_num TEXT;
+    v_result JSONB;
+BEGIN
+    -- Enforce RBAC caller role checks
+    IF auth.user_role() IN ('cashier', 'auditor') THEN
+        RAISE EXCEPTION 'ليس لديك صلاحية لاستلام بضائع المستودع أو تعديل المخزون';
+    END IF;
+
+    -- Lock PO row FOR UPDATE
+    SELECT * INTO v_po
+    FROM public.purchase_orders
+    WHERE id = p_po_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'أمر الشراء المطلوب غير موجود';
+    END IF;
+
+    IF v_po.status = 'cancelled' THEN
+        RAISE EXCEPTION 'لا يمكن استلام بضائع لأمر شراء تم إلغاؤه مسبقاً';
+    END IF;
+
+    v_target_branch := COALESCE(p_branch_id, v_po.branch_id, 'b-dam-01');
+
+    -- Process Receipts
+    FOR v_receipt IN SELECT * FROM jsonb_array_elements(p_receipts)
+    LOOP
+        v_item_id := (v_receipt->>'item_id')::UUID;
+        v_newly_received := COALESCE((v_receipt->>'quantity_received')::NUMERIC, 0);
+        v_damaged := COALESCE((v_receipt->>'quantity_damaged')::NUMERIC, 0);
+
+        IF v_newly_received < 0 OR v_damaged < 0 THEN
+            RAISE EXCEPTION 'الكميات المستلمة أو التالفة لا يمكن أن تكون سالبة';
+        END IF;
+
+        IF v_damaged > v_newly_received THEN
+            RAISE EXCEPTION 'الكمية التالفة لا يمكن أن تتجاوز الكمية المستلمة في الإرسالية';
+        END IF;
+
+        -- Lock Item Row
+        SELECT * INTO v_item
+        FROM public.purchase_order_items
+        WHERE id = v_item_id AND purchase_order_id = p_po_id
+        FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'أحد بنود التوريد غير مطابق لأمر الشراء هذا';
+        END IF;
+
+        -- Prevent receiving beyond ordered quantity
+        v_net_good := v_newly_received - v_damaged;
+        v_new_total_received := v_item.quantity_received + v_net_good;
+        v_new_total_damaged := v_item.quantity_damaged + v_damaged;
+
+        IF v_new_total_received > v_item.quantity_ordered THEN
+            RAISE EXCEPTION 'الكمية المستلمة الصافية تتجاوز الكمية المطلوبة في أمر الشراء للصنف: %', v_item.name_ar;
+        END IF;
+
+        -- Update Item Record
+        UPDATE public.purchase_order_items
+        SET quantity_received = v_new_total_received,
+            quantity_damaged = v_new_total_damaged,
+            updated_at = timezone('utc'::text, now())
+        WHERE id = v_item_id;
+
+        -- If Good Stock Received, Increase Product Catalog Stock and Record Ledger Movement
+        IF v_net_good > 0 THEN
+            v_any_received := true;
+
+            -- Update Product Stock & Cost
+            IF v_item.product_id IS NOT NULL THEN
+                UPDATE public.products
+                SET stock_quantity = stock_quantity + v_net_good::INTEGER,
+                    cost_price = v_item.unit_cost,
+                    updated_at = timezone('utc'::text, now())
+                WHERE id = v_item.product_id;
+            END IF;
+
+            -- Record in Central Inventory Transaction Ledger
+            v_trx_num := 'TX-REC-' || LPAD(nextval('public.inv_trx_seq')::TEXT, 6, '0');
+            INSERT INTO public.inventory_transactions (
+                transaction_number,
+                branch_id,
+                product_id,
+                movement_type,
+                reference_type,
+                reference_id,
+                quantity_change,
+                unit_cost,
+                total_value,
+                performed_by,
+                notes
+            ) VALUES (
+                v_trx_num,
+                v_target_branch,
+                v_item.product_id,
+                'purchase_receipt',
+                'purchase_order',
+                v_po.po_number,
+                v_net_good,
+                v_item.unit_cost,
+                v_net_good * v_item.unit_cost,
+                p_receiver,
+                'استلام توريد رسمي لأمر الشراء ' || v_po.po_number
+            );
+
+            -- If Damasucs Branch, also log to branch_dam_01 schema if active
+            IF v_target_branch = 'b-dam-01' THEN
+                BEGIN
+                    INSERT INTO branch_dam_01.inventory_movements (
+                        product_id,
+                        movement_type,
+                        quantity,
+                        balance_after,
+                        reference_id,
+                        reason,
+                        created_by
+                    ) VALUES (
+                        v_item.product_id,
+                        'transfer_in',
+                        v_net_good::INTEGER,
+                        (SELECT COALESCE(stock_quantity, 0) FROM public.products WHERE id = v_item.product_id),
+                        v_po.po_number,
+                        'توريد مستودعي معتمد من المورد: ' || v_po.supplier_name,
+                        p_receiver
+                    );
+                EXCEPTION WHEN OTHERS THEN
+                    -- Non-blocking schema isolation fallback
+                    NULL;
+                END;
+            END IF;
+        END IF;
+
+        -- If Damaged, Record Damaged Loss Transaction
+        IF v_damaged > 0 THEN
+            v_trx_num := 'TX-DMG-' || LPAD(nextval('public.inv_trx_seq')::TEXT, 6, '0');
+            INSERT INTO public.inventory_transactions (
+                transaction_number,
+                branch_id,
+                product_id,
+                movement_type,
+                reference_type,
+                reference_id,
+                quantity_change,
+                unit_cost,
+                total_value,
+                performed_by,
+                notes
+            ) VALUES (
+                v_trx_num,
+                v_target_branch,
+                v_item.product_id,
+                'damaged_loss',
+                'purchase_order',
+                v_po.po_number,
+                -v_damaged,
+                v_item.unit_cost,
+                v_damaged * v_item.unit_cost,
+                p_receiver,
+                'بضاعة تالفة / مرفوضة عند الفحص والاستلام لأمر الشراء ' || v_po.po_number
+            );
+        END IF;
+    END LOOP;
+
+    -- Evaluate All Items to Determine Final Status
+    SELECT bool_and(quantity_received >= quantity_ordered),
+           bool_or(quantity_received > 0)
+    INTO v_all_fulfilled, v_any_received
+    FROM public.purchase_order_items
+    WHERE purchase_order_id = p_po_id;
+
+    UPDATE public.purchase_orders
+    SET status = CASE 
+            WHEN v_all_fulfilled THEN 'received'
+            WHEN v_any_received THEN 'partially_received'
+            ELSE status
+        END,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_po_id;
+
+    SELECT jsonb_build_object(
+        'success', true,
+        'po_id', p_po_id,
+        'status', (SELECT status FROM public.purchase_orders WHERE id = p_po_id),
+        'all_fulfilled', v_all_fulfilled
+    ) INTO v_result;
+
+    RETURN v_result;
+END;
+$$;
+
+
+-- Procedure: record_supplier_payment
+CREATE OR REPLACE FUNCTION public.record_supplier_payment(
+    p_po_id UUID,
+    p_amount NUMERIC,
+    p_payment_method TEXT,
+    p_reference TEXT DEFAULT NULL,
+    p_payer TEXT DEFAULT 'المحاسب المالي',
+    p_notes TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_po RECORD;
+    v_remaining NUMERIC(15,2);
+    v_new_paid NUMERIC(15,2);
+    v_payment_num TEXT;
+    v_new_status TEXT;
+    v_result JSONB;
+BEGIN
+    -- Enforce RBAC caller role checks
+    IF auth.user_role() IN ('cashier', 'auditor', 'warehouse_manager') THEN
+        RAISE EXCEPTION 'ليس لديك صلاحية لصرف وتسجيل دفعات الموردين المالية';
+    END IF;
+
+    IF p_amount <= 0 THEN
+        RAISE EXCEPTION 'مبلغ السداد يجب أن يكون أكبر من صفر';
+    END IF;
+
+    IF p_payment_method NOT IN ('sham_cash', 'cash', 'bank_transfer') THEN
+        RAISE EXCEPTION 'طريقة السداد غير معتمدة';
+    END IF;
+
+    -- Lock PO Row
+    SELECT * INTO v_po
+    FROM public.purchase_orders
+    WHERE id = p_po_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'أمر الشراء المطلوب غير موجود';
+    END IF;
+
+    v_remaining := v_po.total_cost - v_po.paid_amount;
+    IF p_amount > v_remaining + 0.01 THEN
+        RAISE EXCEPTION 'مبلغ السداد المطلوب (%) يتجاوز الرصيد المتبقي المستحق (%)', p_amount, v_remaining;
+    END IF;
+
+    -- Generate Unique Payment Number: SP-PAY-XXXXX
+    v_payment_num := 'SP-PAY-' || LPAD(nextval('public.sup_pay_seq')::TEXT, 5, '0');
+
+    -- Insert Payment Record
+    INSERT INTO public.supplier_payments (
+        payment_number,
+        purchase_order_id,
+        supplier_id,
+        amount,
+        payment_method,
+        payment_reference,
+        paid_by,
+        notes
+    ) VALUES (
+        v_payment_num,
+        p_po_id,
+        v_po.supplier_id,
+        p_amount,
+        p_payment_method,
+        p_reference,
+        p_payer,
+        p_notes
+    );
+
+    v_new_paid := v_po.paid_amount + p_amount;
+    v_new_status := CASE WHEN v_new_paid >= v_po.total_cost THEN 'paid' ELSE 'partial' END;
+
+    -- Update PO
+    UPDATE public.purchase_orders
+    SET paid_amount = v_new_paid,
+        payment_status = v_new_status,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_po_id;
+
+    -- Decrease Supplier Balance
+    IF v_po.supplier_id IS NOT NULL THEN
+        UPDATE public.suppliers
+        SET balance = GREATEST(0.00, balance - p_amount),
+            updated_at = timezone('utc'::text, now())
+        WHERE id = v_po.supplier_id;
+    END IF;
+
+    SELECT jsonb_build_object(
+        'success', true,
+        'payment_number', v_payment_num,
+        'paid_amount', v_new_paid,
+        'payment_status', v_new_status,
+        'remaining_balance', GREATEST(0.00, v_po.total_cost - v_new_paid)
+    ) INTO v_result;
+
+    RETURN v_result;
+END;
+$$;
+
+
+-- Procedure: cancel_purchase_order
+CREATE OR REPLACE FUNCTION public.cancel_purchase_order(
+    p_po_id UUID,
+    p_reason TEXT,
+    p_user TEXT DEFAULT 'مدير المشتريات'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_po RECORD;
+    v_has_receipts BOOLEAN;
+BEGIN
+    -- Enforce RBAC caller role checks
+    IF auth.user_role() IN ('cashier', 'auditor') THEN
+        RAISE EXCEPTION 'ليس لديك صلاحية لإلغاء أوامر الشراء المعتمدة';
+    END IF;
+
+    SELECT * INTO v_po
+    FROM public.purchase_orders
+    WHERE id = p_po_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'أمر الشراء المطلوب غير موجود';
+    END IF;
+
+    IF v_po.status = 'cancelled' THEN
+        RAISE EXCEPTION 'أمر الشراء ملغى بالفعل';
+    END IF;
+
+    -- Check if any items have been received
+    SELECT EXISTS (
+        SELECT 1 FROM public.purchase_order_items 
+        WHERE purchase_order_id = p_po_id AND quantity_received > 0
+    ) INTO v_has_receipts;
+
+    IF v_has_receipts THEN
+        RAISE EXCEPTION 'لا يمكن إلغاء أمر شراء تم استلام بضائع منه جزئياً أو كلياً';
+    END IF;
+
+    UPDATE public.purchase_orders
+    SET status = 'cancelled',
+        cancellation_reason = p_reason,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_po_id;
+
+    -- Reverse accrued balance from supplier if unpaid
+    IF v_po.supplier_id IS NOT NULL THEN
+        UPDATE public.suppliers
+        SET balance = GREATEST(0.00, balance - (v_po.total_cost - v_po.paid_amount)),
+            updated_at = timezone('utc'::text, now())
+        WHERE id = v_po.supplier_id;
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'status', 'cancelled');
+END;
+$$;
+
+
+-- Procedure: approve_draft_product
+CREATE OR REPLACE FUNCTION public.approve_draft_product(
+    p_product_id UUID,
+    p_user TEXT DEFAULT 'مدير الكتالوج'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE public.products
+    SET is_draft = false,
+        is_active = true,
+        status = 'published',
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_product_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'الصنف المطلوب غير موجود';
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'product_id', p_product_id, 'is_active', true, 'status', 'published');
+END;
+$$;
+
+-- ==============================================================================
+-- 9. Row Level Security & Access Policies
+-- ==============================================================================
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_payments ENABLE ROW LEVEL SECURITY;
+
+-- Suppliers Policies
+DROP POLICY IF EXISTS "suppliers_read_policy" ON public.suppliers;
+CREATE POLICY "suppliers_read_policy" ON public.suppliers FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "suppliers_write_policy" ON public.suppliers;
+CREATE POLICY "suppliers_write_policy" ON public.suppliers FOR ALL
+USING (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager', 'accountant'))
+WITH CHECK (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager', 'accountant'));
+
+-- Purchase Orders Policies
+DROP POLICY IF EXISTS "purchase_orders_read_policy" ON public.purchase_orders;
+CREATE POLICY "purchase_orders_read_policy" ON public.purchase_orders FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "purchase_orders_write_policy" ON public.purchase_orders;
+CREATE POLICY "purchase_orders_write_policy" ON public.purchase_orders FOR ALL
+USING (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'))
+WITH CHECK (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'));
+
+-- Purchase Order Items Policies
+DROP POLICY IF EXISTS "po_items_read_policy" ON public.purchase_order_items;
+CREATE POLICY "po_items_read_policy" ON public.purchase_order_items FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "po_items_write_policy" ON public.purchase_order_items;
+CREATE POLICY "po_items_write_policy" ON public.purchase_order_items FOR ALL
+USING (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'))
+WITH CHECK (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'));
+
+-- Inventory Transactions Policies
+DROP POLICY IF EXISTS "inv_trx_read_policy" ON public.inventory_transactions;
+CREATE POLICY "inv_trx_read_policy" ON public.inventory_transactions FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "inv_trx_write_policy" ON public.inventory_transactions;
+CREATE POLICY "inv_trx_write_policy" ON public.inventory_transactions FOR ALL
+USING (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'))
+WITH CHECK (auth.user_role() IN ('super_admin', 'general_manager', 'warehouse_manager', 'branch_manager'));
+
+-- Supplier Payments Policies
+DROP POLICY IF EXISTS "sup_pay_read_policy" ON public.supplier_payments;
+CREATE POLICY "sup_pay_read_policy" ON public.supplier_payments FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "sup_pay_write_policy" ON public.supplier_payments;
+CREATE POLICY "sup_pay_write_policy" ON public.supplier_payments FOR ALL
+USING (auth.user_role() IN ('super_admin', 'general_manager', 'accountant'))
+WITH CHECK (auth.user_role() IN ('super_admin', 'general_manager', 'accountant'));
+
+-- Grant access to anon & authenticated for PostgREST
+GRANT ALL ON public.suppliers TO anon, authenticated;
+GRANT ALL ON public.purchase_orders TO anon, authenticated;
+GRANT ALL ON public.purchase_order_items TO anon, authenticated;
+GRANT ALL ON public.inventory_transactions TO anon, authenticated;
+GRANT ALL ON public.supplier_payments TO anon, authenticated;
+
+GRANT USAGE, SELECT ON SEQUENCE public.po_number_seq TO anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.inv_trx_seq TO anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.sup_pay_seq TO anon, authenticated;
+
+-- ==============================================================================
+-- 10. Seed Initial Certified Suppliers & Baseline Purchase Orders
+-- ==============================================================================
+INSERT INTO public.suppliers (id, name_ar, name_en, contact_person, phone, email, lead_time_days, payment_terms, active_products_count, balance, status)
+VALUES
+    ('e1000000-0000-0000-0000-000000000001', 'شركة المراعي للألبان والعصائر', 'Almarai Dairy & Food Co.', 'م. فهد القحطاني', '+963 11 888 1234', 'b2b.orders@almarai.com', 1, 'آجل 30 يوماً', 85, 345000.00, 'active'),
+    ('e1000000-0000-0000-0000-000000000002', 'شركة التنمية للدواجن والأغذية الطازجة', 'Tanmiah Fresh Food Co.', 'د. سامر الرفاعي', '+963 11 777 5678', 'supply@tanmiah.com', 1, 'آجل 15 يوماً', 42, 185000.00, 'active'),
+    ('e1000000-0000-0000-0000-000000000003', 'مؤسسة مزارع غوطة دمشق للخضار والفواكه', 'Damascus Oasis Fresh Farms', 'أ. أنس الحمصي', '+963 11 666 9012', 'ghouta.produce@gmail.com', 1, 'نقداً عند الاستلام', 64, 92000.00, 'active'),
+    ('e1000000-0000-0000-0000-000000000004', 'شركة الديب ومستودعات التموين الكبرى', 'Aldeeb Grand Wholesale Logistics', 'م. حسام الديب', '+963 11 555 4321', 'procurement@aldeebmall.com', 2, 'حساب جارٍ شهري', 190, 720000.00, 'active')
+ON CONFLICT (id) DO UPDATE SET
+    name_ar = EXCLUDED.name_ar,
+    name_en = EXCLUDED.name_en,
+    contact_person = EXCLUDED.contact_person,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email;
+
+-- Track migration in _schema_migrations
+INSERT INTO public._schema_migrations (filename, applied_at)
+VALUES ('20261104_019_suppliers_and_procurement_system.sql', timezone('utc'::text, now()))
+ON CONFLICT (filename) DO UPDATE SET applied_at = timezone('utc'::text, now());

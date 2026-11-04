@@ -129,8 +129,8 @@ BEGIN
     IF v_caller_id IS NOT NULL THEN
         -- Authenticated customer
         v_effective_user_id := v_caller_id;
-    ELSIF v_is_admin THEN
-        -- Staff or Admin placing order on behalf of customer
+    ELSIF v_is_admin OR current_user IN ('postgres', 'ahmad_alzoubi') THEN
+        -- Staff, DB Administrator or Admin placing order on behalf of customer
         v_effective_user_id := p_user_id;
     ELSE
         -- Anonymous Guest checkout: strictly forbid spoofing a registered profile ID

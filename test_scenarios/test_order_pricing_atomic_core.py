@@ -89,10 +89,18 @@ def main():
         VALUES ('{test_prod_id}', 'صنف اختبار الطلبات أ', 'Order Test Item A', '628111111111', 50.00, 20, v_cat, true)
         ON CONFLICT (id) DO UPDATE SET stock_quantity = 20, price = 50.00, is_active = true;
 
-        -- Seed Product B (Stock: 5, Price: 30.00)
+        INSERT INTO public.branch_inventory (branch_id, product_id, quantity_on_hand, quantity_reserved)
+        VALUES ('b-jed-01', '{test_prod_id}', 20, 0)
+        ON CONFLICT (branch_id, product_id) DO UPDATE SET quantity_on_hand = 20, quantity_reserved = 0;
+
+        -- Seed Product B (Stock: 10, Price: 30.00)
         INSERT INTO public.products (id, name_ar, name_en, barcode, price, stock_quantity, category_id, is_active)
-        VALUES ('{test_prod_id_b}', 'صنف اختبار الطلبات ب', 'Order Test Item B', '628222222222', 30.00, 5, v_cat, true)
-        ON CONFLICT (id) DO UPDATE SET stock_quantity = 5, price = 30.00, is_active = true;
+        VALUES ('{test_prod_id_b}', 'صنف اختبار الطلبات ب', 'Order Test Item B', '628222222222', 30.00, 10, v_cat, true)
+        ON CONFLICT (id) DO UPDATE SET stock_quantity = 10, price = 30.00, is_active = true;
+
+        INSERT INTO public.branch_inventory (branch_id, product_id, quantity_on_hand, quantity_reserved)
+        VALUES ('b-jed-01', '{test_prod_id_b}', 10, 0)
+        ON CONFLICT (branch_id, product_id) DO UPDATE SET quantity_on_hand = 10, quantity_reserved = 0;
 
         -- Ensure Profile loyalty points
         UPDATE public.profiles SET loyalty_points = 100 WHERE id = '{test_user_id}';
@@ -453,6 +461,10 @@ def main():
     # TEST 15: Rejection of Insufficient Loyalty Points Balance
     # -------------------------------------------------------------------------
     test_banner(15, "Rejection of Insufficient Loyalty Points Balance")
+    # Reset stock for Product A
+    run_psql(f"UPDATE public.products SET stock_quantity = 20 WHERE id = '{test_prod_id}';")
+    run_psql(f"UPDATE public.branch_inventory SET quantity_on_hand = 20 WHERE product_id = '{test_prod_id}';")
+    
     # User now has 50 points. Requests 500 points.
     sql = f"""
     SELECT public.place_order_atomic(
