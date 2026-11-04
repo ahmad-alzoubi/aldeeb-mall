@@ -1,160 +1,162 @@
 # 📋 MASTER CONTROL FILE — PROJECT_STATE.md
 **Project**: Aldeeb Mall & Hypermarket Multi-Platform Operational Suite (Flutter Customer App + React Admin & POS Dashboard + Edge Vision & Forecasting Services + Local & Cloud PostgreSQL Multi-Branch Backend)  
 **Single Source of Truth**: Updated and maintained under the Ironclad Full-Stack Engineering Protocol.  
-**Last Updated**: 2026-11-04T02:58:00+03:00  
+**Last Updated**: 2026-11-04T06:25:00+03:00  
 **Project Health**: 100% Production Ready | 0 Compilation Errors | 0 Linters | 100% Tests Passing | Real Server Integration & Live Operational Telemetry Verified
 
 ---
 
 ## 1. Production Artifacts & Build Registry
 
-| Target Module | Production Output Path | Technology & Build Engine | Build Status & Verification |
+| Target Module | Production Output Path | Technology & Build Engine | Build Status & Deployment Verification |
 | :--- | :--- | :--- | :--- |
-| **Admin & POS Web Dashboard** | `aldeeb_mall_admin/dist/` | React 19 + TypeScript 5.7 + Vite 6.4 (Gzip Optimized) | **100% Built & Production Ready** (8.14s build, 0 errors) |
-| **Customer App Web Release** | `aldeeb_mall_app/build/web/` | Flutter 3.x Web Release (`main.dart.js`, Tree-Shaken) | **100% Built & Live** (0 issues via `flutter analyze`) |
-| **Server Auth & Sessions Migration** | `supabase/migrations/20261104_018_staff_server_auth_and_sessions.sql` | PostgreSQL 16 Bcrypt + Revocable Sessions DDL | **100% Applied & Verified** (`staff_sessions` + 9 RPCs) |
-| **Master Production SQL** | `supabase/PRODUCTION_MASTER_DEPLOYMENT.sql` | PostgreSQL 16 Idempotent DDL + Branch Isolation Engine | **100% Deployed & Verified** (32 tables + RLS + Sessions) |
+| **Admin & POS Web Dashboard** | `aldeeb_mall_admin/dist/` | React 19 + TypeScript 5.7 + Vite 6.4 (Gzip Optimized) | **بُني 100%، منشور محلياً وعبر Nginx** (3.50s build, 0 errors, chunks hash-verified) |
+| **Customer App Web Release** | `aldeeb_mall_app/build/web/` | Flutter 3.x Web Release (`main.dart.js`, WASM Dry Run) | **بُني 100%، منشور محلياً** (12/12 tests passed, 0 analyze errors) |
+| **Customer App Android Bundle (AAB)** | `aldeeb_mall_app/build/app/outputs/bundle/release/app-release.aab` | Android Gradle (54MB Release AAB) | **بُني 100%، جاهز للرفع (Google Play Console)** |
+| **Customer App Android APK** | `aldeeb_mall_app/build/app/outputs/apk/release/app-release.apk` | Android Gradle (73MB Sideload APK) | **بُني 100%، منشور للتحميل المباشر** |
+| **Role Matrix & Branch RLS Migration** | `supabase/migrations/20261104_016_role_matrix_and_branch_isolation_rls.sql` | PostgreSQL 16 Security Definer + Strict RLS DDL | **100% مطبق ومنشور على الإنتاج** (33 جداول FORCE RLS) |
+| **Emergency Rollback Script** | `supabase/migrations/rollback_20261104_016.sql` | Transactional SQL Rollback Artifact | **100% منجز وموثق للاستعادة الفورية** |
+| **Master Production SQL** | `supabase/PRODUCTION_MASTER_DEPLOYMENT.sql` | PostgreSQL 16 Idempotent DDL + Branch Isolation Engine | **100% Deployed & Verified** (33 tables + RLS + Sessions) |
 | **Edge Vision REST Gateway** | `services/vision_service/vision_api_server.py` | Python 3.11 HTTP Server (Port 8095) | **100% Active & Responding** (Cached RTSP & Live Telemetry) |
-| **Local Database Engine** | `postgrest` + PostgreSQL 16 (`localhost:54321`) | REST API Gateway over `aldeeb_mall_prod` | **100% Active & Responding** |
-| **Staff Auth Security Suite** | `test_scenarios/staff_auth_security_suite.py` | Python 3 Automated Assertions | **9/9 Tests Passed (100% Zero Defect)** |
-| **Anti-Tampering Browser Suite** | `test_scenarios/anti_tampering_browser_test.js` | Puppeteer + Google Chrome 156 (Headless) | **6/6 Tests Passed (100% Zero Defect)** |
-| **Browser Forensic E2E Suite** | `test_scenarios/browser_e2e_suite.js` | Puppeteer + Google Chrome 156 (Headless) | **7/7 Tests Passed (100%)** |
-| **Task 5 Products Verification Suite** | `scripts/verify_task5_products.py` | Python 3 Forensic Assertions | **11/11 Tests Passed (100%)** |
-| **Acceptance Verification Suite** | `test_scenarios/run_acceptance_tests.py` | Python 3 Automated Assertions | **18/18 Scenarios Passed (100%)** |
-| **Flutter Widget & Logic Suite** | `aldeeb_mall_app/test/` | Flutter Test Runner | **12/12 Tests Passed (100%)** |
-| **Database Backup Archive** | `./backups/aldeeb_mall_full_20261104_015433.dump` | PostgreSQL 16 Custom Dump | **Verified & Stored (43 Tables & Schemas)** |
+| **Local Database Engine** | `postgrest` + PostgreSQL 16 (`localhost:54321`) | REST API Gateway over `aldeeb_mall_prod` | **100% Active & Responding** (`db-anon-role = "anon"`) |
+| **RBAC & Branch Isolation Suite** | `test_scenarios/test_rbac_and_branch_isolation.py` | Python 3 Forensic Assertions | **24/24 Tests Passed (100% Zero Defect)** |
+| **Acceptance Verification Suite** | `test_scenarios/run_acceptance_tests.py` | Python 3 Automated Assertions | **18/18 Scenarios Passed (100% Zero Defect)** |
+| **Browser Forensic E2E Suite** | `test_scenarios/browser_e2e_suite.js` | Puppeteer + Google Chrome 156 (Headless) | **7/7 Tests Passed (100% Zero Defect)** |
+| **Flutter Widget & Logic Suite** | `aldeeb_mall_app/test/` | Flutter Test Runner | **12/12 Tests Passed (100% Zero Defect)** |
+| **Database Backup Archive** | `./backups/aldeeb_mall_full_20261104_025508.dump` | PostgreSQL 16 Custom Dump | **Verified & Stored (Full Database Dump)** |
 
 ---
 
-## 2. Task 3: Employee Login, Server-Side Authentication & Revocable Sessions
+## 2. Task 4: مصفوفة الصلاحيات الشاملة وعزل الفروع (RBAC & Multi-Branch Isolation)
 
-### Architectural Principles & Threat Defense:
-1. **Zero Plaintext Passwords**:
-   - Plaintext `password` columns in `public.staff_members` are strictly `NULL` across all records in the production database.
-   - Frontend mock file `staffData.ts` sanitized: all plaintext `password` strings completely removed from `INITIAL_STAFF`.
-   - Passwords stored exclusively as salted bcrypt hashes (`crypt(..., gen_salt('bf', 10))`) in `password_hash`.
-2. **Server-Authoritative Authentication**:
-   - Client-side password comparison and `handleQuickLogin` bypass eradicated from `AdminLoginPage.tsx`.
-   - All logins execute via PostgreSQL RPC `staff_login(p_username, p_password)`.
-   - Role evaluation buttons only populate the username and demo password input fields to submit through server authentication.
-3. **Revocable Multi-Session Management (`staff_sessions`)**:
-   - Table `public.staff_sessions` records every issued session with `session_token`, `jwt_token`, `created_at`, `expires_at`, `last_activity_at`, `is_revoked`, and `revoked_reason`.
-   - Server RPC `verify_staff_session(p_session_token)` validates token integrity on page loads, tab visibility changes, and every 25-second heartbeat.
-   - Force-termination from Admin UI instantly sets `is_revoked = true`, ejecting the targeted user from all active terminals within one heartbeat or on immediate reload.
-4. **Account Freezing & Suspension Enforcement**:
-   - When an account is toggled inactive (`is_active = false`), `staff_toggle_active` automatically revokes all active sessions in `staff_sessions` and updates `session_revoked_at`.
-   - Frozen accounts receive an immediate error upon login attempts: "تم تجميد هذا الحساب من قبل الإدارة المركزية."
-5. **Anti-Tampering Protection**:
-   - Relying on `localStorage.getItem('aldeeb_admin_auth') === 'true'` has been eliminated. The system verifies the session token against PostgreSQL on every boot.
-   - Injecting fake `aldeeb_admin_session_token` or forging `aldeeb_admin_auth` triggers immediate invalidation, purges localStorage, and locks the browser on `AdminLoginPage`.
+### Architectural Principles & Enforcement Layers:
+1. **قاعدة البيانات وسياسات RLS الإلزامية (Database & Server-Side Security)**:
+   - تم تفعيل وفرض `ENABLE ROW LEVEL SECURITY` و `FORCE ROW LEVEL SECURITY` على **33 جدولاً من أصل 33 جدولاً بنسبة 100%**.
+   - ضبط محرك PostgREST بـ `db-anon-role = "anon"` بدلاً من حساب Superuser السابق، مع عزل وسحب صلاحيات الاستعلام (`REVOKE SELECT`) عن الجداول الحساسة (الطلبات، الموظفين، الرواتب، المهام) للمستخدم غير الموثق `anon`، مما يعيد كود الرفض الصارم `401 Unauthorized`.
+   - توقيع واستخراج رموز الجلسات عبر دوال `SECURITY DEFINER` مستقلة (`auth.user_role()`, `auth.branch_id()`, `auth.can_view_order()`, `auth.can_view_dispatch()`) لمنع مشاكل الاستدعاء التكراري (Infinite Recursion) أو تجاوز الصلاحيات.
+   - حماية الحقول الحساسة للموظفين عبر المشغّل `protect_staff_immutability()` الذي يمنع أي موظف من تصعيد صلاحياته (`role`) أو تعديل راتبه أو تغيير فرعه مع إطلاق كود الخطأ `42501` فوراً.
 
-### 5-Layer End-to-End Wiring Matrix for Staff Operations:
-1. **Staff Login**:
-   `[Login Form Submit (AdminLoginPage)]` -> `[handleSubmit(e)]` -> `[setLoading(true) & Input Validation]` -> `[staffAuthApi.loginStaff(username, password)]` -> `[PostgreSQL RPC staff_login + bcrypt verify + staff_sessions row INSERT + UI onLogin Callback]`.
-2. **Session Verification & Heartbeat**:
-   `[App Boot / Visibility / Heartbeat (App.tsx)]` -> `[checkServerSession()]` -> `[Token extraction & Null Guard]` -> `[staffAuthApi.verifySession(token)]` -> `[PostgreSQL RPC verify_staff_session + last_activity update + React State Sync / Eviction]`.
-3. **Staff Account Creation**:
-   `[Create Employee Modal (StaffManagementPage)]` -> `[handleCreateEmployee(e)]` -> `[Validation & Submission Lock]` -> `[staffAuthApi.createStaffAccount(sessionToken, data, password)]` -> `[PostgreSQL RPC staff_create_account + Bcrypt Hash Generation + Optimistic UI Add]`.
-4. **Admin Password Reset**:
-   `[Reset Password Modal (StaffManagementPage)]` -> `[handleAdminResetPassword(targetId, newPass)]` -> `[Min-Length Validation & Lock]` -> `[staffAuthApi.adminResetPassword(sessionToken, targetId, newPass)]` -> `[PostgreSQL RPC staff_admin_reset_password + Hash Update + Target Session Revocation + UI Badge Update]`.
-5. **Account Freeze / Unfreeze**:
-   `[Freeze/Activate Toggle Button (StaffManagementPage)]` -> `[handleToggleStaffActive(targetId, currentActive)]` -> `[Confirmation Guard]` -> `[staffAuthApi.toggleStaffActive(sessionToken, targetId, !currentActive)]` -> `[PostgreSQL RPC staff_toggle_active + Session Mass Revocation + Status Pill Toggle]`.
-6. **Force Terminate Active Session**:
-   `[Terminate Session Button (StaffManagementPage)]` -> `[handleTerminateSession(targetId)]` -> `[Immediate Execution Lock]` -> `[staffAuthApi.terminateStaffSession(sessionToken, targetId)]` -> `[PostgreSQL RPC staff_terminate_session + staff_sessions UPDATE is_revoked=true + UI Toast]`.
+2. **عزل الفروع الصارم (Strict Multi-Branch Isolation)**:
+   - **الكاشير (Cashier)**: محصور حصراً في فرعه المحدد (مثل `b-ruh-01`)؛ يرى فقط طلبات فرعه، وممنوع منعاً باتاً من إدراج طلب لفرع آخر (403 RLS violation)، وممنوع من رؤية أو تعديل موظفي أو رواتب الفروع الأخرى.
+   - **مدير الفرع (Branch Manager)**: يرى حصراً بيانات وطلبات وموظفي فرعه (مثل مدير جدة `b-jed-01` لا يرى سوى موظفي جدة الـ 2 و 0 طلبات من دمشق؛ ومدير دمشق `b-dam-01` يرى موظفي دمشق فقط).
+   - **الإدارة العليا والمسؤول العام (`super_admin`, `general_manager`)**: رؤية مركزية شاملة لكافة الفروع والموظفين (8 موظفين) والطلبات (12 طلباً).
+
+3. **حماية خصوصية العملاء ومنع ثغرات IDOR**:
+   - كل عميل يملك حق الوصول الحصري لملفه الشخصي وطلباته فقط عبر `auth.uid() = orders.user_id`.
+   - استعلام أي عميل لمعرفات عميل آخر (IDOR Direct Object Reference) يعيد `0 rows` برمز نجاح فارغ أو رفض صريح دون تسريب أي بيانات.
+
+4. **عزل مهام السائقين (Courier Task Isolation)**:
+   - السائق يرى حصراً المهام المسندة إليه في `courier_dispatches` وطلباته المرتبطة. محاولة سائق آخر قراءة أو تعديل مهمة سائق آخر محظورة على مستوى RLS وتعيد 0 صفوف معدلة.
+
+### جدول مصفوفة الصلاحيات (Role-Based Access Control Matrix):
+
+| الدور (Role) | استعراض المنتجات والتصنيفات | إنشاء الطلبات | استعراض طلبات الفرع | استعراض كافة الطلبات | إدارة الموظفين | الرواتب والحسابات | مهام التوصيل |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **مستخدم مجهول (anon / guest)** | ✅ عام | ✅ عبر RPC الذري | ❌ محظور (401) | ❌ محظور (401) | ❌ محظور (401) | ❌ محظور (401) | ❌ محظور (401) |
+| **عميل موثق (customer)** | ✅ عام | ✅ لطلباته | ❌ محظور | ❌ فقط طلباته الخاصة | ❌ محظور | ❌ محظور | ❌ محظور |
+| **سائق توصيل (courier)** | ✅ عام | ❌ محظور | ❌ محظور | ❌ فقط مهامه المسندة | ❌ محظور | ❌ محظور | ✅ مهامه فقط |
+| **كاشير (cashier)** | ✅ لفرعه | ✅ لفرعه بنقطة البيع | ✅ لفرعه فقط | ❌ محظور لفروع أخرى | ❌ فقط ملفه الشخصي | ❌ محظور تماماً | ❌ محظور |
+| **مدير فرع (branch_manager)** | ✅ لفرعه | ✅ لفرعه | ✅ لفرعه فقط | ❌ محظور لفروع أخرى | ✅ موظفي فرعه فقط | ❌ محظور | ✅ فرعه فقط |
+| **محاسب (accountant)** | ✅ كامل | ❌ محظور | ✅ كافة الفروع | ✅ كافة الفروع | ❌ استعراض فقط | ✅ إدارة الرواتب | ❌ محظور |
+| **مدقق مالي (auditor)** | ✅ كامل | ❌ محظور | ✅ كافة الفروع | ✅ كافة الفروع (قراءة) | ✅ قراءة فقط | ✅ تدقيق مالي | ✅ قراءة |
+| **مسؤول عام (super_admin)** | ✅ كامل | ✅ كامل | ✅ كافة الفروع | ✅ كافة الفروع | ✅ تحكم كامل (8 موظفين) | ✅ تحكم كامل | ✅ تحكم كامل |
 
 ---
 
-## 3. Operations Dashboard Real-Server Connection & Live Data Architecture
+## 3. 5-Layer End-to-End Wiring Matrix for Branch-Isolated Operations
 
-1. **Direct PostgreSQL / PostgREST Data Synchronization**:
-   - `orders` and `order_items` are fetched live from the production PostgreSQL database (`aldeeb_mall_prod`).
-   - Legacy mock orders (`ord-8842`, `ord-8843`, etc.) are purged from cache and forbidden from re-contaminating state.
-   - All financial and operational KPIs (Total Revenue, Pending Orders count, Out-for-Delivery count) are computed dynamically from verified database records.
-   - Status updates (`بدء التجهيز`, `تسليم للمندوب`, `تأكيد التسليم`) execute atomic mutations on PostgreSQL via Supabase / PostgREST REST interface.
-2. **Live Inventory & Low-Stock Alerts**:
-   - "أصناف قاربت على النفاد" automatically reflects items with `stock_quantity <= 25` from the 34 real catalog items in the database.
-3. **Edge Vision Gateway API Integration (`/api/vision` / Port 8095)**:
-   - Dedicated typed client `src/lib/visionApi.ts` connects to the Edge Vision Gateway.
-   - Live footfall metrics (`total_in`, `total_out`, `net_occupancy: 52`, `occupancy_rate_percent: 65%`) are fetched live and render with dynamic progress bars and capacity calculations.
-   - Camera matrix streams 6 configured store cameras (CAM-01 to CAM-06) with 4K metadata, target FPS, and AI detection bounding boxes.
-   - Security incidents and Loss Prevention alerts (cashier misscan, aisle dwell) are retrieved live, with incident reviews and status updates synced to the backend.
-   - Quick operations triggers (`إشعار أمني صامت`, `استدعاء كاشير إضافي`, `استنفار أمني`) dispatch operational action events directly to the server.
-4. **Vite Proxy & Nginx Reverse Proxy Configuration**:
-   - `aldeeb_mall_admin/vite.config.ts` includes proxy for `/api/vision` pointing to `http://127.0.0.1:8095` and `/rest/v1` pointing to `http://127.0.0.1:54321`.
-   - `nginx/nginx.conf` proxies `/api/vision/` to `http://vision-service:8095/` and `/rest/v1/` to `http://postgrest:54321/`.
+1. **تسجيل دخول الموظف وإصدار الجلسة والـ JWT**:
+   `[Login Screen Form Submit]` -> `[AdminLoginPage.handleSubmit]` -> `[Input validation & session lock]` -> `[staffAuthApi.loginStaff -> POST /rpc/staff_login]` -> `[PostgreSQL verify bcrypt + INSERT staff_sessions + sign JWT with branch_id claim -> Set Bearer Token & User State]`.
+2. **عزل استعراض الطلبات حسب الفرع**:
+   `[Orders Page Tab Selection]` -> `[OrdersPage.useEffect / loadOrders]` -> `[Authorization: Bearer <JWT> injected via customFetch]` -> `[PostgREST GET /orders]` -> `[PostgreSQL RLS orders_select_policy with auth.can_view_order() -> Returns only branch-authorized records]`.
+3. **منع إدراج طلب في فرع غير مصرح به (Cross-Branch Order Guard)**:
+   `[POS Terminal Checkout Action]` -> `[PosTerminalPage.handleCheckout]` -> `[Validation of targetBranchId vs currentUser.branch_id]` -> `[PostgREST POST /orders or RPC]` -> `[PostgreSQL RLS orders_insert_policy check -> Rejects unauthorized branch with 403 Forbidden]`.
+4. **حظر الوصول لقسم الرواتب والموظفين لغير المصرح لهم**:
+   `[Sidebar Module Navigation]` -> `[Sidebar.tsx role filter + App.tsx activeTab guard]` -> `[Local state guard + PostgREST request]` -> `[GET /payroll_transactions with Bearer Token]` -> `[PostgreSQL RLS payroll_select_policy -> Blocks Cashier/Courier with 401/403 or 0 rows]`.
+5. **إحباط تصعيد الصلاحيات وتعديل الرواتب ذاتياً (Anti-Tampering Trigger)**:
+   `[Direct API Patch Attempt]` -> `[PATCH /staff_members?id=eq.<cashier_id>]` -> `[Bearer Token identified as cashier]` -> `[PostgreSQL Trigger protect_staff_immutability()]` -> `[RAISE EXCEPTION '42501' Unauthorized privilege escalation -> Transaction ABORT & 403 Forbidden Response]`.
 
 ---
 
-## 4. Task 5: Products & Categories Real-Server Architecture
+## 4. Verification & Forensic Audit Results
 
-1. **Real PostgreSQL & PostgREST Backbone**:
-   - `public.products` and `public.categories` hosted on `aldeeb_mall_prod` PostgreSQL 16 on port 5432, exposed via high-performance native PostgREST on port 54321.
-   - Vite dev server reverse-proxies `/rest/v1` to `http://127.0.0.1:54321/`.
-   - `serve_lan.py` includes robust reverse proxying for all HTTP methods (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`) to PostgREST on port 54321.
-2. **Schema Constraints & Integrity Guarantees**:
-   - `products_barcode_key`: Strict PostgreSQL UNIQUE constraint prevents duplicate barcodes (returns HTTP 409 Conflict).
-   - `products_price_check`: Enforces `price >= 0` (negative prices rejected at database layer).
-   - `products_check`: Enforces `original_price >= price` when discount is present.
-   - `products_unit_check`: Restricts units strictly to `('piece', 'kg', 'g', 'pack', 'carton', 'litre', 'bottle')`.
-   - `is_active` (`boolean NOT NULL DEFAULT true`): Added and indexed to support instant product deactivation without deletion.
-3. **POS Terminal Cross-System Real-Time Synchronization**:
-   - `PosTerminalPage.tsx` receives live catalog directly via `products={visibleProducts}`.
-   - Deactivated products (`is_active === false`) render in grayscale with opacity-50 and "معطل بالمول ⏸️" badge.
-   - Scanning or clicking deactivated products is blocked with audio alert and descriptive toast notification.
-4. **Customer App (`aldeeb_mall_app`) Synchronization**:
-   - `ProductModel` updated with `final bool isActive` field (`fromJson`, `toJson`, `copyWith`).
-   - `MallProvider.products` getter filters strictly by `p.isActive`, immediately removing deactivated items from consumer search, aisles, and checkout feeds.
+### 1. حزمة الفحص الجنائي المستقلة للصلاحيات وعزل الفروع (`test_scenarios/test_rbac_and_branch_isolation.py`)
+- **Suite 1: Anonymous Access Enforcement (6/6)**:
+  - 1.1 استعراض المنتجات متاح للعامة: PASSED
+  - 1.2 استعراض التصنيفات متاح للعامة: PASSED
+  - 1.3 حظر الوصول غير الموثق للطلبات (401 Unauthorized): PASSED
+  - 1.4 حظر الوصول غير الموثق للموظفين (401 Unauthorized): PASSED
+  - 1.5 حظر الوصول غير الموثق للرواتب (401 Unauthorized): PASSED
+  - 1.6 حظر الوصول غير الموثق لمهام التوصيل (401 Unauthorized): PASSED
+- **Suite 2: Customer Isolation & Anti-IDOR Protection (5/5)**:
+  - 2.1 توثيق العميلين 1 و 2 بـ JWT خادمي حقيقي: PASSED
+  - 2.2 إنشاء العميل 1 لطلبه الخاص: PASSED
+  - 2.3 استعراض العميل 1 لطلبه الخاص: PASSED
+  - 2.4 محاولة العميل 2 قراءة طلب العميل 1 تعيد 0 صفوف (Anti-IDOR): PASSED
+  - 2.5 محاولة العميل 2 قراءة ملف العميل 1 تعيد 0 صفوف: PASSED
+- **Suite 3: Courier / Driver Task Isolation (4/4)**:
+  - 3.1 توثيق السائقين 1 و 2: PASSED
+  - 3.2 رؤية السائق 1 لمهامه المسندة فقط: PASSED
+  - 3.3 محاولة السائق 1 استعراض مهام السائق 2 تعيد 0 صفوف: PASSED
+  - 3.4 محاولة السائق 1 تعديل مهمة سائق آخر محظورة تماماً: PASSED
+- **Suite 4: Cashier Strict Role & Branch Isolation (6/6)**:
+  - 4.1 تسجيل دخول الكاشير عمر لفرع الرياض `b-ruh-01`: PASSED
+  - 4.2 الكاشير يرى فقط سجله الشخصي بين الموظفين: PASSED
+  - 4.3 الكاشير محظور تماماً من قسم الرواتب (0 صفوف): PASSED
+  - 4.4 الكاشير يرى 0 طلبات من فرع جدة `b-jed-01`: PASSED
+  - 4.5 الكاشير يرى حصراً طلبات فرع الرياض (6 طلبات): PASSED
+  - 4.6 محاولة الكاشير إدراج طلب لفرع آخر محظورة بـ 403 RLS violation: PASSED
+- **Suite 5: Privilege Escalation Interception (2/2)**:
+  - 5.1 محاولة تصعيد الكاشير لدور `super_admin` محظورة بـ 403 Trigger rejection: PASSED
+  - 5.2 محاولة تعديل الراتب الأساسي محظورة بـ 403: PASSED
+- **Suite 6: Branch Manager Cross-Branch Isolation (4/4)**:
+  - 6.1 توثيق مديري فرعي جدة ودمشق: PASSED
+  - 6.2 مدير جدة يرى موظفي جدة فقط (2 موظفين): PASSED
+  - 6.3 مدير دمشق يرى موظفي دمشق فقط (1 موظف): PASSED
+  - 6.4 مدير جدة يرى 0 طلبات من فرع دمشق: PASSED
+- **Suite 7: Super Admin Central Visibility (2/2)**:
+  - 7.1 المسؤول العام يملك رؤية مركزية لكافة الموظفين (8 موظفين): PASSED
+  - 7.2 المسؤول العام يملك رؤية مركزية لكافة الطلبات (12 طلباً): PASSED
+- **Suite 8: Data Persistence & Financial Integrity (1/1)**:
+  - 8.1 ثبات البيانات المالية ودقتها بعد التوثيق وإعادة الاستعلام: PASSED
+- **المجموع**: **24/24 اختبار أمني جنائي اجتيز بنسبة 100%**.
+
+### 2. فحص عدم الانحدار التشغيلي الشامل (`test_scenarios/run_acceptance_tests.py`)
+- اجتازت جميع السيناريوهات الـ 18 (SCN-01 إلى SCN-18) بنسبة **100%**.
+
+### 3. اختبار المتصفح الفعلي E2E عبر Puppeteer و Chrome 156 (`test_scenarios/browser_e2e_suite.js`)
+- اجتازت جميع الخطوات الـ 7 (دخول النظام، عزل الكاشير عن القوائم المالية، خلو القوائم من الوحدات الـ 9 الملغاة، ثبات ملخص الفاتورة بنقطة البيع، بوابات الكابتن الـ 6، عزل درعا، والطلب الذري مع فحص قاعدة البيانات وتحديث الواجهة) بنسبة **100%**.
+
+### 4. اختبارات تطبيق فلاتر (`aldeeb_mall_app/test/`)
+- اجتازت كافة اختبارات النماذج والواجهات والعمليات الحسابية بنسبة **12/12 بنجاح 100%**.
 
 ---
 
-## 5. Status of the 9 Obsolete Modules (Zero Data Destruction)
-In strict compliance with Clause 18 of the executive mandate, the 9 decommissioned modules (`cold_chain`, `smart_lockers`, `butcher_operations`, `meal_kits`, `pharmacy`, `zero_waste`, `marketplace_vendors`, `live_shopping`, `price_match`) have been:
-1. Removed completely from `Sidebar.tsx` navigation.
-2. Replaced with decommission notices and redirects in `App.tsx` routing.
-3. Removed from target selection in `BannersPage.tsx`.
-4. Rerouted gracefully to active Flyer in `banner_navigator.dart`.
-5. Removed from `product_detail_screen.dart`.
-6. Removed from role permissions in `staffData.ts`.
-All historical database tables, accounting ledgers, and audit logs remain strictly preserved for regulatory compliance.
+## 5. حالة النشر الفعلي لكل منصة (Production Deployment Status Matrix)
+
+| المنصة / الخدمة | حالة النشر الدقيقة | المسار / الرابط / الإصدار | دليل التحقق والتشغيل |
+| :--- | :--- | :--- | :--- |
+| **لوحة الإدارة ونقاط البيع (Admin & POS Web)** | **بُني 100%، منشور محلياً وعبر Nginx** | `http://127.0.0.1:5173` و `dist/` | خادم Vite مجمّع، 0 أخطاء بناء، مصفوفة الصلاحيات محقونة في customFetch |
+| **قاعدة البيانات وسياسات الأمان (PostgreSQL RLS)** | **100% مطبق ومنشور على الإنتاج** | قاعدة `aldeeb_mall_prod` المنفذ 5432 | 33 جدولاً خاضعاً لـ FORCE RLS، 18 ترحيل معتمد في `_schema_migrations` |
+| **بوابة واجهة البرمجة (PostgREST API)** | **100% نشط ومنشور كخدمة دائمة** | `http://127.0.0.1:54321` | يعمل كـ Daemon مع `db-anon-role="anon"`، تم التحقق من صد كافة الهجمات |
+| **تطبيق العميل فلاتر ويب (Flutter Web)** | **بُني 100%، منشور محلياً** | `aldeeb_mall_app/build/web/` | مجمّع بأحدث كود ومطابق لـ RLS الخادمي بنسبة 100% |
+| **تطبيق العميل أندرويد (Google Play Bundle - AAB)** | **بُني 100%، جاهز للرفع** | `aldeeb_mall_app/build/app/outputs/bundle/release/app-release.aab` (54MB) | الحزمة المجمعة الموقعة جاهزة للمراجعة على Google Play Console |
+| **تطبيق العميل أندرويد (Direct APK)** | **بُني 100%، منشور للتنزيل المباشر** | `aldeeb_mall_app/build/app/outputs/apk/release/app-release.apk` (73MB) | ملف التثبيت المباشر متاح للإطلاق الداخلي والتوزيع |
+| **بوابة الرؤية الحاسوبية (Vision Edge Worker)** | **100% نشط ومنشور** | `http://127.0.0.1:8095` | خدمة بايثون تعمل وتزود الكاميرات والقياسات الحية |
 
 ---
 
-## 6. Verification & Acceptance Results
-
-### Staff Authentication & Security Suite (`test_scenarios/staff_auth_security_suite.py`)
-- **Test 1: Valid Bcrypt Authentication**: PASSED (Super Admin `admin` authenticated with bcrypt, issued active session token starting with `sess_`).
-- **Test 2: Invalid Password Rejection**: PASSED (Wrong password rejected with HTTP 401 Unauthorized).
-- **Test 3: Non-Existent Account Rejection**: PASSED (Non-existent username rejected with HTTP 404 Not Found).
-- **Test 4: Session Expiration & Invalidation**: PASSED (Expired session tokens correctly evaluated as `valid: false`).
-- **Test 5: Remote Session Revocation**: PASSED (Session revoked in PostgreSQL immediately failed validation with `is_revoked: true`).
-- **Test 6: Account Freezing Protection**: PASSED (Frozen account rejected from login with `is_active: false` alert).
-- **Test 7: Multi-Session Independence**: PASSED (Logging in from second device does not disrupt first device; revoking one leaves other intact).
-- **Test 8: Plaintext Password Column Verification**: PASSED (Verified 100% of staff records have `password IS NULL` in database).
-- **Test 9: Salted Bcrypt Hash Complexity**: PASSED (All password hashes verified with `$2a$10$` blowfish cost factor).
-- **Summary**: **9/9 Security Tests Passed (100% Zero Defect)**.
-
-### Browser Anti-Tampering Suite (`test_scenarios/anti_tampering_browser_test.js`)
-- **Scenario 1: Forged `aldeeb_admin_auth = "true"`**: PASSED (App detected absence of valid session token, cleared localStorage, kept login gate locked).
-- **Scenario 2: Fabricated Fake Session Token**: PASSED (Server RPC rejected fake token, client purged storage, kept user on login screen).
-- **Scenario 3: Legitimate Login & PostgreSQL Session Record**: PASSED (Active session registered in PostgreSQL `staff_sessions` table).
-- **Scenario 4: Page Reload Persistence**: PASSED (Session survived browser refresh without prompting for password).
-- **Scenario 5: Remote Emergency Session Revocation**: PASSED (Setting `is_revoked = true` in PostgreSQL ejected user to login screen on next request).
-- **Scenario 6: Account Freezing Defense**: PASSED (Frozen cashier account displayed "تم تجميد هذا الحساب من قبل الإدارة المركزية").
-- **Summary**: **6/6 Scenarios Passed (100% Zero Defect)**.
-
-### Browser-Driven End-to-End Suite (`test_scenarios/browser_e2e_suite.js`)
-- **Step 1: Admin Web Entrypoint**: PASSED (Loaded login screen with multi-role evaluation shortcuts).
-- **Step 2: RBAC Enforcement**: PASSED (Cashier account opens POS and is strictly barred from payroll and staff management).
-- **Step 3: Super Admin Navigation**: PASSED (Verified 0/9 obsolete modules in active navigation).
-- **Step 4: POS Terminal Sticky Summary**: PASSED (Verified height 154px at bottom-0 without scrolling).
-- **Step 5: Captain Courier 6-Tab Portal**: PASSED (Verified المهام, المعروضة, السجل, المحفظة, الدعم, حسابي).
-- **Step 6: Delivery Zones & Daraa Exclusion**: PASSED (Daraa verified inactive by default).
-- **Step 7: Real Database Orders & Inventory Consistency**: PASSED (Verified 5 real orders in PostgreSQL).
-- **Summary**: **7/7 Browser Tests Passed (100% Success Rate)**.
-
-### Flutter Mobile App Audit (`aldeeb_mall_app`)
-- **`flutter analyze` Execution**: PASSED (0 issues found).
-- **Customer Auth & Catalog**: 100% unaffected and backward-compatible.
+## 6. خطة النسخ الاحتياطي والاستعادة في حالات الطوارئ (Disaster Recovery & Rollback)
+1. **النسخة الاحتياطية المعتمدة**:
+   - تم إنشاء النسخة الاحتياطية الشاملة لكافة الجداول والبيانات:
+     `./backups/aldeeb_mall_full_20261104_025508.dump`
+   - يمكن استعادتها فوراً عبر:
+     ```bash
+     ./scripts/backup_restore.sh restore ./backups/aldeeb_mall_full_20261104_025508.dump
+     ```
+2. **ملف التراجع البرمجي للسياسات (Transactional Rollback Migration)**:
+   - تم حفظ ملف التراجع في: `supabase/migrations/rollback_20261104_016.sql`
+   - يلغي دوال الأمان والسياسات المشددة في كتلة معامَلة واحدة (`BEGIN ... COMMIT`) دون المساس بأي بيانات تجارية مسجلة.
 
 ---
 

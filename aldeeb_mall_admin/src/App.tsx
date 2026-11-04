@@ -168,16 +168,24 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Invalidate legacy mock orders containing ord-8842, DEEB-8842 or LOCAL-TEST
+          // Invalidate legacy mock orders containing ord-8842, DEEB-8842, أحمد الزعبي or LOCAL-TEST
           if (key === STORAGE_KEYS.ORDERS) {
             const hasMock = parsed.some((item: any) => 
               item.id === 'ord-8842' || 
+              item.id === 'ord-8843' || 
+              item.id === 'ord-8844' || 
               item.order_number === 'DEEB-8842' ||
+              item.order_number === 'DEEB-8843' ||
+              item.order_number === 'DEEB-8844' ||
+              item.customer_name === 'أحمد الزعبي' ||
+              item.customer_name === 'أحمد الراعي' ||
+              item.customer_name === 'فاطمة المنصوري' ||
+              item.customer_name === 'خالد السعدي' ||
               (item.order_number && item.order_number.startsWith('LOCAL-TEST'))
             );
             if (hasMock) {
               localStorage.removeItem(key);
-              return [];
+              return fallback;
             }
           }
           return parsed;
@@ -186,7 +194,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.warn(`Failed to read cache for ${key}:`, e);
     }
-    return key === STORAGE_KEYS.ORDERS ? [] : fallback;
+    return fallback;
   };
 
   // Sync Notification Banner State
