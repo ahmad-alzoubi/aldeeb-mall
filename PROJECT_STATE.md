@@ -20,6 +20,7 @@
 | **Master Production SQL** | `supabase/PRODUCTION_MASTER_DEPLOYMENT.sql` | PostgreSQL 16 Idempotent DDL + Section 23 B2B Engine | **100% Deployed & Verified** (41 tables + RLS + B2B RPCs) |
 | **Edge Vision REST Gateway** | `services/vision_service/vision_api_server.py` | Python 3.11 HTTP Server (Port 8095) | **100% Active & Responding** (Cached RTSP & Live Telemetry) |
 | **Local Database Engine** | `postgrest` + PostgreSQL 16 (`localhost:54321`) | REST API Gateway over `aldeeb_mall_prod` | **100% Active & Responding** (`db-anon-role = "anon"`) |
+| **Order & Pricing Core Suite (Task 10)** | `test_scenarios/test_order_pricing_atomic_core.py` | Python 3 Forensic Assertions | **17/17 Tests Passed (100% Zero Defect)** |
 | **Corporate B2B Sales Suite (Task 9)** | `test_scenarios/test_corporate_b2b_suite.py` | Python 3 Forensic Assertions | **21/21 Tests Passed (100% Zero Defect)** |
 | **Suppliers & Procurement Suite (Task 8)** | `test_scenarios/test_suppliers_and_procurement_suite.py` | Python 3 Forensic Assertions | **17/17 Tests Passed (100% Zero Defect)** |
 | **Suppliers Browser Forensic Suite (Task 8)** | `test_scenarios/test_suppliers_browser_e2e.js` | Puppeteer + Google Chrome 156 (Headless) | **8/8 Tests Passed (100% Zero Defect)** |
@@ -32,6 +33,7 @@
 | **Plan 2 Environment & DB Suite** | `scripts/verify_plan02_environment_db.py` | Python 3 Docker, PostgREST, Migrations & Branch Backfill | **5/5 Tests Passed (100% Zero Defect)** |
 | **Browser Forensic E2E Suite** | `test_scenarios/browser_e2e_suite.js` | Puppeteer + Google Chrome 156 (Headless) | **7/7 Tests Passed (100% Zero Defect)** |
 | **Flutter Widget & Logic Suite** | `aldeeb_mall_app/test/` | Flutter Test Runner | **12/12 Tests Passed (100% Zero Defect)** |
+| **Database Backup Archive (Task 10 Full Checkpoint)** | `./backups/aldeeb_mall_full_20261104_065001.dump` | PostgreSQL 16 Custom Dump | **Verified & Stored (Pre-Task 10 Checkpoint)** |
 | **Database Backup Archive (Task 9 Pre-B2B)** | `./backups/aldeeb_mall_pre_b2b_backup_20261104_064654.dump` | PostgreSQL 16 Custom Dump (272,896 bytes) | **Verified & Stored (Pre-Task 9 Checkpoint)** |
 | **Database Backup Archive (Task 8 Suppliers)** | `./backups/aldeeb_mall_task08_backup_20261104_064200.dump` | PostgreSQL 16 Custom Dump (265 KB) | **Verified & Stored (Pre-Task 8 Checkpoint)** |
 | **Database Backup Archive (Task 7 Pre-Migration)** | `./backups/aldeeb_mall_task07_pre_migration_20261104_064216.dump` | PostgreSQL 16 Custom Dump (271,343 bytes) | **Verified & Stored (Pre-Task 7 Checkpoint)** |
@@ -63,7 +65,7 @@
 | **019** | `20261104_019_real_inventory_and_movements.sql` | المخزون الحقيقي متعدد المستودعات وحركات التوريد والجرد والقفل الذري | **100% مطبق وموثق** |
 | **020** | `20261104_020_branch_transfers_and_audit_ledger.sql` | **المهمة 7**: الفروع والمستودعات ودورة المناقلات ذات الـ 7 مراحل وسجل التدقيق الشامل وقفل الاستلام المكرر والتعويضات | **100% مطبق وموثق** |
 | **021** | `20261104_021_suppliers_and_procurement_system.sql` | **المهمة 8**: نظام الموردين والمشتريات، أوامر الشراء الذرية (`PO-2026-XXXX`)، استلام البضائع الجزئي وتسجيل التالف (`TX-REC-XXXXXX`)، استحقاقات ودفعات الموردين (`SP-PAY-XXXXX`)، حجر مسودات المنتجات الجديدة، وربط المخزون وحركة التكلفة | **100% مطبق وموثق** |
-| **022** | `20261104_022_order_pricing_core_and_atomic_verification.sql` | محرك التسعير وحساب الضرائب السورية والتحقق الذري لمنع التلاعب | **100% مطبق وموثق** |
+| **022** | `20261104_022_order_pricing_core_and_atomic_verification.sql` | **المهمة 10**: نواة الطلبات والتسعير الذري، إضافة `idempotency_key`، التحقق الخادمي الإلزامي من 9 ركائز (الصنف، الفعالية، السعر، المخزون، العروض، الكوبونات، نقاط الولاء، رسوم التوصيل، الإجمالي)، إزالة المسار الوهمي عند انقطاع الشبكة، قفل الصفوف لمنع البيع الزائد، إعادة الطلب الآمنة (Idempotent Replay)، وحركات المخزون الذرية | **100% مطبق وموثق** |
 | **023** | `20261104_023_corporate_b2b_sales_system.sql` | **المهمة 9**: نظام مبيعات الشركات B2B، طلبات وعروض الأسعار، سقف الائتمان، فواتير ضريبية، ربط المخزون الذري، وسجل المدفوعات والمرتجعات | **100% مطبق وموثق** |
 
 ---
@@ -164,10 +166,55 @@
 
 ---
 
+## 4.3 مصفوفة الصلاحيات والربط خماسي الطبقات لنواة الطلبات والتسعير الذري (Task 10: Order & Pricing Core)
+
+### Architectural Principles & Enforcement Layers:
+1. **التحقق الخادمي الإلزامي الصارم عبر 9 ركائز تسعيرية (Authoritative 9-Pillar Validation)**:
+   - كافة الحسابات والتسعير ونقاط الولاء والكوبونات ومطابقة المخزون تتم **حصراً ومطلقاً داخل الخادم** عبر إجراء PostgreSQL الذري `place_order_atomic`.
+   - **الركيزة 1 (التحقق من الصنف)**: التأكد من وجود كل مُعرف صنف في جدول `products` وأنه مفعل (`is_active = true`) وغير محجور كمسودة. الرفض الصارم برمز `PRODUCT_NOT_FOUND` أو `PRODUCT_INACTIVE`.
+   - **الركيزة 2 (التحقق من الفرع)**: التأكد من وجود الفرع `p_branch_id` في جدول `branches` وتفعيله (`is_active = true`). الرفض الصارم برمز `INVALID_BRANCH`.
+   - **الركيزة 3 (مطابقة السعر الكتالوجي الرسمي)**: فحص السعر المرسل ومطابقته بدقة تامة مع السعر المخزن بقاعدة البيانات (`sale_price` إن وجد وإلا `price`). الرفض الصارم برمز `PRICE_TAMPERED`.
+   - **الركيزة 4 (قفل المخزون ومنع البيع الزائد)**: قفل صفوف الصنف `FOR UPDATE` في `products` وجدول `branch_inventory` لمنع أي تنافس (Race Condition). الرفض الصارم برمز `INSUFFICIENT_STOCK`.
+   - **الركيزة 5 (العروض والخصومات الترويجية)**: التحقق من الخصومات وتطبيقها وفق قواعد الكتالوج الخادمي.
+   - **الركيزة 6 (قسائم الكوبونات الترويجية)**: التحقق من الكوبون وتاريخ سريانه وحدّه الأدنى للطلب واستهلاكه؛ الرفض الصارم برمز `COUPON_MIN_ORDER_NOT_MET` أو `INVALID_COUPON` وزيادة عداد الاستخدام ذرياً.
+   - **الركيزة 7 (نقاط الولاء)**: حظر استخدام النقاط للمستخدم المجهول/الضيف (`UNAUTHORIZED`)، التحقق من رصيد العميل في `profiles.loyalty_points`، حساب قيمة الخصم وفق معدل المتجر `points_redemption_rate`، خصم النقاط ذرياً وتسجيل العملية في `loyalty_transactions`. الرفض برمز `INSUFFICIENT_LOYALTY_POINTS`.
+   - **الركيزة 8 (رسوم التوصيل)**: التحقق من رسوم التوصيل ومطابقتها مع إعدادات المتجر `store_settings.delivery_fee` وإعفاء الطلبات فوق عتبة التوصيل المجاني `free_delivery_threshold`.
+   - **الركيزة 9 (الإجمالي الكلي والفرعي)**: إعادة حساب الإجمالي الكلي ومطابقته سنت بسنت ورفض أي تلاعب من جهة العميل (`SUBTOTAL_TAMPERED`, `TOTAL_TAMPERED`).
+
+2. **الاستئصال الجذري للمسار البديل الوهمي (Zero Offline Fallback & Zero Fake State)**:
+   - تم استئصال وحذف المسار البرمجي الذي كان ينشئ طلباً محلياً مؤقتاً (`OrderModel` وهمي) عند غياب الاتصال في `supabase_service.dart`.
+   - تم استئصال مسار الإدخال المباشر في الجداول (`.from('orders').insert()`) الذي كان يتجاوز الإجراءات الذرية والتحقق الخادمي.
+   - في حال حدوث أي خطأ بالخادم أو انقطاع الشبكة، يتم إظهار رسالة الخادم الدقيقة للمستخدم عبر `checkout_screen.dart` دون إيهامه بنجاح كاذب.
+   - في كاشير نقاط البيع `PosTerminalPage.tsx`، عند فشل إدخال الطلب يتم إيقاف العملية فوراً وإطلاق تنبيه صريح يمنع إصدار الإيصال أو تفريغ السلة.
+
+3. **مفتاح منع التكرار وإعادة المحاولة الآمنة (Idempotent Replay Resilience)**:
+   - تم إضافة عمود `idempotency_key` مع فهرس فريد مشروط `idx_orders_idempotency_key` على جدول `public.orders`.
+   - في حال إعادة الإرسال بنفس المفتاح (نتيجة انقطاع الاتصال بعد استجابة الخادم أو ضغط العميل المتكرر)، يكتشف الخادم الطلب القائم ويعيد كائن الطلب الأصلي فوراً مع وسم `is_idempotent_replay: true` دون تكرار خصم المخزون أو النقاط أو إثارة أي أخطاء.
+
+4. **تكامل حركات المخزون ودفتر الأستاذ (Atomic Inventory Ledger)**:
+   - يتم تسجيل حركة الصرف تلقائياً في `inventory_movements` (مع توثيق `resulting_on_hand` و `resulting_reserved`).
+   - يتم تسجيل العملية في `inventory_transactions` مع تحديث `balance_after`، لضمان استمرارية الحسابات الدقيقة للكتالوج والفروع.
+
+### مصفوفة الربط خماسي الطبقات (5-Layer End-to-End Wiring Matrix for Task 10):
+1. **طلب العميل من تطبيق الجوال/الويب (Customer App Checkout)**:
+   `[CheckoutScreen.dart: زر تأكيد الطلب والدفع]` -> `[order_provider.placeOrder]` -> `[Validation & Submission Lock: isSubmitting=true, UUID validation, branch resolution]` -> `[POST /rest/v1/rpc/place_order_atomic with 17 parameters]` -> `[PostgreSQL ACID transaction: locks inventory, validates prices/coupons/points, inserts orders + order_items + inventory_movements, returns verified order -> Cart cleared & User navigated to OrderConfirmationScreen]`.
+
+2. **إتمام مبيعات كاشير نقاط البيع (POS Cashier Checkout)**:
+   `[PosTerminalPage.tsx: زر إتمام الدفع والطباعة]` -> `[handleCheckout]` -> `[Validation: isProcessing=true, total calculation, Syrian fiscal taxes, payment method]` -> `[POST /rest/v1/rpc/create_pos_transaction / place_order_atomic]` -> `[PostgreSQL records transaction, verifies stock, issues invoice number -> UI triggers receipt print & updates shift metrics]`.
+
+3. **معالجة رفض الأسعار والتلاعب الخادمي (Security Tampering Handling)**:
+   `[Any Client sending modified prices]` -> `[place_order_atomic]` -> `[Server-Side Catalog Comparison]` -> `[RAISE EXCEPTION 'PRICE_TAMPERED: ...']` -> `[Client catches error -> Shows alert 'تعذر إتمام الطلب: تم تعديل بيانات الأسعار أو العروض، يرجى تحديث السلة' -> Zero DB modification]`.
+
+4. **إعادة المحاولة عند انقطاع الشبكة (Idempotent Network Retry)**:
+   `[Customer retries with identical idempotencyKey]` -> `[order_provider.placeOrder]` -> `[POST /rest/v1/rpc/place_order_atomic]` -> `[PostgreSQL detects matching idempotency_key in orders table]` -> `[Returns existing order record with zero duplicate deduction -> UI displays original order receipt safely]`.
+
+---
+
 ## 5. Verification & Forensic Audit Results
 
 | حزمة الاختبار (Test Suite) | الأداة والمنهجية | السيناريوهات المغطاة | النتيجة الدقيقة والأدلة |
 | :--- | :--- | :--- | :--- |
+| **Order & Pricing Core Suite (Task 10)** | Python 3 (`test_scenarios/test_order_pricing_atomic_core.py`) | 17 سيناريو: الإنشاء الذري، إعادة المحاولة الآمنة، سباق التزامن وقفل الصفوف، تصادم المفاتيح المتزامنة، رفض الصنف غير الموجود، رفض الصنف المعطل، رفض التلاعب بالسعر، رفض التلاعب بالمجموع الفرعي، رفض التلاعب بالإجمالي، رفض نقص المخزون، رفض الفرع غير الصالح، التحقق من الكوبون، رفض الكوبون تحت الحد الأدنى، خصم نقاط الولاء، رفض نقص النقاط، التراجع الذري عند الفشل الجزئي، واستمرارية قاعدة البيانات | **17/17 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Corporate B2B Sales Suite (Task 9)** | Python 3 (`test_scenarios/test_corporate_b2b_suite.py`) | 21 سيناريو: حسابات الشركات، عروض الأسعار، سقف الائتمان، الفواتير الذرية، خصم المخزون، السداد، المرتجعات، عزل الفروع، ومنع الوصول المجهول | **21/21 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Suppliers & Procurement Suite (Task 8)** | Python 3 (`test_scenarios/test_suppliers_and_procurement_suite.py`) | 17 سيناريو: الموردون، تسلسل أوامر الشراء الذري، التسعير، الاستلام الجزئي والتالف، قفل الاستلام الزائد، سداد الموردين، قفل السداد الزائد، وحجر مسودات الكتالوج | **17/17 اجتيز بنجاح 100% (صفر عيوب)** |
 | **Suppliers Browser Forensic Suite (Task 8)** | Puppeteer + Chrome (`test_scenarios/test_suppliers_browser_e2e.js`) | 8 سيناريوهات متصفح حقيقية: التبويبات الأربعة، جداول الأوامر، بطاقات المستحقات، سجل الموردين، مسودات المنتجات، نماذج الإضافة، وخلو وحدة التحكم من الأخطاء | **8/8 اجتيز بنجاح 100% (صفر عيوب)** |
@@ -180,7 +227,7 @@
 | **Plan 2 Environment & DB Suite** | Python 3 (`scripts/verify_plan02_environment_db.py`) | 5 سيناريوهات: فحص Docker، وPostgREST، وتطبيق 22 ترحيلاً من الصفر على قاعدة نظيفة، وترقية الطلبات القديمة | **5/5 اجتيز بنجاح 100%** |
 | **Browser Forensic E2E Suite** | Puppeteer + Chrome (`test_scenarios/browser_e2e_suite.js`) | 7 سيناريوهات حقيقية للمتصفح لفحص ملخص POS الثابت، وبوابات الكابتن، والتأثير الذري في PostgreSQL | **7/7 اجتيز بنجاح 100%** |
 | **Flutter Widget & Logic Suite** | Flutter Test (`aldeeb_mall_app/test/`) | 12 اختباراً لوحدات فلاتر ومنطق الحسابات والواجهات | **12/12 اجتيز بنجاح 100%** |
-| **المجموع الكلي للاختبارات المؤتمتة** | **مزيج متكامل خادمي وتصفحي** | **164 اختباراً شاملاً** | **164/164 اجتيز بنجاح 100% (صفر انحدار)** |
+| **المجموع الكلي للاختبارات المؤتمتة** | **مزيج متكامل خادمي وتصفحي** | **181 اختباراً شاملاً** | **181/181 اجتيز بنجاح 100% (صفر انحدار)** |
 
 ---
 
@@ -207,6 +254,8 @@
 
 ## 7. خطة النسخ الاحتياطي والاستعادة في حالات الطوارئ (Disaster Recovery & Rollback)
 1. **النسخ الاحتياطية المعتمدة**:
+   - **النسخة الاحتياطية للمهمة 10 لنواة الطلبات والتسعير (Task 10 Full Checkpoint)**:
+     `./backups/aldeeb_mall_full_20261104_065001.dump` (الحجم: 273,812 بايت).
    - **النسخة الاحتياطية للمهمة 8 للموردين والمشتريات (Pre-Task 8 Suppliers Checkpoint)**:
      `./backups/aldeeb_mall_task08_backup_20261104_064200.dump` (الحجم: 265 كيلوبايت).
    - **النسخة الاحتياطية للمهمة 9 لمبيعات الشركات (Pre-Task 9 B2B Checkpoint)**:
@@ -217,12 +266,13 @@
      `./backups/aldeeb_mall_full_20261104_025508.dump`
    - يمكن استعادة أي منها فوراً عبر:
      ```bash
-     ./scripts/backup_restore.sh restore ./backups/aldeeb_mall_task08_backup_20261104_064200.dump
+     ./scripts/backup_restore.sh restore ./backups/aldeeb_mall_full_20261104_065001.dump
      ```
-2. **ملف التراجع البرمجي للمهمة 8 ومبيعات الشركات (Transactional Rollback Migrations)**:
+2. **ملفات التراجع البرمجي التلقائي (Transactional Rollback Migrations)**:
+   - **المهمة 10 (نواة الطلبات والتسعير)**: `supabase/rollbacks/20261104_020_rollback_order_pricing_core.sql`
    - **المهمة 8 (الموردون والمشتريات)**: `supabase/rollbacks/20261104_021_rollback_suppliers_and_procurement_system.sql`
    - **المهمة 9 (مبيعات الشركات B2B)**: `supabase/rollbacks/20261104_023_rollback_corporate_b2b_sales_system.sql`
-   - يلغي كافة دوال الـ RPCs والجداول في كتلة معامَلة ذرية واحدة (`BEGIN ... COMMIT`) دون المساس بأي بيانات تجارية للمبيعات الأخرى.
+   - تلغي كافة التعديلات في كتلة معامَلة ذرية واحدة (`BEGIN ... COMMIT`) دون المساس بأي بيانات تجارية للمبيعات الأخرى.
 
 ---
 
