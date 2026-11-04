@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Building2, 
   MapPin, 
@@ -6,17 +6,21 @@ import {
   Search, 
   Store, 
   Monitor, 
-  DollarSign, 
   Phone, 
   UserCheck, 
   CheckCircle2, 
   X, 
-  SlidersHorizontal,
-  ExternalLink,
-  Edit2,
-  Trash2,
-  TrendingUp,
-  Warehouse
+  Edit2, 
+  Trash2, 
+  TrendingUp, 
+  Warehouse,
+  Activity,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Database,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { Branch } from '../types';
 import { 
@@ -25,17 +29,38 @@ import {
   getActiveBranchId, 
   setActiveBranchId 
 } from '../lib/branchesData';
+import { pingBranchDatabase, BranchDbConnection } from '../lib/branchDatabaseManager';
+import { supabase } from '../lib/supabase';
+import { logAuditEvent } from '../lib/auditLogger';
 
 interface BranchesPageProps {
   onOpenPosForBranch?: (branchId: string) => void;
+  branches?: Branch[];
+  onRefreshGlobalData?: () => void;
 }
 
-export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }) => {
-  const [branches, setBranches] = useState<Branch[]>([]);
+interface PingState {
+  status: BranchDbConnection['status'];
+  latencyMs: number;
+  schema?: string;
+  loading?: boolean;
+}
+
+export const BranchesPage: React.FC<BranchesPageProps> = ({ 
+  onOpenPosForBranch,
+  branches: parentBranches,
+  onRefreshGlobalData
+}) => {
+  const [branches, setBranches] = useState<Branch[]>(parentBranches || []);
   const [activeBranchId, setActiveId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Live Ping & Health State per branch
+  const [pingStates, setPingStates] = useState<Record<string, PingState>>({});
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,16 +84,96 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
   });
 
   const [notification, setNotification] = useState<string | null>(null);
-
-  useEffect(() => {
-    const list = getStoredBranches();
-    setBranches(list);
-    setActiveId(getActiveBranchId());
-  }, []);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const showError = (msg: string) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 5000);
+  };
+
+  // Fetch branches directly from PostgreSQL / PostgREST
+  const loadBranchesFromDb = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.warn('Failed to load branches from server:', error.message);
+        const fallback = getStoredBranches();
+        setBranches(fallback);
+      } else if (data && data.length > 0) {
+        const mapped: Branch[] = data.map((b: any) => ({
+          id: b.id,
+          code: b.code,
+          name_ar: b.name_ar,
+          name_en: b.name_en || b.name_ar,
+          city: b.city,
+          district: b.district || '',
+          address: b.address || '',
+          phone: b.phone || '',
+          manager_name: b.manager_name || '',
+          is_active: b.is_active !== false,
+          terminals_count: Number(b.terminals_count || 4),
+          daily_sales: Number(b.daily_sales || 0),
+          currency: b.currency || 'ل.س',
+          type: b.type || 'supermarket',
+          created_at: b.created_at || new Date().toISOString(),
+        }));
+        setBranches(mapped);
+        saveStoredBranches(mapped);
+      }
+    } catch (err: any) {
+      console.warn('Network error loading branches:', err);
+      setBranches(getStoredBranches());
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBranchesFromDb();
+    setActiveId(getActiveBranchId());
+  }, [loadBranchesFromDb]);
+
+  // Ping a specific branch database
+  const handlePingBranch = async (branch: Branch) => {
+    setPingStates((prev) => ({
+      ...prev,
+      [branch.id]: { status: 'syncing', latencyMs: 0, loading: true },
+    }));
+
+    const result = await pingBranchDatabase(branch.id, branch.code);
+
+    setPingStates((prev) => ({
+      ...prev,
+      [branch.id]: {
+        status: result.status,
+        latencyMs: result.latencyMs,
+        schema: result.schemaStatus,
+        loading: false,
+      },
+    }));
+
+    if (result.success) {
+      showNotification(`✓ استجابة قاعدة بيانات الفرع (${branch.code}) حقيقية: ${result.latencyMs}ms | الحالة: نشط 🟢`);
+    } else {
+      showError(`⚠️ تعذر الوصول لقاعدة بيانات الفرع (${branch.code}): انقطاع اتصال أو استجابة بطيئة.`);
+    }
+  };
+
+  // Ping all branches on demand
+  const handlePingAllBranches = async () => {
+    for (const b of branches) {
+      handlePingBranch(b);
+    }
   };
 
   const handleSelectActiveBranch = (id: string) => {
@@ -117,59 +222,129 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
     setIsModalOpen(true);
   };
 
-  const handleSaveBranch = (e: React.FormEvent) => {
+  const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name_ar.trim()) return;
-
-    if (editingBranch) {
-      const updated = branches.map((b) =>
-        b.id === editingBranch.id
-          ? {
-              ...b,
-              ...formData,
-            }
-          : b
-      );
-      setBranches(updated);
-      saveStoredBranches(updated);
-      showNotification(`تم تحديث بيانات الفرع (${formData.name_ar}) بنجاح!`);
-    } else {
-      const newBranch: Branch = {
-        id: `branch-${Date.now()}`,
-        ...formData,
-        created_at: new Date().toISOString(),
-      };
-      const updated = [newBranch, ...branches];
-      setBranches(updated);
-      saveStoredBranches(updated);
-      showNotification(`تم إضافة الفرع الجديد (${newBranch.name_ar}) بنجاح!`);
+    if (!formData.name_ar.trim()) {
+      showError('اسم الفرع بالعربية مطلوب.');
+      return;
     }
 
-    setIsModalOpen(false);
+    setIsSubmitting(true);
+    try {
+      if (editingBranch) {
+        // Update in PostgreSQL Server
+        const { error } = await supabase
+          .from('branches')
+          .update({
+            code: formData.code.toUpperCase(),
+            name_ar: formData.name_ar,
+            name_en: formData.name_en,
+            city: formData.city,
+            district: formData.district,
+            address: formData.address,
+            phone: formData.phone,
+            manager_name: formData.manager_name,
+            terminals_count: formData.terminals_count,
+            type: formData.type,
+            is_active: formData.is_active,
+          })
+          .eq('id', editingBranch.id);
+
+        if (error) {
+          throw new Error(`خطأ في تحديث بيانات الفرع: ${error.message}`);
+        }
+
+        logAuditEvent({
+          actor_id: 'admin',
+          actor_name: 'المسؤول العام',
+          actor_role: 'super_admin',
+          action: 'BRANCH_UPDATED',
+          category: 'system',
+          target_id: editingBranch.id,
+          target_type: 'branches',
+          branch_id: editingBranch.id,
+          details: `تحديث إعدادات وبيانات الفرع ${formData.name_ar} (${formData.code}) بنجاح.`,
+        });
+
+        showNotification(`✓ تم تحديث بيانات الفرع (${formData.name_ar}) في قاعدة البيانات بنجاح!`);
+      } else {
+        // Call Atomic Branch Creation RPC
+        const { data, error } = await supabase.rpc('rpc_create_branch_atomic', {
+          p_code: formData.code.toUpperCase(),
+          p_name_ar: formData.name_ar,
+          p_name_en: formData.name_en || formData.name_ar,
+          p_city: formData.city,
+          p_district: formData.district || '',
+          p_address: formData.address || '',
+          p_phone: formData.phone || '',
+          p_manager_name: formData.manager_name || '',
+          p_type: formData.type,
+          p_terminals_count: formData.terminals_count,
+          p_currency: formData.currency,
+          p_actor_id: 'admin',
+          p_actor_name: 'المسؤول العام',
+        });
+
+        if (error) {
+          throw new Error(`خطأ في تهيئة الفرع الجديد: ${error.message}`);
+        }
+
+        showNotification(`✓ تم إنشاء الفرع (${formData.name_ar}) وتهيئة الـ Schema المعزولة ومستودعه بنجاح!`);
+      }
+
+      await loadBranchesFromDb();
+      if (onRefreshGlobalData) onRefreshGlobalData();
+      setIsModalOpen(false);
+    } catch (err: any) {
+      showError(err.message || 'حدث خطأ أثناء حفظ الفرع.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
-    const updated = branches.map((b) =>
-      b.id === id ? { ...b, is_active: !b.is_active } : b
-    );
-    setBranches(updated);
-    saveStoredBranches(updated);
-    showNotification('تم تعديل حالة تشغيل الفرع!');
+  const handleToggleStatus = async (branch: Branch) => {
+    try {
+      const nextStatus = !branch.is_active;
+      const { error } = await supabase
+        .from('branches')
+        .update({ is_active: nextStatus })
+        .eq('id', branch.id);
+
+      if (error) throw error;
+
+      showNotification(`تم تعديل حالة تشغيل الفرع (${branch.name_ar}) إلى ${nextStatus ? 'نشط' : 'معطل'}.`);
+      await loadBranchesFromDb();
+    } catch (err: any) {
+      showError(`فشل تغيير حالة الفرع: ${err.message}`);
+    }
   };
 
-  const handleDeleteBranch = (id: string, name: string) => {
+  const handleDeleteBranch = async (id: string, name: string) => {
     if (branches.length <= 1) {
       alert('لا يمكن حذف آخر فرع في النظام.');
       return;
     }
-    if (window.confirm(`هل أنت متأكد من رغبتك في إزالة الفرع "${name}"؟`)) {
-      const updated = branches.filter((b) => b.id !== id);
-      setBranches(updated);
-      saveStoredBranches(updated);
-      if (activeBranchId === id && updated.length > 0) {
-        handleSelectActiveBranch(updated[0].id);
+    if (window.confirm(`هل أنت متأكد من رغبتك في إزالة الفرع "${name}"؟ سيتم حذف بياناته التشغيلية نهائياً.`)) {
+      try {
+        const { error } = await supabase.from('branches').delete().eq('id', id);
+        if (error) throw error;
+
+        logAuditEvent({
+          actor_id: 'admin',
+          actor_name: 'المسؤول العام',
+          actor_role: 'super_admin',
+          action: 'BRANCH_DELETED',
+          category: 'system',
+          target_id: id,
+          target_type: 'branches',
+          details: `حذف الفرع ${name} من قاعدة البيانات المركزية.`,
+        });
+
+        showNotification(`تم إزالة الفرع "${name}" من المنظومة.`);
+        await loadBranchesFromDb();
+      } catch (err: any) {
+        showError(`فشل حذف الفرع من الخادم: ${err.message}`);
       }
-      showNotification('تم إزالة الفرع من المنظومة.');
     }
   };
 
@@ -196,24 +371,48 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
   const activeCount = branches.filter((b) => b.is_active).length;
 
   return (
-    <div className="space-y-6 max-w-7xl pb-16 select-none">
+    <div className="space-y-6 max-w-7xl pb-16 select-none" dir="rtl">
       {/* Header & Actions */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl">
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900">إدارة الفروع المتعددة ومراكز التوزيع</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-slate-900">إدارة الفروع المتعددة والمستودعات المستقلة</h2>
+                <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  قاعدة بيانات فعلية معزولة
+                </span>
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                التحكم المركزي في فروع الهايبرماركت، السوبرماركت، مراكز التلبية السريعة ونقاط البيع
+                التحكم المركزي في فروع الهايبرماركت، السوبرماركت، مراكز التلبية السريعة ونقاط البيع مع فحص الاتصال الحي
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handlePingAllBranches}
+            className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+            title="فحص سرعة استجابة كافة قواعد الفروع الحقيقية"
+          >
+            <Activity className="w-4 h-4 text-blue-600" />
+            فحص اتصال الشبكة الحية
+          </button>
+
+          <button
+            onClick={() => loadBranchesFromDb()}
+            disabled={isLoading}
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+            title="تحديث البيانات من السيرفر"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-blue-600' : ''}`} />
+          </button>
+
           <button
             onClick={() => handleOpenModal()}
             className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30 flex items-center gap-2 transition-all"
@@ -228,6 +427,13 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <span>{notification}</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs animate-fade-in">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -327,6 +533,7 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredBranches.map((branch) => {
           const isCurrentActive = branch.id === activeBranchId;
+          const ping = pingStates[branch.id];
 
           return (
             <div
@@ -398,6 +605,43 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
                   </div>
                 </div>
 
+                {/* Real-time Connection / Schema Status Bar */}
+                <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {ping?.schema || `branch_${branch.code.toLowerCase().replace(/[^a-z0-9]/g, '_')}`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {ping?.loading ? (
+                      <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        فحص...
+                      </span>
+                    ) : ping?.status === 'online' ? (
+                      <span className="text-[10px] text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                        <Wifi className="w-3 h-3 text-emerald-600" />
+                        {ping.latencyMs}ms
+                      </span>
+                    ) : ping?.status === 'offline' ? (
+                      <span className="text-[10px] text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                        <WifiOff className="w-3 h-3 text-rose-600" />
+                        غير متصل
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handlePingBranch(branch)}
+                        className="text-[10px] text-slate-600 hover:text-blue-600 bg-white hover:bg-blue-50 px-2 py-0.5 rounded-md border border-slate-200 transition-all font-bold flex items-center gap-1"
+                      >
+                        <Activity className="w-3 h-3 text-blue-500" />
+                        فحص الاتصال
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Branch Details Body */}
                 <div className="p-5 space-y-3 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
@@ -453,19 +697,32 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
                   </button>
                 )}
 
-                <button
-                  onClick={() => {
-                    handleSelectActiveBranch(branch.id);
-                    if (onOpenPosForBranch) {
-                      onOpenPosForBranch(branch.id);
-                    }
-                  }}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all"
-                  title="فتح شاشة الكاشير المستقلة الخاصة بهذا الفرع"
-                >
-                  <Monitor className="w-3.5 h-3.5" />
-                  فتح الكاشير (POS)
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleStatus(branch)}
+                    className={`text-[10px] font-bold px-2.5 py-1.5 rounded-xl border transition-all ${
+                      branch.is_active
+                        ? 'text-slate-600 hover:text-rose-600 border-slate-200 hover:bg-rose-50'
+                        : 'text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {branch.is_active ? 'تعطيل مؤقت' : 'تفعيل التشغيل'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleSelectActiveBranch(branch.id);
+                      if (onOpenPosForBranch) {
+                        onOpenPosForBranch(branch.id);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                    title="فتح شاشة الكاشير المستقلة الخاصة بهذا الفرع"
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    فتح الكاشير (POS)
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -479,7 +736,7 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Store className="w-5 h-5 text-blue-600" />
-                {editingBranch ? 'تعديل بيانات الفرع' : 'إضافة فرع جديد للشبكة'}
+                {editingBranch ? 'تعديل بيانات الفرع' : 'إضافة فرع جديد مع تهيئة الـ Schema والمستودع'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -624,6 +881,7 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2.5 text-slate-500 hover:text-slate-700 text-xs font-bold rounded-xl"
                 >
@@ -631,9 +889,11 @@ export const BranchesPage: React.FC<BranchesPageProps> = ({ onOpenPosForBranch }
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/30 transition-all"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  {editingBranch ? 'حفظ التعديلات' : 'إضافة الفرع الآن'}
+                  {isSubmitting && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {editingBranch ? 'حفظ التعديلات' : 'إضافة الفرع وتهيئة القاعدة'}
                 </button>
               </div>
             </form>

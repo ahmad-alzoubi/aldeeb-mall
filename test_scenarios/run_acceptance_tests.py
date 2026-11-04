@@ -498,9 +498,13 @@ def test_scn_17_race_condition_stock_reservation() -> TestResult:
             v_cat uuid;
         BEGIN
             SELECT id INTO v_cat FROM public.categories LIMIT 1;
-            INSERT INTO public.products (id, name_ar, name_en, barcode, price, stock_quantity, category_id)
-            VALUES ('{test_prod_id}', 'صنف اختبار التزامن وقفل المخزون', 'Concurrency Item', '628999999999', 10.00, 1, v_cat)
-            ON CONFLICT (id) DO UPDATE SET stock_quantity = 1;
+            INSERT INTO public.products (id, name_ar, name_en, barcode, price, stock_quantity, category_id, is_active)
+            VALUES ('{test_prod_id}', 'صنف اختبار التزامن وقفل المخزون', 'Concurrency Item', '628999999999', 10.00, 1, v_cat, true)
+            ON CONFLICT (id) DO UPDATE SET stock_quantity = 1, is_active = true;
+
+            INSERT INTO public.branch_inventory (branch_id, product_id, quantity_on_hand, quantity_reserved)
+            VALUES ('b-jed-01', '{test_prod_id}', 1, 0), ('b-dam-01', '{test_prod_id}', 0, 0)
+            ON CONFLICT (branch_id, product_id) DO UPDATE SET quantity_on_hand = EXCLUDED.quantity_on_hand, quantity_reserved = 0;
         END $$;
         """
         setup_proc = subprocess.run(['psql', '-d', 'aldeeb_mall_prod', '-c', setup_sql], capture_output=True, text=True)

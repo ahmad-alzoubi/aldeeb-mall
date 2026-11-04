@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ReturnRequest } from '../types';
 import { logAuditEvent } from '../lib/auditLogger';
+import { supabase } from '../lib/supabase';
 
 export const ReturnsPage: React.FC = () => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([
@@ -71,7 +72,7 @@ export const ReturnsPage: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleApproveWalletRefund = (req: ReturnRequest) => {
+  const handleApproveWalletRefund = async (req: ReturnRequest) => {
     if (req.status === 'approved_refunded') {
       alert('تم استرداد هذا المبلغ مسبقاً! لا يمكن تكرار عملية الاسترداد.');
       return;
@@ -80,6 +81,24 @@ export const ReturnsPage: React.FC = () => {
     setReturnRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: 'approved_refunded' } : r))
     );
+
+    try {
+      const isDefective = req.reason === 'defective_fresh' || req.reason === 'damaged_packaging';
+      await supabase.rpc('record_inventory_movement_atomic', {
+        p_branch_id: 'b-jed-01',
+        p_product_id: 'a0000000-0000-0000-0000-000000000001',
+        p_movement_type: isDefective ? 'damaged' : 'return',
+        p_qty_change: isDefective ? 0 : 1,
+        p_qty_reserved_change: 0,
+        p_ref_type: 'return',
+        p_ref_id: req.return_number,
+        p_actor_name: 'مسؤول خدمة العملاء والمرتجعات',
+        p_actor_role: 'support_officer',
+        p_notes: `معالجة مرتجع مالي: ${req.reason_ar}`
+      });
+    } catch (invErr) {
+      console.warn('Return inventory audit note:', invErr);
+    }
 
     logAuditEvent({
       actor_id: 'admin-1',
@@ -91,7 +110,7 @@ export const ReturnsPage: React.FC = () => {
       target_id: req.id,
     });
 
-    showToast(`✓ تم استرداد مبلغ ${req.refund_amount.toLocaleString()} ل.س وإيداعه بمحفظة العميل وقفل الطلب ضد التكرار.`);
+    showToast(`✓ تم استرداد مبلغ ${req.refund_amount.toLocaleString()} ل.س وإيداعه بمحفظة العميل وتوثيق حركة المخزون.`);
   };
 
   const handleApproveReplacement = (req: ReturnRequest) => {

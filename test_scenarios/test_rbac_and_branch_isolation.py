@@ -257,12 +257,12 @@ def main():
     print("\n--- [SUITE 6: Branch Manager Cross-Branch Isolation] ---")
 
     # Manager Rami (Jeddah b-jed-01)
-    status, rami_login = http_post("/rpc/staff_login", {"p_username": "manager_rami", "p_password": "Aldeeb@2026"})
+    status, rami_login = http_post("/rpc/staff_login", {"p_username": "manager_rami", "p_password": "jed123"})
     token_rami = rami_login["token"]
     h_rami = {"Authorization": f"Bearer {token_rami}"}
 
     # Manager Wael (Damascus b-dam-01)
-    status, wael_login = http_post("/rpc/staff_login", {"p_username": "manager_wael", "p_password": "Aldeeb@2026"})
+    status, wael_login = http_post("/rpc/staff_login", {"p_username": "manager_wael", "p_password": "dam123"})
     token_wael = wael_login["token"]
     h_wael = {"Authorization": f"Bearer {token_wael}"}
 

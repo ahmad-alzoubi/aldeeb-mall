@@ -464,6 +464,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               final slot = _deliverySlots[_selectedSlotIndex]['title'] as String;
               final payment = _paymentMethods[_selectedPaymentIndex]['title'] as String;
+              final idempotencyKey = 'IDEMP-${DateTime.now().millisecondsSinceEpoch}-${cart.items.length}';
 
               final order = await orderProv.placeOrder(
                 items: cart.items.values.toList(),
@@ -476,6 +477,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 deliverySlot: slot,
                 paymentMethod: payment,
                 notes: _notesController.text.trim(),
+                branchId: 'b-jed-01',
+                couponCode: cart.appliedCoupon?.code,
+                idempotencyKey: idempotencyKey,
+                customerName: auth.currentUser?.fullName,
+                customerPhone: auth.currentUser?.phone,
               );
 
               if (!mounted) return;
@@ -497,8 +503,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               } else {
                 final err = orderProv.lastOrderError ?? '';
                 String errorMsg = '⚠️ تعذر تأكيد الطلب، يرجى التحقق من اتصال الإنترنت ومراجعة البيانات والمحاولة مجدداً.';
-                if (err.contains('INSUFFICIENT_STOCK')) {
+                if (err.contains('PRODUCT_NOT_FOUND')) {
+                  errorMsg = '⚠️ عذراً، أحد الأصناف المطلوبة غير متاح حالياً في النظام.';
+                } else if (err.contains('PRICE_TAMPERED')) {
+                  errorMsg = '⚠️ تم تعديل أسعار بعض الأصناف، يرجى تحديث السلة والمتابعة.';
+                } else if (err.contains('SUBTOTAL_TAMPERED') || err.contains('TOTAL_TAMPERED')) {
+                  errorMsg = '⚠️ خطأ في مطابقة إجمالي الطلب مع الخادم، يرجى إعادة المحاولة.';
+                } else if (err.contains('INSUFFICIENT_STOCK')) {
                   errorMsg = '⚠️ عذراً، نفدت الكمية المتاحة في المخزون لأحد الأصناف المطلوبة.';
+                } else if (err.contains('INVALID_COUPON') || err.contains('COUPON_EXPIRED')) {
+                  errorMsg = '⚠️ كود الخصم غير صالح أو انتهت صلاحيته.';
+                } else if (err.contains('COUPON_MIN_ORDER_NOT_MET')) {
+                  errorMsg = '⚠️ لم يتم استيفاء الحد الأدنى للطلب لتطبيق كود الخصم.';
+                } else if (err.contains('INSUFFICIENT_LOYALTY_POINTS')) {
+                  errorMsg = '⚠️ رصيد نقاط الولاء غير كافٍ لتطبيق الخصم المطلوب.';
+                } else if (err.contains('INVALID_BRANCH')) {
+                  errorMsg = '⚠️ فرع المتجر المختار غير متاح حالياً.';
                 } else if (err.contains('DUPLICATE_ORDER')) {
                   errorMsg = '⚠️ تم إرسال هذا الطلب مسبقاً لمنع تكرار الخصم.';
                 } else if (err.contains('EMPTY_ITEMS')) {

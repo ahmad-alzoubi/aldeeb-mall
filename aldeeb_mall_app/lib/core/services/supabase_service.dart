@@ -215,7 +215,7 @@ class SupabaseService {
     return 'cod';
   }
 
-  // 6. Place Order (Atomic transaction via RPC or resilient table insert)
+  // 6. Place Order (Strict Atomic ACID transaction via RPC - Zero Fallbacks)
   Future<OrderModel> createOrder({
     required String orderNumber,
     required double subtotal,
@@ -228,8 +228,16 @@ class SupabaseService {
     required String paymentMethod,
     String? notes,
     List<CartItemModel> items = const [],
+    String? branchId,
+    String? couponCode,
+    String? idempotencyKey,
+    String? customerName,
+    String? customerPhone,
   }) async {
-    String generatedId = 'ord-${DateTime.now().millisecondsSinceEpoch}';
+    if (!_isInitialized || client == null) {
+      throw Exception('تعذر إرسال الطلب: خادم قاعدة البيانات غير متصل. يرجى التحقق من الشبكة والمحاولة مجدداً.');
+    }
+
     final normalizedPayment = _normalizePaymentMethod(paymentMethod);
 
     final itemsPayload = items.map((item) {
@@ -238,8 +246,12 @@ class SupabaseService {
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
       ).hasMatch(p.id);
 
+      if (!isUuid) {
+        throw Exception('⚠️ معرف المنتج غير صالح (${p.nameAr}): ${p.id}');
+      }
+
       return {
-        'product_id': isUuid ? p.id : null,
+        'product_id': p.id,
         'product_name_ar': p.nameAr,
         'product_name_en': p.nameEn,
         'product_image': p.images.isNotEmpty ? p.images.first : '',
@@ -250,125 +262,69 @@ class SupabaseService {
       };
     }).toList();
 
-    if (_isInitialized && client != null) {
-      try {
-        final userId = client!.auth.currentUser?.id;
-        final isValidUuid = userId != null &&
-            RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
-                .hasMatch(userId);
+    try {
+      final userId = client!.auth.currentUser?.id;
+      final isValidUuid = userId != null &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(userId);
 
-        // Attempt 1: Call atomic database transaction RPC place_order_atomic
-        try {
-          final rpcResponse = await client!.rpc('place_order_atomic', params: {
-            'p_order_number': orderNumber,
-            'p_user_id': isValidUuid ? userId : null,
-            'p_delivery_slot': deliverySlot,
-            'p_payment_method': normalizedPayment,
-            'p_subtotal': subtotal,
-            'p_delivery_fee': deliveryFee,
-            'p_discount_amount': discountAmount,
-            'p_loyalty_points_used': loyaltyPointsUsed,
-            'p_loyalty_discount': loyaltyDiscount,
-            'p_total_amount': totalAmount,
-            'p_notes': notes,
-            'p_items': itemsPayload,
-          });
+      // Invoke server-side atomic validation RPC place_order_atomic
+      final rpcResponse = await client!.rpc('place_order_atomic', params: {
+        'p_order_number': orderNumber,
+        'p_user_id': isValidUuid ? userId : null,
+        'p_delivery_slot': deliverySlot,
+        'p_payment_method': normalizedPayment,
+        'p_subtotal': subtotal,
+        'p_delivery_fee': deliveryFee,
+        'p_discount_amount': discountAmount,
+        'p_loyalty_points_used': loyaltyPointsUsed,
+        'p_loyalty_discount': loyaltyDiscount,
+        'p_total_amount': totalAmount,
+        'p_notes': notes,
+        'p_items': itemsPayload,
+        'p_branch_id': branchId ?? 'b-jed-01',
+        'p_coupon_code': couponCode,
+        'p_idempotency_key': idempotencyKey ?? orderNumber,
+        'p_customer_name': customerName,
+        'p_customer_phone': customerPhone,
+      });
 
-          if (rpcResponse != null && rpcResponse['id'] != null) {
-            generatedId = rpcResponse['id'].toString();
-            return OrderModel(
-              id: generatedId,
-              orderNumber: orderNumber,
-              status: 'pending',
-              deliverySlot: deliverySlot,
-              paymentMethod: paymentMethod,
-              subtotal: subtotal,
-              deliveryFee: deliveryFee,
-              discountAmount: discountAmount,
-              loyaltyPointsUsed: loyaltyPointsUsed,
-              loyaltyDiscount: loyaltyDiscount,
-              totalAmount: totalAmount,
-              createdAt: DateTime.now(),
-              notes: notes,
-              driverName: 'مندوب التوصيل السريع',
-              driverPhone: '+966501112233',
-              items: items,
-            );
-          }
-        } catch (rpcErr) {
-          debugPrint('⚠️ place_order_atomic RPC attempt info: $rpcErr');
-          final errStr = rpcErr.toString();
-          if (errStr.contains('DUPLICATE_ORDER') ||
-              errStr.contains('INSUFFICIENT_STOCK') ||
-              errStr.contains('UNAUTHORIZED') ||
-              errStr.contains('EMPTY_ITEMS') ||
-              errStr.contains('INVALID_QUANTITY')) {
-            rethrow;
-          }
-          // Proceed to direct table insert fallback
-        }
+      if (rpcResponse != null && rpcResponse['id'] != null) {
+        final generatedId = rpcResponse['id'].toString();
+        final confirmedOrderNumber = rpcResponse['order_number']?.toString() ?? orderNumber;
+        final confirmedSubtotal = (rpcResponse['subtotal'] as num?)?.toDouble() ?? subtotal;
+        final confirmedDeliveryFee = (rpcResponse['delivery_fee'] as num?)?.toDouble() ?? deliveryFee;
+        final confirmedDiscount = (rpcResponse['discount_amount'] as num?)?.toDouble() ?? discountAmount;
+        final confirmedLoyaltyDiscount = (rpcResponse['loyalty_discount'] as num?)?.toDouble() ?? loyaltyDiscount;
+        final confirmedTotal = (rpcResponse['total_amount'] as num?)?.toDouble() ?? totalAmount;
 
-        // Attempt 2: Direct REST table insert
-        final orderPayload = {
-          'order_number': orderNumber,
-          'user_id': isValidUuid ? userId : null,
-          'status': 'pending',
-          'delivery_slot': deliverySlot,
-          'payment_method': normalizedPayment,
-          'payment_status': 'pending',
-          'subtotal': subtotal,
-          'delivery_fee': deliveryFee,
-          'discount_amount': discountAmount,
-          'loyalty_points_used': loyaltyPointsUsed,
-          'loyalty_discount': loyaltyDiscount,
-          'total_amount': totalAmount,
-          'notes': notes,
-        };
-
-        final response = await client!
-            .from(SupabaseConstants.ordersTable)
-            .insert(orderPayload)
-            .select('id')
-            .maybeSingle();
-
-        if (response != null && response['id'] != null) {
-          generatedId = response['id'] as String;
-
-          if (items.isNotEmpty) {
-            final orderItemsData = itemsPayload.map((it) => {
-              ...it,
-              'order_id': generatedId,
-            }).toList();
-
-            await client!.from(SupabaseConstants.orderItemsTable).insert(orderItemsData);
-          }
-        } else {
-          throw Exception('فشل إنشاء الطلب في قاعدة البيانات السحابية (استجابة فارغة).');
-        }
-      } catch (e) {
-        debugPrint('🛑 Supabase createOrder failure: $e');
-        rethrow; // Do NOT disguise backend failure as success!
+        return OrderModel(
+          id: generatedId,
+          orderNumber: confirmedOrderNumber,
+          status: rpcResponse['status']?.toString() ?? 'pending',
+          deliverySlot: deliverySlot,
+          paymentMethod: paymentMethod,
+          subtotal: confirmedSubtotal,
+          deliveryFee: confirmedDeliveryFee,
+          discountAmount: confirmedDiscount,
+          loyaltyPointsUsed: loyaltyPointsUsed,
+          loyaltyDiscount: confirmedLoyaltyDiscount,
+          totalAmount: confirmedTotal,
+          createdAt: rpcResponse['created_at'] != null 
+              ? DateTime.tryParse(rpcResponse['created_at'].toString()) ?? DateTime.now() 
+              : DateTime.now(),
+          notes: notes,
+          driverName: 'مندوب التوصيل السريع',
+          driverPhone: '+966501112233',
+          items: items,
+        );
+      } else {
+        throw Exception('فشل إنشاء الطلب: استجابة الخادم فارغة أو غير معتمدة.');
       }
+    } catch (e) {
+      debugPrint('🛑 Supabase createOrder failure: $e');
+      rethrow; // Strictly rethrow: Zero disguise of backend failure as success!
     }
-
-    return OrderModel(
-      id: generatedId,
-      orderNumber: orderNumber,
-      status: 'pending',
-      deliverySlot: deliverySlot,
-      paymentMethod: paymentMethod,
-      subtotal: subtotal,
-      deliveryFee: deliveryFee,
-      discountAmount: discountAmount,
-      loyaltyPointsUsed: loyaltyPointsUsed,
-      loyaltyDiscount: loyaltyDiscount,
-      totalAmount: totalAmount,
-      createdAt: DateTime.now(),
-      notes: notes,
-      driverName: 'أحمد مندوب الديب مول',
-      driverPhone: '+971509876543',
-      items: items,
-    );
   }
 
   // ===========================================================================

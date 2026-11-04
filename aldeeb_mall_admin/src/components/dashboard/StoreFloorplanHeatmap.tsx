@@ -28,16 +28,25 @@ export const StoreFloorplanHeatmap: React.FC<StoreFloorplanHeatmapProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    fetchVisionTelemetry().then((res) => {
-      if (isMounted && res?.zones && res.zones.length > 0) {
-        setZones(res.zones);
-        setSelectedZone((current) => {
-          if (!current) return res.zones[6] || res.zones[0];
-          return res.zones.find(z => z.id === current.id) || current;
-        });
-      }
-    });
-    return () => { isMounted = false; };
+    const syncZones = async () => {
+      try {
+        const res = await fetchVisionTelemetry();
+        if (isMounted && res?.zones && res.zones.length > 0) {
+          setZones(res.zones);
+          setSelectedZone((current) => {
+            if (!current) return res.zones[6] || res.zones[0];
+            return res.zones.find(z => z.id === current.id) || current;
+          });
+        }
+      } catch (_) {}
+    };
+
+    syncZones();
+    const interval = setInterval(syncZones, 8000);
+    return () => { 
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const getZone = (id: string, fallbackIdx: number) => {

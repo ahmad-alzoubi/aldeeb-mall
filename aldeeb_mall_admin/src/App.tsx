@@ -222,7 +222,7 @@ export const App: React.FC = () => {
   const [pickerTasks, setPickerTasks] = useState<PickerTask[]>(initialPickerTasks);
   const [flashDeals, setFlashDeals] = useState<FlashDeal[]>(initialFlashDeals);
   const [couriers, setCouriers] = useState<Courier[]>(initialCouriers);
-  const [suppliers] = useState<Supplier[]>(initialSuppliers);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
   const [supportTickets] = useState<SupportTicket[]>(initialSupportTickets);
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(initialCampaigns);
@@ -714,6 +714,86 @@ export const App: React.FC = () => {
           try {
             localStorage.setItem(STORAGE_KEYS.PASSWORD_REQUESTS, JSON.stringify(mappedRequests));
           } catch (e) {}
+        }
+
+        // 9. Certified Suppliers (from PostgreSQL)
+        const { data: dbSuppliers } = await supabase
+          .from('suppliers')
+          .select('*')
+          .order('name_ar', { ascending: true });
+
+        if (isMounted && dbSuppliers && dbSuppliers.length > 0) {
+          const mappedSuppliers: Supplier[] = dbSuppliers.map((s: any) => ({
+            id: s.id,
+            name_ar: s.name_ar,
+            name_en: s.name_en || s.name_ar,
+            contact_person: s.contact_person || 'مسؤول التوريد',
+            phone: s.phone || '',
+            email: s.email || '',
+            address: s.address || '',
+            commercial_reg: s.commercial_reg || undefined,
+            tax_number: s.tax_number || undefined,
+            lead_time_days: Number(s.lead_time_days || 1),
+            payment_terms: s.payment_terms || 'آجل 30 يوماً',
+            active_products_count: Number(s.active_products_count || 0),
+            balance: Number(s.balance || 0),
+            status: s.status || 'active',
+          }));
+          setSuppliers(mappedSuppliers);
+        }
+
+        // 10. Purchase Orders with Items & Payments (from PostgreSQL)
+        const { data: dbPOs } = await supabase
+          .from('purchase_orders')
+          .select('*, items:purchase_order_items(*), payments:supplier_payments(*)')
+          .order('created_at', { ascending: false });
+
+        if (isMounted && dbPOs) {
+          const mappedPOs: PurchaseOrder[] = dbPOs.map((p: any) => ({
+            id: p.id,
+            po_number: p.po_number,
+            supplier_id: p.supplier_id,
+            supplier_name: p.supplier_name,
+            branch_id: p.branch_id,
+            branch_name: branches.find((b) => b.id === p.branch_id)?.name_ar || 'الفرع الرئيسي',
+            status: p.status,
+            payment_status: p.payment_status,
+            total_items: Number(p.total_items || 0),
+            total_cost: Number(p.total_cost || 0),
+            paid_amount: Number(p.paid_amount || 0),
+            order_date: p.order_date,
+            expected_arrival: p.expected_arrival || '',
+            notes: p.notes || '',
+            cancellation_reason: p.cancellation_reason || undefined,
+            created_by: p.created_by,
+            items: (p.items || []).map((it: any) => ({
+              id: it.id,
+              purchase_order_id: it.purchase_order_id,
+              product_id: it.product_id,
+              name_ar: it.name_ar,
+              barcode: it.barcode,
+              unit: it.unit || 'piece',
+              quantity_ordered: Number(it.quantity_ordered || 0),
+              quantity_received: Number(it.quantity_received || 0),
+              quantity_damaged: Number(it.quantity_damaged || 0),
+              unit_cost: Number(it.unit_cost || 0),
+              total_cost: Number(it.total_cost || 0),
+              is_new_draft_product: !!it.is_new_draft_product,
+            })),
+            payments: (p.payments || []).map((pay: any) => ({
+              id: pay.id,
+              payment_number: pay.payment_number,
+              purchase_order_id: pay.purchase_order_id,
+              supplier_id: pay.supplier_id,
+              amount: Number(pay.amount || 0),
+              payment_method: pay.payment_method,
+              payment_reference: pay.payment_reference,
+              paid_by: pay.paid_by,
+              notes: pay.notes,
+              paid_at: pay.paid_at,
+            })),
+          }));
+          setPurchaseOrders(mappedPOs);
         }
       } catch (err) {
         console.warn('⚠️ Supabase data sync note:', err);
@@ -1230,6 +1310,215 @@ export const App: React.FC = () => {
       showSyncNotification('✅ تم حذف المنتج بنجاح من قاعدة البيانات والمتجر!', 'success');
     } catch (e: any) {
       showSyncNotification(`❌ خطأ في حذف المنتج: ${e?.message}`, 'error');
+    }
+  };
+
+  // ============================================================================
+  // Procurement & Supplier Actions (Task 8: Zero Defect Server Operations)
+  // ============================================================================
+  const handleCreatePO = async (poData: {
+    supplier_id: string;
+    supplier_name: string;
+    branch_id: string;
+    expected_arrival: string;
+    notes: string;
+    items: any[];
+  }): Promise<boolean> => {
+    try {
+      if (currentUser.role === 'cashier' || currentUser.role === 'auditor') {
+        showSyncNotification('⚠️ غير مصرح لحسابك بإصدار أوامر الشراء والتوريد.', 'error');
+        return false;
+      }
+
+      const { data, error } = await supabase.rpc('create_purchase_order', {
+        p_supplier_id: poData.supplier_id || null,
+        p_supplier_name: poData.supplier_name,
+        p_branch_id: poData.branch_id || activeBranchId || 'b-dam-01',
+        p_expected_arrival: poData.expected_arrival || 'خلال 24 ساعة',
+        p_notes: poData.notes || '',
+        p_items: poData.items,
+        p_created_by: currentUser.full_name || 'مدير المشتريات',
+      });
+
+      if (error) {
+        showSyncNotification(`❌ فشل إصدار أمر الشراء: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      playOrderChime();
+      showSyncNotification(`✅ تم إصدار أمر الشراء ${data?.po_number || ''} وتثبيته في قاعدة البيانات بنجاح ⚡`, 'success');
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ في الاتصال بالخادم: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleReceivePO = async (
+    poId: string,
+    receipts: { item_id: string; quantity_received: number; quantity_damaged: number }[],
+    branchId: string
+  ): Promise<boolean> => {
+    try {
+      if (currentUser.role === 'cashier' || currentUser.role === 'auditor') {
+        showSyncNotification('⚠️ غير مصرح لحسابك باستلام بضائع المستودع أو تعديل المخزون.', 'error');
+        return false;
+      }
+
+      const { data, error } = await supabase.rpc('receive_purchase_order_items', {
+        p_po_id: poId,
+        p_receipts: receipts,
+        p_receiver: currentUser.full_name || 'أمين المستودع',
+        p_branch_id: branchId || activeBranchId || 'b-dam-01',
+      });
+
+      if (error) {
+        showSyncNotification(`❌ فشل تأكيد الاستلام: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      playOrderChime();
+      showSyncNotification(
+        data?.all_fulfilled
+          ? '✅ تم استلام أمر الشراء بالكامل وتحديث أرصدة المخزون وسجل الحركة بنجاح 📦'
+          : '✅ تم قيد الاستلام الجزئي للبضاعة وتحديث المخزون بنجاح 📦',
+        'success'
+      );
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ أثناء الاستلام: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleRecordPayment = async (
+    poId: string,
+    amount: number,
+    method: string,
+    reference: string,
+    notes?: string
+  ): Promise<boolean> => {
+    try {
+      if (currentUser.role !== 'super_admin' && currentUser.role !== 'general_manager' && currentUser.role !== 'accountant') {
+        showSyncNotification('⚠️ غير مصرح لحسابك بتسجيل دفعات الموردين المالية.', 'error');
+        return false;
+      }
+
+      const { data, error } = await supabase.rpc('record_supplier_payment', {
+        p_po_id: poId,
+        p_amount: amount,
+        p_payment_method: method,
+        p_reference: reference || null,
+        p_payer: currentUser.full_name || 'المحاسب المالي',
+        p_notes: notes || null,
+      });
+
+      if (error) {
+        showSyncNotification(`❌ فشل تسجيل السداد: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      playOrderChime();
+      showSyncNotification(
+        `✅ تم قيد دفعة السداد (${data?.payment_number}) بمبلغ ${amount.toLocaleString()} ل.س في حساب المورد 💳`,
+        'success'
+      );
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ أثناء تسجيل السداد: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleCancelPO = async (poId: string, reason: string): Promise<boolean> => {
+    try {
+      if (currentUser.role === 'cashier' || currentUser.role === 'auditor') {
+        showSyncNotification('⚠️ غير مصرح لحسابك بإلغاء أوامر الشراء.', 'error');
+        return false;
+      }
+
+      const { data, error } = await supabase.rpc('cancel_purchase_order', {
+        p_po_id: poId,
+        p_reason: reason || 'إلغاء من قبل الإدارة',
+        p_user: currentUser.full_name || 'مدير المشتريات',
+      });
+
+      if (error) {
+        showSyncNotification(`❌ فشل إلغاء أمر الشراء: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      showSyncNotification('✅ تم إلغاء أمر الشراء وتعديل رصيد المورد بنجاح.', 'success');
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ أثناء الإلغاء: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleAddSupplier = async (supplierData: Partial<Supplier>): Promise<boolean> => {
+    try {
+      if (currentUser.role === 'cashier' || (currentUser.role as string) === 'courier') {
+        showSyncNotification('⚠️ غير مصرح لحسابك بإضافة موردين جدد.', 'error');
+        return false;
+      }
+
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert({
+          name_ar: supplierData.name_ar,
+          name_en: supplierData.name_en || supplierData.name_ar,
+          contact_person: supplierData.contact_person || 'مسؤول التوريد',
+          phone: supplierData.phone || '',
+          email: supplierData.email || '',
+          address: supplierData.address || '',
+          commercial_reg: supplierData.commercial_reg || null,
+          tax_number: supplierData.tax_number || null,
+          lead_time_days: supplierData.lead_time_days || 1,
+          payment_terms: supplierData.payment_terms || 'آجل 30 يوماً',
+          active_products_count: supplierData.active_products_count || 0,
+          balance: supplierData.balance || 0,
+          status: supplierData.status || 'active',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        showSyncNotification(`❌ فشل تسجيل المورد: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      showSyncNotification(`✅ تم تسجيل المورد المعتمد "${supplierData.name_ar}" بنجاح في قاعدة البيانات.`, 'success');
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ أثناء تسجيل المورد: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleApproveDraftProduct = async (productId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.rpc('approve_draft_product', {
+        p_product_id: productId,
+        p_user: currentUser.full_name || 'مدير الكتالوج',
+      });
+
+      if (error) {
+        showSyncNotification(`❌ فشل اعتماد الصنف: ${error.message}`, 'error');
+        return false;
+      }
+
+      await loadCloudData(false);
+      showSyncNotification('✅ تم اعتماد ونشر الصنف بنجاح، وأصبح متاحاً رسمياً لتطبيق العملاء 🌟', 'success');
+      return true;
+    } catch (err: any) {
+      showSyncNotification(`❌ خطأ أثناء الاعتماد: ${err.message}`, 'error');
+      return false;
     }
   };
 
@@ -1980,6 +2269,8 @@ export const App: React.FC = () => {
           )}
           {activeTab === 'branches' && (
             <BranchesPage
+              branches={branches}
+              onRefreshGlobalData={() => loadCloudData(true)}
               onOpenPosForBranch={(branchId) => {
                 setPosBranchId(branchId);
                 setActiveTab('pos_terminal');
@@ -2036,6 +2327,9 @@ export const App: React.FC = () => {
             <InventoryTransferPage
               darkStores={darkStores}
               products={products}
+              branches={branches}
+              currentUser={currentUser}
+              onRefresh={() => loadCloudData(true)}
             />
           )}
 
@@ -2106,7 +2400,15 @@ export const App: React.FC = () => {
               suppliers={suppliers}
               purchaseOrders={purchaseOrders}
               products={products}
-              onAddPO={(newPO) => setPurchaseOrders((prev) => [newPO, ...prev])}
+              branches={branches}
+              activeBranchId={activeBranchId}
+              currentUser={currentUser}
+              onAddPO={handleCreatePO}
+              onReceivePO={handleReceivePO}
+              onRecordPayment={handleRecordPayment}
+              onCancelPO={handleCancelPO}
+              onAddSupplier={handleAddSupplier}
+              onApproveDraftProduct={handleApproveDraftProduct}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
             />
@@ -2203,7 +2505,13 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeTab === 'corporate_b2b' && <CorporateB2BPage />}
+          {activeTab === 'corporate_b2b' && (
+            <CorporateB2BPage
+              currentUser={currentUser}
+              activeBranchId={activeBranchId}
+              products={products}
+            />
+          )}
 
           {['butcher_operations', 'cold_chain', 'live_shopping', 'marketplace_vendors', 'meal_kits', 'pharmacy', 'price_match', 'smart_lockers', 'zero_waste'].includes(activeTab) && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center max-w-2xl mx-auto my-12">

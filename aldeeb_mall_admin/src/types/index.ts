@@ -142,30 +142,71 @@ export interface InventoryMovementLog {
   id: string;
   timestamp: string;
   warehouse_id: string;
+  branch_id?: string;
   product_id: string;
+  product_name_ar?: string;
   barcode: string;
-  type: 'inbound_po' | 'transfer_out' | 'transfer_in' | 'damaged' | 'order_fulfillment' | 'adjustment';
+  type: 
+    | 'supply' 
+    | 'reservation' 
+    | 'release_reservation' 
+    | 'disbursement' 
+    | 'sale' 
+    | 'return' 
+    | 'damaged' 
+    | 'audit_reconciliation' 
+    | 'adjustment' 
+    | 'transfer_out' 
+    | 'transfer_in' 
+    | 'inbound_po' 
+    | 'order_fulfillment';
   quantity_change: number;
   resulting_available: number;
+  resulting_reserved?: number;
+  reference_type?: string;
   reference_id: string;
   notes?: string;
   performed_by: string;
+  actor_name?: string;
+  actor_role?: string;
+}
+
+export interface InventoryAuditRecord {
+  id: string;
+  audit_number: string;
+  branch_id: string;
+  product_id: string;
+  product_name_ar?: string;
+  system_quantity: number;
+  physical_quantity: number;
+  variance: number;
+  reason?: string;
+  auditor_name: string;
+  auditor_role: string;
+  status: string;
+  created_at: string;
 }
 
 export type TransferStatus = 
   | 'requested'          // طلب المناقلة الأولي
   | 'under_review'       // قيد المراجعة الفنية
   | 'approved'           // تم الاعتماد
-  | 'dispatched'         // تم الإرسال والشحن
+  | 'reserved'           // تم حجز بضاعة المصدر
+  | 'dispatched'         // تم الإرسال والشحن مع السائق
   | 'received'           // تم الاستلام الأولي
   | 'matched'            // تمت المطابقة وحصر التلف أو الفروقات
-  | 'closed';            // مغلق ومقيد في المخزون
+  | 'closed'             // مغلق ومقيد في المخزون
+  | 'cancelled'          // ملغي مع فك الحجز
+  | 'compensated';       // تمت تسوية التعويض للفروقات والتوالف
 
 export interface TransferOrder {
   id: string;
   manifest_number: string;
+  transfer_number?: string;
+  source_branch_id?: string;
   source_warehouse_id: string;
   source_warehouse_name: string;
+  destination_branch_id?: string;
   destination_warehouse_id: string;
   destination_warehouse_name: string;
   sku: string;
@@ -173,15 +214,23 @@ export interface TransferOrder {
   product_id?: string;
   product_name_ar: string;
   quantity_requested: number;
+  quantity_reserved?: number;
   quantity_dispatched: number;
   quantity_received: number;
+  quantity_received_good?: number;
   quantity_damaged: number;
+  discrepancy_quantity?: number;
   status: TransferStatus;
   assigned_driver?: string;
   requested_at: string;
   dispatched_at?: string;
   received_at?: string;
+  closed_at?: string;
+  cancelled_at?: string;
+  compensated_at?: string;
   discrepancy_reason?: string;
+  compensation_notes?: string;
+  notes?: string;
   audit_locked?: boolean;
 }
 
@@ -245,18 +294,39 @@ export interface Supplier {
   contact_person: string;
   phone: string;
   email: string;
+  address?: string;
+  commercial_reg?: string;
+  tax_number?: string;
   lead_time_days: number;
   payment_terms: string;
   active_products_count: number;
+  balance?: number;
   status: 'active' | 'under_review' | 'inactive';
 }
 
+export interface SupplierPayment {
+  id: string;
+  payment_number: string;
+  purchase_order_id: string;
+  supplier_id: string;
+  amount: number;
+  payment_method: 'sham_cash' | 'cash' | 'bank_transfer';
+  payment_reference?: string;
+  paid_by?: string;
+  notes?: string;
+  paid_at: string;
+}
+
 export interface PurchaseOrderItem {
+  id?: string;
+  purchase_order_id?: string;
   product_id?: string;
   name_ar: string;
   barcode?: string;
+  unit?: string;
   quantity_ordered: number;
   quantity_received: number;
+  quantity_damaged?: number;
   unit_cost: number;
   total_cost: number;
   is_new_draft_product?: boolean;
@@ -267,6 +337,8 @@ export interface PurchaseOrder {
   po_number: string;
   supplier_name: string;
   supplier_id?: string;
+  branch_id?: string;
+  branch_name?: string;
   total_items: number;
   total_cost: number;
   paid_amount?: number;
@@ -275,7 +347,10 @@ export interface PurchaseOrder {
   order_date: string;
   expected_arrival: string;
   items?: PurchaseOrderItem[];
+  payments?: SupplierPayment[];
   notes?: string;
+  cancellation_reason?: string;
+  created_by?: string;
 }
 
 export interface TicketMessageItem {
@@ -588,12 +663,13 @@ export type { InvoiceSettings } from '../lib/invoiceSettings';
 // ==========================================
 
 export type StaffRole = 
-  | 'super_admin'      // مسؤول نظام
-  | 'general_manager'  // مدير عام
-  | 'auditor'          // مدقق
-  | 'accountant'       // محاسب
-  | 'cashier'          // كاشير
-  | 'branch_manager';  // مدير فرع
+  | 'super_admin'        // مسؤول نظام
+  | 'general_manager'    // مدير عام
+  | 'auditor'            // مدقق
+  | 'accountant'         // محاسب
+  | 'cashier'            // كاشير
+  | 'branch_manager'     // مدير فرع
+  | 'warehouse_manager'; // مدير مستودعات ومشتريات
 
 export interface StaffMember {
   id: string;
@@ -657,6 +733,161 @@ export interface PasswordChangeRequest {
   reviewed_by?: string;
   reviewed_at?: string;
 }
+
+// ==============================================================================
+// Corporate B2B Sales & Enterprise Accounts Interfaces
+// ==============================================================================
+
+export type PaymentTerms = 'Cash' | 'Net-15' | 'Net-30' | 'Net-60';
+export type CorporateAccountStatus = 'active' | 'pending_kyc' | 'suspended' | 'overdue';
+export type QuotationStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'converted';
+export type CorporateInvoiceStatus = 'unpaid' | 'partially_paid' | 'paid' | 'overdue';
+export type CorporateReturnStatus = 'pending_approval' | 'approved' | 'rejected' | 'completed';
+
+export interface CorporateAccount {
+  id: string;
+  company_name: string;
+  cr_number: string;
+  vat_number: string;
+  contact_person: string;
+  phone: string;
+  email?: string;
+  city: string;
+  address?: string;
+  branch_id: string;
+  monthly_credit_limit: number;
+  current_balance: number;
+  payment_terms: PaymentTerms;
+  status: CorporateAccountStatus;
+  recurring_schedule?: string;
+  items_summary?: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CorporateQuotationItem {
+  id?: string;
+  quotation_id?: string;
+  product_id: string;
+  product_name_ar?: string;
+  product_name_en?: string;
+  barcode?: string;
+  quantity: number;
+  unit_price: number;
+  discount_percent: number;
+  final_unit_price: number;
+  total_price: number;
+  notes?: string;
+}
+
+export interface CorporateQuotation {
+  id: string;
+  quotation_number: string;
+  corporate_account_id: string;
+  corporate_account_name?: string;
+  branch_id: string;
+  subtotal: number;
+  discount_percent: number;
+  discount_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  status: QuotationStatus;
+  valid_until: string;
+  notes?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  items?: CorporateQuotationItem[];
+}
+
+export interface CorporateInvoiceItem {
+  id?: string;
+  invoice_id?: string;
+  product_id: string;
+  product_name_ar?: string;
+  product_name_en?: string;
+  barcode?: string;
+  quantity: number;
+  unit_price: number;
+  discount_percent: number;
+  final_unit_price: number;
+  total_price: number;
+}
+
+export interface CorporateInvoice {
+  id: string;
+  invoice_number: string;
+  quotation_id?: string;
+  corporate_account_id: string;
+  corporate_account_name?: string;
+  branch_id: string;
+  subtotal: number;
+  discount_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  payment_status: CorporateInvoiceStatus;
+  due_date: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  items?: CorporateInvoiceItem[];
+}
+
+export interface CorporatePayment {
+  id: string;
+  payment_number: string;
+  invoice_id: string;
+  invoice_number?: string;
+  corporate_account_id: string;
+  corporate_account_name?: string;
+  amount: number;
+  payment_method: 'bank_transfer' | 'check' | 'cash' | 'credit_card';
+  reference_number: string;
+  payment_date: string;
+  notes?: string;
+  received_by?: string;
+  created_at: string;
+}
+
+export interface CorporateReturnItem {
+  id?: string;
+  return_id?: string;
+  product_id: string;
+  product_name_ar?: string;
+  quantity: number;
+  unit_price: number;
+  total_refund: number;
+  reason?: string;
+}
+
+export interface CorporateReturn {
+  id: string;
+  return_number: string;
+  invoice_id: string;
+  invoice_number?: string;
+  corporate_account_id: string;
+  corporate_account_name?: string;
+  branch_id: string;
+  total_refund_amount: number;
+  status: CorporateReturnStatus;
+  reason: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  items?: CorporateReturnItem[];
+}
+
 
 
 

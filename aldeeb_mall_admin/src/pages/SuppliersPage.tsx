@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Building2, 
   FileText, 
@@ -20,97 +20,174 @@ import {
   Barcode,
   Layers,
   ArrowDownRight,
-  ShieldCheck
+  ShieldCheck,
+  Ban,
+  Search,
+  Filter,
+  RefreshCw,
+  MapPin,
+  FileCheck
 } from 'lucide-react';
-import { Supplier, PurchaseOrder, Product, PurchaseOrderItem } from '../types';
+import { Supplier, PurchaseOrder, Product, PurchaseOrderItem, Branch, StaffMember } from '../types';
 import { logAuditEvent } from '../lib/auditLogger';
 
 interface SuppliersPageProps {
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
   products: Product[];
-  onAddPO?: (po: PurchaseOrder) => void;
+  branches?: Branch[];
+  activeBranchId?: string;
+  currentUser?: StaffMember;
+  onAddPO?: (poData: {
+    supplier_id: string;
+    supplier_name: string;
+    branch_id: string;
+    expected_arrival: string;
+    notes: string;
+    items: any[];
+  }) => Promise<boolean>;
+  onReceivePO?: (
+    poId: string,
+    receipts: { item_id: string; quantity_received: number; quantity_damaged: number }[],
+    branchId: string
+  ) => Promise<boolean>;
+  onRecordPayment?: (
+    poId: string,
+    amount: number,
+    method: string,
+    reference: string,
+    notes?: string
+  ) => Promise<boolean>;
+  onCancelPO?: (poId: string, reason: string) => Promise<boolean>;
+  onAddSupplier?: (supplier: Partial<Supplier>) => Promise<boolean>;
+  onApproveDraftProduct?: (productId: string) => Promise<boolean>;
   onAddProduct?: (product: Product) => void;
   onUpdateProduct?: (product: Product) => void;
 }
 
 export const SuppliersPage: React.FC<SuppliersPageProps> = ({
-  suppliers,
-  purchaseOrders: initialPOs,
-  products,
+  suppliers = [],
+  purchaseOrders = [],
+  products = [],
+  branches = [],
+  activeBranchId,
+  currentUser,
   onAddPO,
+  onReceivePO,
+  onRecordPayment,
+  onCancelPO,
+  onAddSupplier,
+  onApproveDraftProduct,
   onAddProduct,
   onUpdateProduct,
 }) => {
-  // Enriched initial PO state with structured items and payment tracking
-  const [pos, setPOs] = useState<PurchaseOrder[]>(() => {
-    return initialPOs.map((po, idx) => ({
-      ...po,
-      paid_amount: po.paid_amount ?? (po.status === 'received' ? po.total_cost : idx % 2 === 0 ? po.total_cost * 0.5 : 0),
-      payment_status: po.payment_status ?? (po.status === 'received' ? 'paid' : idx % 2 === 0 ? 'partial' : 'unpaid'),
-      items: po.items && po.items.length > 0 ? po.items : [
-        {
-          product_id: products[idx % products.length]?.id,
-          name_ar: products[idx % products.length]?.name_ar || 'صنف توريد قياسي',
-          barcode: products[idx % products.length]?.barcode || '629100123456',
-          quantity_ordered: po.total_items,
-          quantity_received: po.status === 'received' ? po.total_items : 0,
-          unit_cost: Math.round(po.total_cost / Math.max(po.total_items, 1)),
-          total_cost: po.total_cost,
-        }
-      ]
-    }));
-  });
-
+  // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'orders' | 'suppliers' | 'drafts' | 'payables'>('orders');
-  
-  // New PO Modal States
-  const [showNewPOModal, setShowNewPOModal] = useState<boolean>(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<string>(suppliers[0]?.name_ar || '');
-  const [expectedArrival, setExpectedArrival] = useState<string>('غداً صباحاً (6:00 ص)');
-  const [poNotes, setPoNotes] = useState<string>('');
-  const [orderItems, setOrderItems] = useState<PurchaseOrderItem[]>([
-    {
-      product_id: products[0]?.id,
-      name_ar: products[0]?.name_ar || 'زيت زيتون بكر ممتاز',
-      barcode: products[0]?.barcode || '6291001001',
-      quantity_ordered: 100,
-      quantity_received: 0,
-      unit_cost: 25.0,
-      total_cost: 2500.0,
-    }
-  ]);
 
-  // Draft product inside PO state
+  // Filter States for Orders
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'partially_received' | 'received' | 'cancelled'>('all');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
+
+  // Modal Controls
+  const [showNewPOModal, setShowNewPOModal] = useState<boolean>(false);
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState<boolean>(false);
   const [showAddDraftModal, setShowAddDraftModal] = useState<boolean>(false);
+  const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
+  const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
+  const [cancellingPO, setCancellingPO] = useState<PurchaseOrder | null>(null);
+
+  // Loading States
+  const [isSubmittingPO, setIsSubmittingPO] = useState<boolean>(false);
+  const [isSubmittingReceiving, setIsSubmittingReceiving] = useState<boolean>(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
+  const [isSubmittingSupplier, setIsSubmittingSupplier] = useState<boolean>(false);
+  const [approvingDraftId, setApprovingDraftId] = useState<string | null>(null);
+
+  // New PO Form State
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || '');
+  const [targetBranchId, setTargetBranchId] = useState<string>(activeBranchId || branches[0]?.id || 'b-dam-01');
+  const [expectedArrival, setExpectedArrival] = useState<string>('غداً صباحاً (8:00 ص)');
+  const [poNotes, setPoNotes] = useState<string>('');
+  const [orderItems, setOrderItems] = useState<PurchaseOrderItem[]>([]);
+
+  // Draft Product Form State
   const [draftNameAr, setDraftNameAr] = useState<string>('');
+  const [draftNameEn, setDraftNameEn] = useState<string>('');
   const [draftBarcode, setDraftBarcode] = useState<string>('');
   const [draftUnit, setDraftUnit] = useState<string>('piece');
-  const [draftCost, setDraftCost] = useState<number>(15.0);
+  const [draftCost, setDraftCost] = useState<number>(20.0);
   const [draftQty, setDraftQty] = useState<number>(50);
 
-  // Receiving Sheet Modal
-  const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
+  // Receiving Sheet Form State
+  const [receivingBranchId, setReceivingBranchId] = useState<string>(activeBranchId || 'b-dam-01');
   const [receivingItems, setReceivingItems] = useState<{ [index: number]: { qtyReceived: number; damagedQty: number } }>({});
 
-  // Payment Modal
-  const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
+  // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'sham_cash' | 'bank_transfer'>('sham_cash');
+  const [paymentMethod, setPaymentMethod] = useState<'sham_cash' | 'cash' | 'bank_transfer'>('sham_cash');
   const [paymentReference, setPaymentReference] = useState<string>('');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
 
-  // Auto-alert products below safety stock
-  const lowStockProducts = products.filter((p) => p.stock_quantity <= 50);
+  // Cancellation Reason
+  const [cancellationReason, setCancellationReason] = useState<string>('');
 
-  // Draft / Incomplete products in catalog
-  const draftProducts = products.filter((p) => p.is_draft === true || p.status === 'incomplete_data');
+  // New Supplier Form State
+  const [newSupNameAr, setNewSupNameAr] = useState<string>('');
+  const [newSupNameEn, setNewSupNameEn] = useState<string>('');
+  const [newSupContact, setNewSupContact] = useState<string>('');
+  const [newSupPhone, setNewSupPhone] = useState<string>('');
+  const [newSupEmail, setNewSupEmail] = useState<string>('');
+  const [newSupAddress, setNewSupAddress] = useState<string>('');
+  const [newSupCommercialReg, setNewSupCommercialReg] = useState<string>('');
+  const [newSupTaxNum, setNewSupTaxNum] = useState<string>('');
+  const [newSupLeadDays, setNewSupLeadDays] = useState<number>(1);
+  const [newSupTerms, setNewSupTerms] = useState<string>('آجل 30 يوماً');
 
-  // Total financial calculations
-  const totalPurchasesCost = pos.reduce((sum, p) => sum + p.total_cost, 0);
-  const totalPaidCost = pos.reduce((sum, p) => sum + (p.paid_amount || 0), 0);
-  const totalOutstandingPayable = Math.max(0, totalPurchasesCost - totalPaidCost);
+  // Safety stock alert products
+  const lowStockProducts = useMemo(() => {
+    return products.filter((p) => p.stock_quantity <= 30 && p.is_active);
+  }, [products]);
 
-  // Add an existing catalog product to PO
+  // Draft products list
+  const draftProducts = useMemo(() => {
+    return products.filter((p) => p.is_draft === true || p.status === 'incomplete_data' || !p.is_active);
+  }, [products]);
+
+  // Financial Aggregations
+  const totalPurchasesCost = useMemo(() => {
+    return purchaseOrders.reduce((sum, p) => sum + (p.status !== 'cancelled' ? p.total_cost : 0), 0);
+  }, [purchaseOrders]);
+
+  const totalPaidCost = useMemo(() => {
+    return purchaseOrders.reduce((sum, p) => sum + (p.paid_amount || 0), 0);
+  }, [purchaseOrders]);
+
+  const totalOutstandingPayable = useMemo(() => {
+    return Math.max(0, totalPurchasesCost - totalPaidCost);
+  }, [totalPurchasesCost, totalPaidCost]);
+
+  // Filtered Orders
+  const filteredOrders = useMemo(() => {
+    return purchaseOrders.filter((po) => {
+      const matchesSearch = 
+        !searchQuery.trim() ||
+        po.po_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        po.supplier_name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || po.status === statusFilter;
+      const matchesBranch = selectedBranchFilter === 'all' || po.branch_id === selectedBranchFilter;
+
+      return matchesSearch && matchesStatus && matchesBranch;
+    });
+  }, [purchaseOrders, searchQuery, statusFilter, selectedBranchFilter]);
+
+  // ============================================================================
+  // Handlers
+  // ============================================================================
+
+  // Add existing product to PO
   const handleAddCatalogItemToPO = (productId: string) => {
     const prod = products.find((p) => p.id === productId);
     if (!prod) return;
@@ -119,8 +196,10 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
       product_id: prod.id,
       name_ar: prod.name_ar,
       barcode: prod.barcode,
+      unit: prod.unit || 'piece',
       quantity_ordered: 50,
       quantity_received: 0,
+      quantity_damaged: 0,
       unit_cost: unitCost,
       total_cost: unitCost * 50,
       is_new_draft_product: false,
@@ -128,22 +207,22 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
     setOrderItems((prev) => [...prev, newItem]);
   };
 
-  // Add a brand-new draft product directly in PO
+  // Add brand-new draft product inside PO
   const handleConfirmAddDraftItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!draftNameAr.trim()) return;
 
-    const draftId = `p-draft-${Date.now()}`;
-    const generatedBarcode = draftBarcode.trim() || `${Math.floor(629000000000 + Math.random() * 1000000000)}`;
+    const generatedBarcode = draftBarcode.trim() || `GEN-${Date.now().toString().slice(-9)}`;
     const cost = Number(draftCost);
     const qty = Number(draftQty);
 
     const newItem: PurchaseOrderItem = {
-      product_id: draftId,
       name_ar: draftNameAr.trim(),
       barcode: generatedBarcode,
+      unit: draftUnit,
       quantity_ordered: qty,
       quantity_received: 0,
+      quantity_damaged: 0,
       unit_cost: cost,
       total_cost: cost * qty,
       is_new_draft_product: true,
@@ -151,92 +230,50 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
 
     setOrderItems((prev) => [...prev, newItem]);
 
-    // Also register as a draft in catalog (invisible to customer app)
-    if (onAddProduct) {
-      const newDraftProduct: Product = {
-        id: draftId,
-        name_ar: draftNameAr.trim(),
-        name_en: draftNameAr.trim(),
-        brand: selectedSupplier,
-        barcode: generatedBarcode,
-        category_id: 'c1',
-        cost_price: cost,
-        price: Math.round(cost * 1.3),
-        discount_percent: 0,
-        unit: draftUnit,
-        weight_step: draftUnit === 'kg' ? 0.5 : 1.0,
-        stock_quantity: 0, // 0 until received at warehouse
-        images: ['https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'],
-        is_featured: false,
-        is_daily_deal: false,
-        rating: 4.8,
-        sales_count: 0,
-        is_draft: true,
-        status: 'incomplete_data',
-      };
-      onAddProduct(newDraftProduct);
-      logAuditEvent({
-        actor_id: 'admin-1',
-        actor_name: 'مدير المشتريات والمستودعات',
-        actor_role: 'procurement_manager',
-        action: 'DRAFT_PRODUCT_CREATED',
-        category: 'inventory',
-        details: `تم إنشاء مسودة صنف جديد (${draftNameAr}) عبر فاتورة شراء للمورد ${selectedSupplier} - محجوب عن التطبيق حتى الاعتماد.`,
-        target_id: draftId,
-      });
-    }
-
+    // Reset draft form
     setDraftNameAr('');
+    setDraftNameEn('');
     setDraftBarcode('');
     setDraftQty(50);
-    setDraftCost(15);
+    setDraftCost(20);
     setShowAddDraftModal(false);
   };
 
-  // Submit complete PO
-  const handleCreatePO = (e: React.FormEvent) => {
+  // Create PO Submit Handler
+  const handleCreatePOSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (orderItems.length === 0) return;
+    if (orderItems.length === 0 || isSubmittingPO) return;
 
-    const totalCost = orderItems.reduce((acc, item) => acc + item.total_cost, 0);
-    const totalItems = orderItems.reduce((acc, item) => acc + item.quantity_ordered, 0);
+    const matchedSupplier = suppliers.find((s) => s.id === selectedSupplierId) || suppliers[0];
+    if (!matchedSupplier) return;
 
-    const newPO: PurchaseOrder = {
-      id: `po-${Date.now()}`,
-      po_number: `PO-2026-${Math.floor(100 + Math.random() * 900)}`,
-      supplier_name: selectedSupplier,
-      total_items: totalItems,
-      total_cost: totalCost,
-      paid_amount: 0,
-      payment_status: 'unpaid',
-      status: 'sent',
-      order_date: new Date().toISOString().split('T')[0],
-      expected_arrival: expectedArrival,
-      items: orderItems,
-      notes: poNotes.trim() || undefined,
-    };
-
-    setPOs((prev) => [newPO, ...prev]);
-    if (onAddPO) onAddPO(newPO);
-
-    logAuditEvent({
-      actor_id: 'admin-1',
-      actor_name: 'مدير المشتريات والمستودعات',
-      actor_role: 'procurement_manager',
-      action: 'PO_CREATED',
-      category: 'inventory',
-      details: `إصدار أمر شراء جديد ${newPO.po_number} للمورد ${selectedSupplier} بإجمالي ${totalCost.toLocaleString()} ل.س وعدد أصناف ${orderItems.length}`,
-      target_id: newPO.id,
-    });
-
-    setShowNewPOModal(false);
-    setOrderItems([]);
-    setPoNotes('');
+    setIsSubmittingPO(true);
+    try {
+      if (onAddPO) {
+        const payload = {
+          supplier_id: matchedSupplier.id,
+          supplier_name: matchedSupplier.name_ar,
+          branch_id: targetBranchId,
+          expected_arrival: expectedArrival,
+          notes: poNotes.trim(),
+          items: orderItems,
+        };
+        const ok = await onAddPO(payload);
+        if (ok) {
+          setShowNewPOModal(false);
+          setOrderItems([]);
+          setPoNotes('');
+        }
+      }
+    } finally {
+      setIsSubmittingPO(false);
+    }
   };
 
   // Open Receiving Modal
   const handleOpenReceivingModal = (po: PurchaseOrder) => {
     setReceivingPO(po);
+    setReceivingBranchId(po.branch_id || activeBranchId || 'b-dam-01');
     const initialMap: { [index: number]: { qtyReceived: number; damagedQty: number } } = {};
     (po.items || []).forEach((item, index) => {
       const remaining = Math.max(0, item.quantity_ordered - item.quantity_received);
@@ -262,70 +299,35 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
     setReceivingItems(filled);
   };
 
-  // Confirm Receiving (Partial or Full)
-  const handleConfirmReceiving = () => {
-    if (!receivingPO || !receivingPO.items) return;
+  // Confirm Receiving (Calls Server RPC)
+  const handleConfirmReceivingSubmit = async () => {
+    if (!receivingPO || !receivingPO.items || isSubmittingReceiving) return;
 
-    let allFulfilled = true;
-    let anyReceived = false;
+    setIsSubmittingReceiving(true);
+    try {
+      const receiptsPayload = receivingPO.items.map((item, index) => {
+        const entry = receivingItems[index] || { qtyReceived: 0, damagedQty: 0 };
+        return {
+          item_id: item.id || '',
+          quantity_received: Number(entry.qtyReceived) || 0,
+          quantity_damaged: Number(entry.damagedQty) || 0,
+        };
+      }).filter((r) => r.quantity_received > 0);
 
-    const updatedItems: PurchaseOrderItem[] = receivingPO.items.map((item, index) => {
-      const entry = receivingItems[index] || { qtyReceived: 0, damagedQty: 0 };
-      const newlyReceived = Number(entry.qtyReceived) || 0;
-      const damaged = Number(entry.damagedQty) || 0;
-      const netGoodReceived = Math.max(0, newlyReceived - damaged);
-
-      const totalReceivedNow = item.quantity_received + netGoodReceived;
-      if (totalReceivedNow < item.quantity_ordered) {
-        allFulfilled = false;
+      if (receiptsPayload.length === 0) {
+        alert('يرجى إدخال كميات مستلمة أكبر من صفر لإتمام محضر الاستلام.');
+        return;
       }
-      if (newlyReceived > 0) {
-        anyReceived = true;
-      }
 
-      // If product exists in catalog, update its stock!
-      if (netGoodReceived > 0 && onUpdateProduct && item.product_id) {
-        const prod = products.find((p) => p.id === item.product_id);
-        if (prod) {
-          onUpdateProduct({
-            ...prod,
-            stock_quantity: prod.stock_quantity + netGoodReceived,
-            cost_price: item.unit_cost,
-          });
+      if (onReceivePO) {
+        const ok = await onReceivePO(receivingPO.id, receiptsPayload, receivingBranchId);
+        if (ok) {
+          setReceivingPO(null);
         }
       }
-
-      return {
-        ...item,
-        quantity_received: totalReceivedNow,
-      };
-    });
-
-    const newStatus = allFulfilled ? 'received' : anyReceived ? 'partially_received' : receivingPO.status;
-
-    setPOs((prev) =>
-      prev.map((p) =>
-        p.id === receivingPO.id
-          ? {
-              ...p,
-              items: updatedItems,
-              status: newStatus,
-            }
-          : p
-      )
-    );
-
-    logAuditEvent({
-      actor_id: 'admin-1',
-      actor_name: 'أمين المستودع الرئيسي',
-      actor_role: 'warehouse_keeper',
-      action: 'PO_RECEIVE',
-      category: 'inventory',
-      details: `تم ${allFulfilled ? 'الاستلام الكامل' : 'الاستلام الجزئي'} لأمر الشراء ${receivingPO.po_number} وتحديث المخزون الفعلي.`,
-      target_id: receivingPO.id,
-    });
-
-    setReceivingPO(null);
+    } finally {
+      setIsSubmittingReceiving(false);
+    }
   };
 
   // Open Payment Modal
@@ -334,63 +336,118 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
     const balance = Math.max(0, po.total_cost - (po.paid_amount || 0));
     setPaymentAmount(balance);
     setPaymentReference('');
+    setPaymentNotes('');
   };
 
-  // Confirm Payment
-  const handleConfirmPayment = () => {
-    if (!payingPO) return;
-    const currentPaid = payingPO.paid_amount || 0;
-    const newPaidTotal = currentPaid + Number(paymentAmount);
-    const isFullyPaid = newPaidTotal >= payingPO.total_cost;
-    const status = isFullyPaid ? 'paid' : newPaidTotal > 0 ? 'partial' : 'unpaid';
+  // Confirm Payment (Calls Server RPC)
+  const handleConfirmPaymentSubmit = async () => {
+    if (!payingPO || isSubmittingPayment) return;
+    if (paymentAmount <= 0) {
+      alert('يجب أن يكون مبلغ الدفعة أكبر من صفر.');
+      return;
+    }
 
-    setPOs((prev) =>
-      prev.map((p) =>
-        p.id === payingPO.id
-          ? {
-              ...p,
-              paid_amount: newPaidTotal,
-              payment_status: status,
-            }
-          : p
-      )
-    );
-
-    logAuditEvent({
-      actor_id: 'admin-1',
-      actor_name: 'المحاسب المالي',
-      actor_role: 'accountant',
-      action: 'SUPPLIER_PAYMENT',
-      category: 'financial',
-      details: `تسديد دفعة بقيمة ${paymentAmount.toLocaleString()} ل.س للمورد ${payingPO.supplier_name} عبر ${paymentMethod === 'sham_cash' ? 'شام كاش' : paymentMethod === 'cash' ? 'نقداً' : 'تحويل بنكي'}. المرجع: ${paymentReference || 'بدون'}`,
-      target_id: payingPO.id,
-    });
-
-    setPayingPO(null);
+    setIsSubmittingPayment(true);
+    try {
+      if (onRecordPayment) {
+        const ok = await onRecordPayment(
+          payingPO.id,
+          Number(paymentAmount),
+          paymentMethod,
+          paymentReference.trim(),
+          paymentNotes.trim()
+        );
+        if (ok) {
+          setPayingPO(null);
+        }
+      }
+    } finally {
+      setIsSubmittingPayment(false);
+    }
   };
 
-  // Approve Draft Product for customer application
-  const handleApproveDraft = (prod: Product) => {
-    if (!onUpdateProduct) return;
-    onUpdateProduct({
-      ...prod,
-      is_draft: false,
-      status: 'published',
-    });
-    logAuditEvent({
-      actor_id: 'admin-1',
-      actor_name: 'مدير العمليات التجارية',
-      actor_role: 'catalog_manager',
-      action: 'DRAFT_PRODUCT_APPROVED',
-      category: 'inventory',
-      details: `تم اعتماد ونشر الصنف المسودة (${prod.name_ar}) ليظهر رسمياً في تطبيق العملاء.`,
-      target_id: prod.id,
-    });
+  // Open Cancel Modal
+  const handleOpenCancelModal = (po: PurchaseOrder) => {
+    setCancellingPO(po);
+    setCancellationReason('');
+  };
+
+  // Confirm Cancellation (Calls Server RPC)
+  const handleConfirmCancelSubmit = async () => {
+    if (!cancellingPO || isSubmittingCancel) return;
+    if (!cancellationReason.trim()) {
+      alert('يرجى ذكر سبب إلغاء أمر الشراء لتوثيقه في السجل الرقابي.');
+      return;
+    }
+
+    setIsSubmittingCancel(true);
+    try {
+      if (onCancelPO) {
+        const ok = await onCancelPO(cancellingPO.id, cancellationReason.trim());
+        if (ok) {
+          setCancellingPO(null);
+        }
+      }
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
+
+  // Approve Draft Product for Customer App (Calls Server RPC)
+  const handleApproveDraft = async (prodId: string) => {
+    if (approvingDraftId) return;
+    setApprovingDraftId(prodId);
+    try {
+      if (onApproveDraftProduct) {
+        await onApproveDraftProduct(prodId);
+      }
+    } finally {
+      setApprovingDraftId(null);
+    }
+  };
+
+  // Add New Certified Supplier Submit
+  const handleAddSupplierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSupNameAr.trim() || isSubmittingSupplier) return;
+
+    setIsSubmittingSupplier(true);
+    try {
+      if (onAddSupplier) {
+        const ok = await onAddSupplier({
+          name_ar: newSupNameAr.trim(),
+          name_en: newSupNameEn.trim() || newSupNameAr.trim(),
+          contact_person: newSupContact.trim() || 'مسؤول التوريد',
+          phone: newSupPhone.trim(),
+          email: newSupEmail.trim(),
+          address: newSupAddress.trim(),
+          commercial_reg: newSupCommercialReg.trim(),
+          tax_number: newSupTaxNum.trim(),
+          lead_time_days: Number(newSupLeadDays) || 1,
+          payment_terms: newSupTerms,
+          balance: 0,
+          status: 'active',
+        });
+        if (ok) {
+          setShowAddSupplierModal(false);
+          setNewSupNameAr('');
+          setNewSupNameEn('');
+          setNewSupContact('');
+          setNewSupPhone('');
+          setNewSupEmail('');
+          setNewSupAddress('');
+          setNewSupCommercialReg('');
+          setNewSupTaxNum('');
+        }
+      }
+    } finally {
+      setIsSubmittingSupplier(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Automated Stock Alert Banner */}
+      {/* Automated Stock Alert Banner */}
       {lowStockProducts.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -402,7 +459,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 تنبيه تشغيلي: أصناف تقترب من حد الأمان الأدنى للمخزون ({lowStockProducts.length} أصناف)
               </h4>
               <p className="text-xs text-amber-700 mt-0.5">
-                مثل: {lowStockProducts.map((p) => p.name_ar).slice(0, 3).join('، ')} بحاجة إلى طلب توريد فوري.
+                مثل: {lowStockProducts.map((p) => p.name_ar).slice(0, 3).join('، ')} بحاجة إلى طلب توريد فوري للمستودع.
               </p>
             </div>
           </div>
@@ -413,8 +470,10 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                   product_id: p.id,
                   name_ar: p.name_ar,
                   barcode: p.barcode,
+                  unit: p.unit || 'piece',
                   quantity_ordered: 100,
                   quantity_received: 0,
+                  quantity_damaged: 0,
                   unit_cost: p.cost_price || Math.round(p.price * 0.7),
                   total_cost: (p.cost_price || Math.round(p.price * 0.7)) * 100,
                 }))
@@ -424,12 +483,12 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-sm flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            توليد أمر توريد تلقائي (Auto-PO)
+            توليد أمر توريد تلقائي للأصناف الناقصة
           </button>
         </div>
       )}
 
-      {/* Tabs & Controls */}
+      {/* Navigation Tabs & Primary CTAs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-3">
         <div className="flex flex-wrap gap-2">
           <button
@@ -440,7 +499,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            أوامر الشراء والتوريد ({pos.length})
+            أوامر الشراء والتوريد ({purchaseOrders.length})
           </button>
           
           <button
@@ -452,7 +511,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>مسودات الأصناف قيد الاكتمال</span>
+            <span>مسودات الأصناف قيد الاعتماد</span>
             {draftProducts.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${activeTab === 'drafts' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700'}`}>
                 {draftProducts.length}
@@ -484,146 +543,247 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
           </button>
         </div>
 
-        <button
-          onClick={() => {
-            setOrderItems([
-              {
-                product_id: products[0]?.id,
-                name_ar: products[0]?.name_ar || 'صنف توريد',
-                barcode: products[0]?.barcode,
-                quantity_ordered: 100,
-                quantity_received: 0,
-                unit_cost: 20.0,
-                total_cost: 2000.0,
+        <div className="flex gap-2">
+          {activeTab === 'suppliers' && (
+            <button
+              onClick={() => setShowAddSupplierModal(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              + إضافة مورد معتمد جديد
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              if (products.length > 0) {
+                setOrderItems([
+                  {
+                    product_id: products[0]?.id,
+                    name_ar: products[0]?.name_ar || 'صنف توريد',
+                    barcode: products[0]?.barcode,
+                    unit: products[0]?.unit || 'piece',
+                    quantity_ordered: 100,
+                    quantity_received: 0,
+                    quantity_damaged: 0,
+                    unit_cost: products[0]?.cost_price || Math.round(products[0]?.price * 0.75) || 20.0,
+                    total_cost: (products[0]?.cost_price || Math.round(products[0]?.price * 0.75) || 20.0) * 100,
+                  }
+                ]);
               }
-            ]);
-            setShowNewPOModal(true);
-          }}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          إنشاء أمر شراء جديد
-        </button>
+              setShowNewPOModal(true);
+            }}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            إصدار أمر شراء وتوريد جديد
+          </button>
+        </div>
       </div>
 
       {/* TAB 1: Purchase Orders List */}
       {activeTab === 'orders' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
-                <tr>
-                  <th className="p-4">رقم الأمر</th>
-                  <th className="p-4">المورد</th>
-                  <th className="p-4">الأصناف والكميات</th>
-                  <th className="p-4">التكلفة والمدفوع</th>
-                  <th className="p-4">تاريخ الطلب والوصول</th>
-                  <th className="p-4">حالة التوريد</th>
-                  <th className="p-4">حالة السداد</th>
-                  <th className="p-4 text-center">إجراءات المستودع والمالية</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {pos.map((po) => {
-                  const paid = po.paid_amount || 0;
-                  const balance = Math.max(0, po.total_cost - paid);
-                  return (
-                    <tr key={po.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="p-4 font-mono font-bold text-blue-600">{po.po_number}</td>
-                      <td className="p-4 font-bold text-slate-800">{po.supplier_name}</td>
-                      <td className="p-4">
-                        <div className="font-bold text-slate-900">{po.total_items} قطعة</div>
-                        <div className="text-[11px] text-slate-400">
-                          {po.items ? `${po.items.length} أصناف فرعية` : 'تفاصيل توريد عامة'}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-mono font-bold text-slate-900">{po.total_cost.toLocaleString()} ل.س</div>
-                        <div className="text-[11px] text-slate-500">
-                          مسدد: <span className="font-mono text-emerald-700">{paid.toLocaleString()} ل.س</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-500">
-                        <div>{po.order_date}</div>
-                        <div className="text-[11px] font-semibold text-slate-700 mt-0.5">{po.expected_arrival}</div>
-                      </td>
-                      <td className="p-4">
-                        {po.status === 'received' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            مستلم بالكامل بالمستودع
-                          </span>
-                        )}
-                        {po.status === 'partially_received' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                            <PackageCheck className="w-3.5 h-3.5" />
-                            مستلم جزئياً
-                          </span>
-                        )}
-                        {po.status === 'sent' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                            <Clock className="w-3.5 h-3.5" />
-                            بانتظار وصول البضاعة
-                          </span>
-                        )}
-                        {po.status === 'draft' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded-full">
-                            مسودة داخلية
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        {po.payment_status === 'paid' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            <Check className="w-3 h-3" />
-                            مسدد بالكامل
-                          </span>
-                        )}
-                        {po.payment_status === 'partial' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                            دفعة جزئية (متبقي {balance.toLocaleString()})
-                          </span>
-                        )}
-                        {po.payment_status === 'unpaid' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                            مستحق غير مسدد
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {(po.status === 'sent' || po.status === 'partially_received') && (
-                            <button
-                              onClick={() => handleOpenReceivingModal(po)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-sm transition-colors flex items-center gap-1"
-                            >
-                              <PackageCheck className="w-3.5 h-3.5" />
-                              استلام بالمستودع
-                            </button>
-                          )}
-                          {po.payment_status !== 'paid' && (
-                            <button
-                              onClick={() => handleOpenPaymentModal(po)}
-                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
-                              title="تسجيل دفعة سداد للمورد"
-                            >
-                              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                              سداد
-                            </button>
-                          )}
-                          {po.status === 'received' && po.payment_status === 'paid' && (
-                            <span className="text-slate-400 font-medium text-[11px] flex items-center gap-1">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                              مغلق ومسدد
-                            </span>
-                          )}
-                        </div>
+        <div className="space-y-4">
+          {/* Filters Bar */}
+          <div className="bg-white p-3 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
+            <div className="flex flex-1 items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="بحث برقم أمر الشراء (PO-2026-XXXX) أو اسم المورد..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none text-xs w-full focus:outline-hidden"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="bg-transparent text-xs font-bold text-slate-700 border-none focus:outline-hidden"
+                >
+                  <option value="all">كافة الحالات</option>
+                  <option value="sent">بانتظار وصول البضاعة</option>
+                  <option value="partially_received">مستلم جزئياً</option>
+                  <option value="received">مستلم بالكامل</option>
+                  <option value="cancelled">ملغى</option>
+                </select>
+              </div>
+
+              {branches.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                  <select
+                    value={selectedBranchFilter}
+                    onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-slate-700 border-none focus:outline-hidden"
+                  >
+                    <option value="all">كافة الفروع والمستودعات</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name_ar}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Orders Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                  <tr>
+                    <th className="p-4">رقم الأمر</th>
+                    <th className="p-4">المورد والفرع المستلم</th>
+                    <th className="p-4">الأصناف والكميات</th>
+                    <th className="p-4">التكلفة والمدفوع</th>
+                    <th className="p-4">تاريخ الطلب والوصول</th>
+                    <th className="p-4">حالة التوريد</th>
+                    <th className="p-4">حالة السداد</th>
+                    <th className="p-4 text-center">إجراءات المستودع والمالية</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                        لا توجد أوامر شراء مطابقة لمعايير البحث الحالية.
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredOrders.map((po) => {
+                      const paid = po.paid_amount || 0;
+                      const balance = Math.max(0, po.total_cost - paid);
+                      const hasReceipts = (po.items || []).some((it) => it.quantity_received > 0);
+                      const canCancel = po.status === 'sent' && !hasReceipts;
+
+                      return (
+                        <tr key={po.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="p-4 font-mono font-bold text-blue-600">{po.po_number}</td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-800">{po.supplier_name}</div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              <span>{po.branch_name || branches.find((b) => b.id === po.branch_id)?.name_ar || 'الفرع الرئيسي'}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-900">{po.total_items} وحدة</div>
+                            <div className="text-[11px] text-slate-400">
+                              {po.items ? `${po.items.length} أصناف فرعية` : 'تفاصيل توريد'}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-mono font-bold text-slate-900">{po.total_cost.toLocaleString()} ل.س</div>
+                            <div className="text-[11px] text-slate-500">
+                              مسدد: <span className="font-mono text-emerald-700">{paid.toLocaleString()} ل.س</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-slate-500">
+                            <div>{po.order_date}</div>
+                            <div className="text-[11px] font-semibold text-slate-700 mt-0.5">{po.expected_arrival}</div>
+                          </td>
+                          <td className="p-4">
+                            {po.status === 'received' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                مستلم بالكامل بالمستودع
+                              </span>
+                            )}
+                            {po.status === 'partially_received' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                <PackageCheck className="w-3.5 h-3.5" />
+                                مستلم جزئياً
+                              </span>
+                            )}
+                            {po.status === 'sent' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                                <Clock className="w-3.5 h-3.5" />
+                                بانتظار وصول البضاعة
+                              </span>
+                            )}
+                            {po.status === 'cancelled' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                                <Ban className="w-3.5 h-3.5" />
+                                أمر ملغى
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            {po.payment_status === 'paid' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                <Check className="w-3 h-3" />
+                                مسدد بالكامل
+                              </span>
+                            )}
+                            {po.payment_status === 'partial' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                دفعة جزئية (متبقي {balance.toLocaleString()})
+                              </span>
+                            )}
+                            {po.payment_status === 'unpaid' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                مستحق غير مسدد
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {(po.status === 'sent' || po.status === 'partially_received') && (
+                                <button
+                                  onClick={() => handleOpenReceivingModal(po)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
+                                >
+                                  <PackageCheck className="w-3.5 h-3.5" />
+                                  استلام بالمستودع
+                                </button>
+                              )}
+                              {po.payment_status !== 'paid' && po.status !== 'cancelled' && (
+                                <button
+                                  onClick={() => handleOpenPaymentModal(po)}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                                  title="تسجيل دفعة سداد للمورد"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                  سداد
+                                </button>
+                              )}
+                              {canCancel && (
+                                <button
+                                  onClick={() => handleOpenCancelModal(po)}
+                                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                                  title="إلغاء أمر الشراء قبل الاستلام"
+                                >
+                                  <Ban className="w-3.5 h-3.5 text-rose-600" />
+                                  إلغاء
+                                </button>
+                              )}
+                              {po.status === 'received' && po.payment_status === 'paid' && (
+                                <span className="text-slate-400 font-medium text-[11px] flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  مغلق ومسدد
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -635,10 +795,10 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
             <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-indigo-900 text-sm">
-                نظام حماية تجربة العملاء: مسودات الأصناف قيد الاكتمال
+                نظام حماية تجربة العملاء: مسودات الأصناف قيد الاعتماد
               </h4>
               <p className="text-xs text-indigo-700 mt-1">
-                أي منتج جديد يُضاف عبر فواتير الشراء والتوريد يتم قيده بدقة في التكاليف والمخزون وحساب المورد، ولكنه <strong>محجوب بنسبة 100% عن تطبيق العملاء</strong> كمسودة (`incomplete_data`) حتى يقوم مدير التسويق أو القسم بمراجعة الباركود، رفع الصور الحقيقية، والضغط على زر "اعتماد ونشر".
+                أي منتج جديد يُضاف عبر فواتير الشراء والتوريد يتم قيده بدقة في التكاليف والمخزون وحساب المورد، ولكنه <strong>محجوب بنسبة 100% عن تطبيق العملاء</strong> كمسودة (`incomplete_data` / `is_draft: true`) حتى يقوم مسؤول الكتالوج بالضغط على زر "اعتماد ونشر".
               </p>
             </div>
           </div>
@@ -673,10 +833,15 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                   </div>
 
                   <button
-                    onClick={() => handleApproveDraft(prod)}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                    onClick={() => handleApproveDraft(prod.id)}
+                    disabled={approvingDraftId === prod.id}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-1.5"
                   >
-                    <Check className="w-3.5 h-3.5" />
+                    {approvingDraftId === prod.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
                     اعتماد ونشر الصنف لتطبيق العملاء
                   </button>
                 </div>
@@ -696,7 +861,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
               <div className="text-2xl font-black text-slate-900 font-mono mt-1">
                 {totalPurchasesCost.toLocaleString()} ل.س
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">عبر كافة أوامر الشراء المسجلة</div>
+              <div className="text-[11px] text-slate-400 mt-1">عبر كافة أوامر الشراء المعتمدة</div>
             </div>
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
@@ -721,7 +886,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
           {/* Outstanding Bills Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-200 bg-slate-50 font-bold text-slate-800 text-xs">
-              جدول التوريدات والمستحقات قيد التسديد
+              جدول فواتير الموردين والمستحقات قيد السداد
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
@@ -737,7 +902,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pos.map((po) => {
+                  {purchaseOrders.filter((po) => po.status !== 'cancelled').map((po) => {
                     const paid = po.paid_amount || 0;
                     const balance = Math.max(0, po.total_cost - paid);
                     return (
@@ -776,7 +941,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
 
       {/* TAB 4: Suppliers List */}
       {activeTab === 'suppliers' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {suppliers.map((sup) => (
             <div key={sup.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
               <div className="flex items-start justify-between">
@@ -804,14 +969,18 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-slate-50 p-2 rounded-lg">
                   <div className="font-bold text-slate-800">{sup.lead_time_days} يوم</div>
-                  <div className="text-slate-400 text-[10px]">زمن التوريد (Lead Time)</div>
+                  <div className="text-slate-400 text-[10px]">زمن التوريد</div>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg">
                   <div className="font-bold text-slate-800">{sup.active_products_count}</div>
                   <div className="text-slate-400 text-[10px]">أصناف مسجلة</div>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-lg">
+                  <div className="font-bold font-mono text-rose-700">{(sup.balance || 0).toLocaleString()}</div>
+                  <div className="text-slate-400 text-[10px]">الرصيد المستحق</div>
                 </div>
               </div>
             </div>
@@ -819,7 +988,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
         </div>
       )}
 
-      {/* MODAL: Create New Purchase Order */}
+      {/* MODAL 1: Create New Purchase Order */}
       {showNewPOModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -828,18 +997,32 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
               إصدار أمر شراء وتوريد جديد للمستودع
             </h3>
 
-            <form onSubmit={handleCreatePO} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreatePOSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">المورد المعتمد</label>
+                  <label className="block font-bold text-slate-700 mb-1">المورد المعتمد *</label>
                   <select
-                    value={selectedSupplier}
-                    onChange={(e) => setSelectedSupplier(e.target.value)}
+                    value={selectedSupplierId}
+                    onChange={(e) => setSelectedSupplierId(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
                   >
                     {suppliers.map((s) => (
-                      <option key={s.id} value={s.name_ar}>
+                      <option key={s.id} value={s.id}>
                         {s.name_ar}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">فرع / مستودع الاستلام *</label>
+                  <select
+                    value={targetBranchId}
+                    onChange={(e) => setTargetBranchId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name_ar}
                       </option>
                     ))}
                   </select>
@@ -899,58 +1082,67 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {orderItems.map((item, idx) => (
-                        <tr key={idx}>
-                          <td className="p-2.5 font-bold text-slate-800">
-                            {item.name_ar}
-                            {item.is_new_draft_product && (
-                              <span className="mr-1.5 text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-extrabold">
-                                مسودة جديدة
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2.5">
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity_ordered}
-                              onChange={(e) => {
-                                const q = Number(e.target.value);
-                                setOrderItems((prev) =>
-                                  prev.map((it, i) => (i === idx ? { ...it, quantity_ordered: q, total_cost: q * it.unit_cost } : it))
-                                );
-                              }}
-                              className="w-20 px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono"
-                            />
-                          </td>
-                          <td className="p-2.5">
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={item.unit_cost}
-                              onChange={(e) => {
-                                const c = Number(e.target.value);
-                                setOrderItems((prev) =>
-                                  prev.map((it, i) => (i === idx ? { ...it, unit_cost: c, total_cost: c * it.quantity_ordered } : it))
-                                );
-                              }}
-                              className="w-20 px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono"
-                            />
-                          </td>
-                          <td className="p-2.5 font-mono font-bold text-slate-900">
-                            {item.total_cost.toLocaleString()} ل.س
-                          </td>
-                          <td className="p-2.5 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setOrderItems(orderItems.filter((_, i) => i !== idx))}
-                              className="text-slate-400 hover:text-rose-600 p-1"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                      {orderItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-slate-400">
+                            لم يتم إضافة أي أصناف بعد. اختر صنفاً من الكتالوج أو أضف مسودة جديدة.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        orderItems.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-2.5 font-bold text-slate-800">
+                              {item.name_ar}
+                              {item.is_new_draft_product && (
+                                <span className="mr-1.5 text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-extrabold">
+                                  مسودة جديدة
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5">
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity_ordered}
+                                onChange={(e) => {
+                                  const q = Math.max(1, Number(e.target.value));
+                                  setOrderItems((prev) =>
+                                    prev.map((it, i) => (i === idx ? { ...it, quantity_ordered: q, total_cost: q * it.unit_cost } : it))
+                                  );
+                                }}
+                                className="w-20 px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono"
+                              />
+                            </td>
+                            <td className="p-2.5">
+                              <input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                value={item.unit_cost}
+                                onChange={(e) => {
+                                  const c = Math.max(0, Number(e.target.value));
+                                  setOrderItems((prev) =>
+                                    prev.map((it, i) => (i === idx ? { ...it, unit_cost: c, total_cost: c * it.quantity_ordered } : it))
+                                  );
+                                }}
+                                className="w-20 px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono"
+                              />
+                            </td>
+                            <td className="p-2.5 font-mono font-bold text-slate-900">
+                              {item.total_cost.toLocaleString()} ل.س
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setOrderItems(orderItems.filter((_, i) => i !== idx))}
+                                className="text-slate-400 hover:text-rose-600 p-1"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -984,10 +1176,14 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={orderItems.length === 0}
+                  disabled={orderItems.length === 0 || isSubmittingPO}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-blue-600/30 flex items-center gap-1.5"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  {isSubmittingPO ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
                   إرسال أمر الشراء الآن
                 </button>
               </div>
@@ -1043,6 +1239,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                     <option value="kg">كيلوغرام (kg)</option>
                     <option value="pack">علبة (Pack)</option>
                     <option value="carton">كرتون (Carton)</option>
+                    <option value="bottle">قنينة (Bottle)</option>
                   </select>
                 </div>
               </div>
@@ -1053,6 +1250,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                   <input
                     type="number"
                     step="0.5"
+                    min="0"
                     required
                     value={draftCost}
                     onChange={(e) => setDraftCost(Number(e.target.value))}
@@ -1092,10 +1290,10 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
         </div>
       )}
 
-      {/* MODAL: Receiving Sheet (Partial / Full Receiving) */}
+      {/* MODAL 2: Receiving Sheet (Partial / Full Receiving) */}
       {receivingPO && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -1116,6 +1314,21 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
             </div>
 
             <div className="space-y-3">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">مستودع الفرع المستلم:</span>
+                <select
+                  value={receivingBranchId}
+                  onChange={(e) => setReceivingBranchId(e.target.value)}
+                  className="px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name_ar}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full text-right text-xs">
                   <thead className="bg-slate-50 text-slate-500 font-bold">
@@ -1125,14 +1338,21 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                       <th className="p-2.5 text-center">المستلم سابقاً</th>
                       <th className="p-2.5 text-center">الكمية المستلمة الآن</th>
                       <th className="p-2.5 text-center">تالف/مرفوض</th>
+                      <th className="p-2.5 text-center">الصافي للمخزون</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {(receivingPO.items || []).map((item, idx) => {
                       const entry = receivingItems[idx] || { qtyReceived: 0, damagedQty: 0 };
+                      const netGood = Math.max(0, (entry.qtyReceived || 0) - (entry.damagedQty || 0));
+                      const remaining = Math.max(0, item.quantity_ordered - item.quantity_received);
+
                       return (
                         <tr key={idx}>
-                          <td className="p-2.5 font-bold text-slate-800">{item.name_ar}</td>
+                          <td className="p-2.5 font-bold text-slate-800">
+                            <div>{item.name_ar}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">متبقي: {remaining}</div>
+                          </td>
                           <td className="p-2.5 text-center font-bold">{item.quantity_ordered}</td>
                           <td className="p-2.5 text-center text-slate-500">{item.quantity_received}</td>
                           <td className="p-2.5 text-center">
@@ -1154,6 +1374,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                             <input
                               type="number"
                               min="0"
+                              max={entry.qtyReceived}
                               value={entry.damagedQty}
                               onChange={(e) => {
                                 const val = Number(e.target.value);
@@ -1165,6 +1386,9 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                               className="w-14 px-2 py-1 bg-rose-50 border border-rose-300 rounded font-bold font-mono text-center text-rose-800"
                             />
                           </td>
+                          <td className="p-2.5 text-center font-mono font-bold text-emerald-700">
+                            +{netGood}
+                          </td>
                         </tr>
                       );
                     })}
@@ -1172,10 +1396,10 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 </table>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 flex items-center gap-2">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
-                  عند تأكيد الاستلام، سيتم تحديث أرصدة المستودع الفعلية مباشرة وقيد الكميات الصالحة في رصيد المتجر.
+                  سيتم قيد الأصناف الصافية فوراً في المخزون الفعلي، وإدراج سجل حركة توريد معتمد (Audit Transaction).
                 </span>
               </div>
             </div>
@@ -1190,10 +1414,15 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleConfirmReceiving}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 text-xs flex items-center gap-1.5"
+                onClick={handleConfirmReceivingSubmit}
+                disabled={isSubmittingReceiving}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 text-xs flex items-center gap-1.5"
               >
-                <Check className="w-4 h-4" />
+                {isSubmittingReceiving ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
                 تأكيد الاستلام وقيد الرصيد
               </button>
             </div>
@@ -1201,7 +1430,7 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
         </div>
       )}
 
-      {/* MODAL: Record Supplier Payment */}
+      {/* MODAL 3: Record Supplier Payment */}
       {payingPO && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
@@ -1237,6 +1466,8 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 <label className="block font-bold text-slate-700 mb-1">مبلغ الدفعة المسددة (ل.س) *</label>
                 <input
                   type="number"
+                  min="1"
+                  max={Math.max(0, payingPO.total_cost - (payingPO.paid_amount || 0))}
                   required
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(Number(e.target.value))}
@@ -1268,6 +1499,17 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ملاحظات السداد</label>
+                <input
+                  type="text"
+                  placeholder="ملاحظات المحاسب المالي..."
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -1278,15 +1520,229 @@ export const SuppliersPage: React.FC<SuppliersPageProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={handleConfirmPayment}
-                  disabled={paymentAmount <= 0}
+                  onClick={handleConfirmPaymentSubmit}
+                  disabled={paymentAmount <= 0 || isSubmittingPayment}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  {isSubmittingPayment ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
                   اعتماد قيد السداد
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Cancel Purchase Order */}
+      {cancellingPO && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <Ban className="w-5 h-5 text-rose-600" />
+              إلغاء أمر الشراء ({cancellingPO.po_number})
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              لا يمكن إلغاء أمر الشراء إلا إذا لم يتم استلام أي بضائع منه بعد. سيتم توثيق سبب الإلغاء في سجل الرقابة المالي وعكس الرصيد المستحق.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">سبب الإلغاء *</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="اكتب سبب الإلغاء بدقة (مثال: عدم توفر الأصناف لدى المورد، أو إلغاء الطلب بناءً على تعليمات المدير العام)..."
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setCancellingPO(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  تراجع
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancelSubmit}
+                  disabled={!cancellationReason.trim() || isSubmittingCancel}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-rose-600/30 flex items-center gap-1.5"
+                >
+                  {isSubmittingCancel ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Ban className="w-3.5 h-3.5" />
+                  )}
+                  تأكيد الإلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Add New Certified Supplier */}
+      {showAddSupplierModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-emerald-600" />
+              تسجيل مورد معتمد جديد في المنظومة
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              سيتم إضافة بيانات المورد مباشرة إلى قاعدة البيانات المركزية لربطه بفواتير الشراء وأوامر التوريد.
+            </p>
+
+            <form onSubmit={handleAddSupplierSubmit} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">اسم المورد / الشركة بالعربية *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="مثال: شركة البركة للمطاحن"
+                    value={newSupNameAr}
+                    onChange={(e) => setNewSupNameAr(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">الاسم بالإنجليزية</label>
+                  <input
+                    type="text"
+                    placeholder="Al-Baraka Flour Mills Co."
+                    value={newSupNameEn}
+                    onChange={(e) => setNewSupNameEn(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">الشخص المسؤول *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="أ. عمار الصالح"
+                    value={newSupContact}
+                    onChange={(e) => setNewSupContact(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">رقم الهاتف *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="+963 11 222 3344"
+                    value={newSupPhone}
+                    onChange={(e) => setNewSupPhone(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    placeholder="orders@baraka.com"
+                    value={newSupEmail}
+                    onChange={(e) => setNewSupEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">العنوان والموقع الجغرافي</label>
+                <input
+                  type="text"
+                  placeholder="دمشق - المنطقة الصناعية بالقدم"
+                  value={newSupAddress}
+                  onChange={(e) => setNewSupAddress(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">السجل التجاري</label>
+                  <input
+                    type="text"
+                    placeholder="CR-98432"
+                    value={newSupCommercialReg}
+                    onChange={(e) => setNewSupCommercialReg(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">الرقم الضريبي</label>
+                  <input
+                    type="text"
+                    placeholder="TAX-102938"
+                    value={newSupTaxNum}
+                    onChange={(e) => setNewSupTaxNum(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">زمن التوريد المعتاد (أيام)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newSupLeadDays}
+                    onChange={(e) => setNewSupLeadDays(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">شروط السداد</label>
+                  <select
+                    value={newSupTerms}
+                    onChange={(e) => setNewSupTerms(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                  >
+                    <option value="آجل 30 يوماً">آجل 30 يوماً</option>
+                    <option value="آجل 15 يوماً">آجل 15 يوماً</option>
+                    <option value="نقداً عند الاستلام">نقداً عند الاستلام</option>
+                    <option value="حساب جارٍ شهري">حساب جارٍ شهري</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSupplierModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSupplier}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
+                >
+                  {isSubmittingSupplier ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  حفظ واعتماد المورد
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

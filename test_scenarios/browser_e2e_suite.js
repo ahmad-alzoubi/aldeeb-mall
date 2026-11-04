@@ -118,8 +118,8 @@ async function runBrowserVerification() {
       localStorage.clear();
       sessionStorage.clear();
     });
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await new Promise(r => setTimeout(r, 1200));
+    await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 1500));
 
     // ------------------------------------------------------------------------
     // TEST 3: Super Admin Login & Active Navigation Integrity

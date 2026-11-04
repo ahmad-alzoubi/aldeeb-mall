@@ -720,7 +720,10 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         .maybeSingle();
 
       if (insertError) {
-        console.warn('POS order insertion warning:', insertError);
+        console.error('POS order insertion error:', insertError);
+        alert(`⚠️ فشل تسجيل الطلب في الخادم: ${insertError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
+        setIsSubmittingPayment(false);
+        return;
       }
 
       const orderId = data?.id || orderUuid;
@@ -738,25 +741,27 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         }));
         await supabase.from('order_items').insert(itemsPayload);
 
-        // Deduct branch stock & record sales count
+        // Atomic Branch Stock Deduction & Permanent Movement Recording
         for (const item of cart) {
           if (isUuid(item.product_id)) {
             try {
-              const { data: prod } = await supabase
-                .from('products')
-                .select('stock_quantity, sales_count')
-                .eq('id', item.product_id)
-                .maybeSingle();
-              if (prod) {
-                const newStock = Math.max(0, (prod.stock_quantity || 0) - item.quantity);
-                const newSales = (prod.sales_count || 0) + item.quantity;
-                await supabase
-                  .from('products')
-                  .update({ stock_quantity: newStock, sales_count: newSales })
-                  .eq('id', item.product_id);
+              const { error: rpcErr } = await supabase.rpc('record_inventory_movement_atomic', {
+                p_branch_id: effectiveBranchId,
+                p_product_id: item.product_id,
+                p_movement_type: 'sale',
+                p_qty_change: -item.quantity,
+                p_qty_reserved_change: 0,
+                p_ref_type: 'order',
+                p_ref_id: receiptNum,
+                p_actor_name: cashierName,
+                p_actor_role: 'cashier',
+                p_notes: `نقطة بيع POS • الكاشير: ${cashierName}`
+              });
+              if (rpcErr) {
+                console.warn('POS atomic inventory deduction warning:', rpcErr);
               }
             } catch (invErr) {
-              console.warn('POS stock deduction note:', invErr);
+              console.warn('POS stock deduction exception:', invErr);
             }
           }
         }

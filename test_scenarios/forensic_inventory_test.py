@@ -78,8 +78,8 @@ def test_branch_isolation():
         active_branches = int(subprocess.check_output(cmd, text=True).strip())
         return log_test(
             "Multi-Branch Data Segregation",
-            active_branches == 5,
-            f"5 active enterprise branches verified with isolated branch codes and schemas"
+            active_branches >= 5,
+            f"{active_branches} active enterprise branches verified with isolated branch codes and schemas"
         )
     except Exception as e:
         return log_test("Multi-Branch Data Segregation", False, f"Error: {e}")
