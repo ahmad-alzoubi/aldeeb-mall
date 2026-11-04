@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
+  Check,
   Barcode, 
   Search, 
   Plus, 
@@ -34,13 +35,21 @@ import {
   Percent,
   Coins,
   Volume2,
-  VolumeX
+  VolumeX,
+  ArrowDownRight,
+  ArrowUpRight,
+  History,
+  AlertTriangle,
+  FileText,
+  Copy,
+  Eye,
+  Info
 } from 'lucide-react';
-import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category, Order } from '../types';
+import { Product, Branch, PosCartItem, ParkedCart, PosShift, PosTransaction, Category, Order, CashierShiftMovement, StaffMember } from '../types';
 import { supabase, initialProducts, initialCategories } from '../lib/supabase';
 import { getStoredBranches, getActiveBranchId, setActiveBranchId } from '../lib/branchesData';
 import { ThermalReceiptView } from '../components/ThermalReceiptView';
-import { useInvoiceSettings } from '../lib/invoiceSettings';
+import { useInvoiceSettings, recordInvoicePrintInDb } from '../lib/invoiceSettings';
 import { calculateSyrianTaxes, ACTIVE_SYRIAN_TAX_RULE } from '../lib/syrianTaxEngine';
 
 // Shared singleton AudioContext to prevent browser instance exhaustion and audio suspension
@@ -232,6 +241,7 @@ interface PosTerminalPageProps {
   onNavigateToInvoiceDesigner?: () => void;
   isBranchLocked?: boolean;
   currentCashierName?: string;
+  currentStaff?: StaffMember;
   onOrderCompleted?: (order: Order) => void;
 }
 
@@ -242,6 +252,7 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
   onNavigateToInvoiceDesigner,
   isBranchLocked = false,
   currentCashierName,
+  currentStaff,
   onOrderCompleted,
 }) => {
   const [invoiceSettings] = useInvoiceSettings();
@@ -267,10 +278,14 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
   const [parkedCarts, setParkedCarts] = useState<ParkedCart[]>([]);
   const [isParkedModalOpen, setIsParkedModalOpen] = useState(false);
 
-  // Customer Loyalty Lookup
+  // Customer Loyalty Lookup & Real Data
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [loyaltyPoints, setLoyaltyPoints] = useState<number>(0);
+  const [customerTier, setCustomerTier] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [isLookingUpCustomer, setIsLookingUpCustomer] = useState(false);
+  const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
 
   // Payment Modal & Double-Charge Protection
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -278,16 +293,56 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'split'>('cash');
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [cardAmount, setCardAmount] = useState<number>(0);
+  const [cardAuthCode, setCardAuthCode] = useState('');
+  const [isCardConfirmed, setIsCardConfirmed] = useState(false);
   const [dbLatencyMs, setDbLatencyMs] = useState<number>(18);
   const [currentTime, setCurrentTime] = useState<string>(() => new Date().toLocaleTimeString('ar-SA'));
+
+  // PIN Unlock Security
+  const [isUnlockingPin, setIsUnlockingPin] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   // Receipt Modal
   const [currentTransaction, setCurrentTransaction] = useState<PosTransaction | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-  // Shift Management
+  // Shift Management State
   const [activeShift, setActiveShift] = useState<PosShift | null>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
+  const [openingBalanceInput, setOpeningBalanceInput] = useState<string>('500.00');
+  const [openShiftNotes, setOpenShiftNotes] = useState<string>('');
+  const [isOpeningShift, setIsOpeningShift] = useState(false);
+
+  // Shift Management Tabs & Movements
+  const [shiftActiveTab, setShiftActiveTab] = useState<'summary' | 'movements' | 'ledger' | 'remote_close'>('summary');
+  const [shiftMovements, setShiftMovements] = useState<CashierShiftMovement[]>([]);
+  const [isLoadingMovements, setIsLoadingMovements] = useState(false);
+  const [cashMovementType, setCashMovementType] = useState<'cash_drop' | 'receipt' | 'refund_cash'>('cash_drop');
+  const [cashMovementAmount, setCashMovementAmount] = useState<string>('');
+  const [cashMovementNotes, setCashMovementNotes] = useState<string>('');
+  const [cashMovementRef, setCashMovementRef] = useState<string>('');
+  const [isSubmittingMovement, setIsSubmittingMovement] = useState(false);
+
+  // Shift Closing & Variance
+  const [actualCashCountedInput, setActualCashCountedInput] = useState<string>('');
+  const [closeShiftNotes, setCloseShiftNotes] = useState<string>('');
+  const [isClosingShift, setIsClosingShift] = useState(false);
+  const [closedShiftSummary, setClosedShiftSummary] = useState<PosShift | null>(null);
+  const [isZReportModalOpen, setIsZReportModalOpen] = useState(false);
+
+  // Multi-Device Remote Supervisor Shift Close
+  const [branchOpenShifts, setBranchOpenShifts] = useState<PosShift[]>([]);
+  const [isLoadingBranchShifts, setIsLoadingBranchShifts] = useState(false);
+  const [remoteShiftToClose, setRemoteShiftToClose] = useState<PosShift | null>(null);
+  const [remoteActualCash, setRemoteActualCash] = useState<string>('');
+  const [remoteCloseNotes, setRemoteCloseNotes] = useState<string>('');
+
+  // Receipt Modal Reprint Tracking
+  const [isReprint, setIsReprint] = useState(false);
+  const [reprintCount, setReprintCount] = useState(0);
+  const [reprintReasonInput, setReprintReasonInput] = useState<string>('طلب العميل نسخة إضافية');
+  const [showReprintReasonDialog, setShowReprintReasonDialog] = useState(false);
 
   // Sound effects toggle with persistent storage
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
@@ -355,30 +410,8 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
       });
     }
 
-    // Initialize or load current shift
-    const savedShift = localStorage.getItem(`pos_shift_${found?.id || 'default'}`);
-    if (savedShift) {
-      try {
-        setActiveShift(JSON.parse(savedShift));
-      } catch (_) {}
-    } else {
-      // Default open shift
-      const shift: PosShift = {
-        id: `shift-${Date.now()}`,
-        branch_id: found.id,
-        branch_name: found.name_ar,
-        terminal_code: 'POS-01',
-        cashier_name: 'أحمد الكاشير',
-        opened_at: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
-        opening_balance: 500,
-        cash_sales: 0,
-        card_sales: 0,
-        total_sales: 0,
-        transactions_count: 0,
-        status: 'open',
-      };
-      setActiveShift(shift);
-    }
+    // Initialize or load current shift from Server
+    loadActiveShiftFromDb(found?.id || 'b-jed-01', terminalCode);
 
     // Load parked carts
     try {
@@ -389,6 +422,282 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     // Focus barcode input initially
     setTimeout(() => barcodeInputRef.current?.focus(), 300);
   }, [targetBranchId]);
+
+  // Real Database Shift Management
+  const loadActiveShiftFromDb = async (branchId: string, termCode: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('cashier_shifts')
+        .select('*')
+        .eq('branch_id', branchId)
+        .eq('terminal_code', termCode)
+        .eq('status', 'open')
+        .order('opened_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        const s: PosShift = {
+          id: data.id,
+          shift_number: data.shift_number,
+          branch_id: data.branch_id,
+          branch_name: data.branch_name,
+          terminal_code: data.terminal_code,
+          device_fingerprint: data.device_fingerprint,
+          cashier_id: data.cashier_id,
+          cashier_name: data.cashier_name,
+          opened_at: new Date(data.opened_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+          closed_at: data.closed_at,
+          closed_by_id: data.closed_by_id,
+          closed_by_name: data.closed_by_name,
+          status: data.status,
+          opening_balance: Number(data.opening_balance || 0),
+          cash_sales: Number(data.cash_sales || 0),
+          card_sales: Number(data.card_sales || 0),
+          other_sales: Number(data.other_sales || 0),
+          total_sales: Number(data.total_sales || 0),
+          cash_receipts: Number(data.cash_receipts || 0),
+          cash_refunds: Number(data.cash_refunds || 0),
+          card_refunds: Number(data.card_refunds || 0),
+          cash_drops: Number(data.cash_drops || 0),
+          expected_cash: Number(data.expected_cash || 0),
+          actual_cash: data.actual_cash != null ? Number(data.actual_cash) : undefined,
+          difference: data.difference != null ? Number(data.difference) : undefined,
+          transactions_count: Number(data.transactions_count || 0),
+          notes: data.notes,
+        };
+        setActiveShift(s);
+      } else {
+        setActiveShift(null);
+      }
+    } catch (err) {
+      console.warn('Could not query active shift from server:', err);
+    }
+  };
+
+  const loadShiftMovements = async (shiftId: string) => {
+    setIsLoadingMovements(true);
+    try {
+      const { data, error } = await supabase
+        .from('cashier_shift_movements')
+        .select('*')
+        .eq('shift_id', shiftId)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setShiftMovements(data as CashierShiftMovement[]);
+      }
+    } catch (err) {
+      console.warn('Could not load shift movements:', err);
+    } finally {
+      setIsLoadingMovements(false);
+    }
+  };
+
+  const loadBranchOpenShifts = async (branchId: string) => {
+    setIsLoadingBranchShifts(true);
+    try {
+      const { data, error } = await supabase
+        .from('cashier_shifts')
+        .select('*')
+        .eq('branch_id', branchId)
+        .eq('status', 'open')
+        .order('opened_at', { ascending: false });
+      if (!error && data) {
+        setBranchOpenShifts(data as PosShift[]);
+      }
+    } catch (err) {
+      console.warn('Could not load branch open shifts:', err);
+    } finally {
+      setIsLoadingBranchShifts(false);
+    }
+  };
+
+  const handleOpenShiftSubmit = async () => {
+    const numBalance = parseFloat(openingBalanceInput);
+    if (isNaN(numBalance) || numBalance < 0) {
+      alert('يرجى إدخال رصيد افتتاحي صحيح أكبر أو يساوي الصفر');
+      return;
+    }
+    setIsOpeningShift(true);
+    try {
+      const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
+      const effectiveBranchName = activeBranch?.name_ar || 'فرع جدة الكورنيش (واجهة البحر)';
+
+      const { data, error } = await supabase.rpc('open_cashier_shift', {
+        p_branch_id: effectiveBranchId,
+        p_branch_name: effectiveBranchName,
+        p_terminal_code: terminalCode,
+        p_device_fingerprint: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 50) : 'pos-terminal',
+        p_cashier_id: null,
+        p_cashier_name: cashierName,
+        p_opening_balance: numBalance,
+        p_notes: openShiftNotes || 'بدء الوردية وتصفير العدادات',
+      });
+
+      if (error) {
+        console.error('Failed to open cashier shift:', error);
+        alert(`فشل فتح الوردية: ${error.message}`);
+      } else if (data) {
+        const shiftObj: PosShift = {
+          id: data.id,
+          shift_number: data.shift_number,
+          branch_id: data.branch_id,
+          branch_name: data.branch_name,
+          terminal_code: data.terminal_code,
+          device_fingerprint: data.device_fingerprint,
+          cashier_id: data.cashier_id,
+          cashier_name: data.cashier_name,
+          opened_at: new Date(data.opened_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+          closed_at: data.closed_at,
+          status: data.status,
+          opening_balance: Number(data.opening_balance || 0),
+          cash_sales: Number(data.cash_sales || 0),
+          card_sales: Number(data.card_sales || 0),
+          other_sales: Number(data.other_sales || 0),
+          total_sales: Number(data.total_sales || 0),
+          cash_receipts: Number(data.cash_receipts || 0),
+          cash_refunds: Number(data.cash_refunds || 0),
+          card_refunds: Number(data.card_refunds || 0),
+          cash_drops: Number(data.cash_drops || 0),
+          expected_cash: Number(data.expected_cash || 0),
+          transactions_count: Number(data.transactions_count || 0),
+          notes: data.notes,
+        };
+        setActiveShift(shiftObj);
+        setIsOpenShiftModalOpen(false);
+        playPosSound('success');
+      }
+    } catch (err: any) {
+      alert(`خطأ أثناء فتح الوردية: ${err?.message}`);
+    } finally {
+      setIsOpeningShift(false);
+    }
+  };
+
+  const handleRecordMovementSubmit = async () => {
+    if (!activeShift) return;
+    const numAmount = parseFloat(cashMovementAmount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      alert('يرجى إدخال مبلغ صحيح أكبر من الصفر');
+      return;
+    }
+    setIsSubmittingMovement(true);
+    try {
+      const { data, error } = await supabase.rpc('record_shift_movement', {
+        p_shift_id: activeShift.id,
+        p_movement_type: cashMovementType,
+        p_amount: numAmount,
+        p_payment_method: 'cash',
+        p_ref_id: cashMovementRef || null,
+        p_actor_name: cashierName,
+        p_actor_id: null,
+        p_notes: cashMovementNotes || null,
+      });
+      if (error) {
+        alert(`فشل تسجيل الحركة النقدية: ${error.message}`);
+      } else if (data) {
+        setActiveShift({
+          ...activeShift,
+          cash_sales: Number(data.cash_sales),
+          card_sales: Number(data.card_sales),
+          other_sales: Number(data.other_sales || 0),
+          total_sales: Number(data.total_sales),
+          cash_receipts: Number(data.cash_receipts),
+          cash_refunds: Number(data.cash_refunds),
+          card_refunds: Number(data.card_refunds || 0),
+          cash_drops: Number(data.cash_drops),
+          expected_cash: Number(data.expected_cash),
+          transactions_count: Number(data.transactions_count),
+        });
+        setCashMovementAmount('');
+        setCashMovementNotes('');
+        setCashMovementRef('');
+        playPosSound('cash');
+        loadShiftMovements(activeShift.id);
+        alert('تم تسجيل الحركة النقدية وتحديث رصيد الصندوق بنجاح!');
+      }
+    } catch (err: any) {
+      alert(`خطأ: ${err?.message}`);
+    } finally {
+      setIsSubmittingMovement(false);
+    }
+  };
+
+  const handleCloseShiftSubmit = async () => {
+    if (!activeShift) return;
+    const numActual = parseFloat(actualCashCountedInput);
+    if (isNaN(numActual) || numActual < 0) {
+      alert('يرجى إدخال المبلغ الفعلي المعدود في الصندوق بدقة');
+      return;
+    }
+    setIsClosingShift(true);
+    try {
+      const { data, error } = await supabase.rpc('close_cashier_shift', {
+        p_shift_id: activeShift.id,
+        p_actual_cash: numActual,
+        p_closed_by_name: cashierName,
+        p_closed_by_id: null,
+        p_notes: closeShiftNotes || null,
+      });
+
+      if (error) {
+        alert(`فشل إغلاق الوردية: ${error.message}`);
+      } else if (data) {
+        const closedObj: PosShift = {
+          ...activeShift,
+          status: 'closed',
+          closed_at: new Date(data.closed_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+          closed_by_name: data.closed_by_name,
+          actual_cash: Number(data.actual_cash),
+          difference: Number(data.difference),
+          expected_cash: Number(data.expected_cash),
+          notes: data.notes,
+        };
+        setClosedShiftSummary(closedObj);
+        setActiveShift(null);
+        setIsShiftModalOpen(false);
+        setIsZReportModalOpen(true);
+        playPosSound('success');
+      }
+    } catch (err: any) {
+      alert(`خطأ في إغلاق الوردية: ${err?.message}`);
+    } finally {
+      setIsClosingShift(false);
+    }
+  };
+
+  const handleRemoteCloseSubmit = async () => {
+    if (!remoteShiftToClose) return;
+    const numActual = parseFloat(remoteActualCash);
+    if (isNaN(numActual) || numActual < 0) {
+      alert('يرجى إدخال المبلغ الفعلي المعدود للصندوق المعني بدقة');
+      return;
+    }
+    setIsClosingShift(true);
+    try {
+      const { data, error } = await supabase.rpc('close_cashier_shift', {
+        p_shift_id: remoteShiftToClose.id,
+        p_actual_cash: numActual,
+        p_closed_by_name: `${cashierName} (إغلاق إشرافي عن بعد)`,
+        p_closed_by_id: null,
+        p_notes: remoteCloseNotes || 'إغلاق إداري من جهاز آخر لانتهاء الوردية',
+      });
+      if (error) {
+        alert(`فشل الإغلاق الإداري: ${error.message}`);
+      } else {
+        alert(`تم إغلاق وردية ${remoteShiftToClose.cashier_name} بنجاح وتسجيل التقرير.`);
+        setRemoteShiftToClose(null);
+        setRemoteActualCash('');
+        setRemoteCloseNotes('');
+        const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
+        loadBranchOpenShifts(effectiveBranchId);
+      }
+    } catch (err: any) {
+      alert(`خطأ: ${err?.message}`);
+    } finally {
+      setIsClosingShift(false);
+    }
+  };
 
   // Safe container click: NEVER steal focus if user clicked an input/button
   const handleContainerClick = (e: React.MouseEvent) => {
@@ -480,10 +789,22 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
       alert(`⚠️ الصنف "${product.name_ar}" موقوف ومعطل عن البيع حالياً.`);
       return;
     }
+
+    if (product.stock_quantity !== undefined && product.stock_quantity <= 0) {
+      playPosSound('error');
+      alert(`⚠️ نفد رصيد الصنف "${product.name_ar}" من المستودع! (الرصيد: 0).`);
+      return;
+    }
+
     playPosSound('beep');
     setCart((prev) => {
       const idx = prev.findIndex((item) => item.product_id === product.id);
       if (idx >= 0) {
+        if (product.stock_quantity !== undefined && prev[idx].quantity >= product.stock_quantity) {
+          playPosSound('error');
+          alert(`⚠️ لا يمكن إضافة المزيد من "${product.name_ar}". الرصيد المتاح بالمستودع هو ${product.stock_quantity}.`);
+          return prev;
+        }
         const next = [...prev];
         const newQty = next[idx].quantity + 1;
         const total = newQty * next[idx].price;
@@ -618,12 +939,35 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
   const taxAmount = syrianTax.total_tax_and_duties;
   const grandTotal = useMemo(() => subtotal, [subtotal]); // Items prices inclusive of tax
 
-  // Customer Loyalty Lookup Simulator
-  const handleLookupCustomer = () => {
-    if (!customerPhone.trim()) return;
-    setCustomerName('أحمد العتيبي (عميل VIP)');
-    setLoyaltyPoints(450);
-    playPosSound('success');
+  // Genuine Customer Loyalty Lookup via Database RPC
+  const handleLookupCustomer = async () => {
+    const phone = customerPhone.trim();
+    if (!phone) return;
+    setIsLookingUpCustomer(true);
+    setCustomerLookupError(null);
+    try {
+      const { data, error } = await supabase.rpc('lookup_customer_by_phone', {
+        p_phone: phone,
+      });
+      if (!error && data?.found) {
+        setCustomerName(data.full_name || 'عميل مسجل');
+        setLoyaltyPoints(Number(data.loyalty_points || 0));
+        setCustomerTier(data.tier || 'Silver');
+        setCustomerId(data.customer_id);
+        playPosSound('success');
+      } else {
+        playPosSound('error');
+        setCustomerLookupError(data?.message || 'لم يتم العثور على حساب عميل مسجل بهذا الرقم.');
+        setCustomerTier(null);
+        setCustomerId(null);
+        setLoyaltyPoints(0);
+      }
+    } catch (err: any) {
+      console.warn('Customer lookup error:', err);
+      setCustomerLookupError('تعذر الاتصال بقاعدة البيانات للتحقق من العميل');
+    } finally {
+      setIsLookingUpCustomer(false);
+    }
   };
 
   // Open Payment Modal
@@ -631,212 +975,151 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     if (cart.length === 0) return;
     setCashReceived(Math.ceil(grandTotal));
     setCardAmount(grandTotal);
+    setCardAuthCode(`MADA-${Date.now().toString().slice(-6)}`);
+    setIsCardConfirmed(false);
     setIsPaymentModalOpen(true);
   };
 
-  // Complete Checkout (Protected with Idempotency Key & Double-Click Lock)
+  // Complete Checkout (Atomic Database RPC with Idempotency Key, Stock Deductions & Double-Charge Protection)
   const handleCompletePayment = async () => {
     if (isSubmittingPayment || cart.length === 0) return;
+
+    if (!activeShift) {
+      alert('⚠️ تنبيه: لا توجد وردية مفتوحة حالياً لهذا الجهاز! يرجى فتح وردية كاشير أولاً للبدء بعمليات البيع والمحاسبة.');
+      setIsPaymentModalOpen(false);
+      setIsOpenShiftModalOpen(true);
+      return;
+    }
+
+    // Defensive payment math validations
+    if (paymentMethod === 'cash') {
+      if (cashReceived < grandTotal) {
+        playPosSound('error');
+        alert(`⚠️ المبلغ النقدي المستلم (${cashReceived} ${activeBranch?.currency || 'ل.س'}) غير كافٍ! إجمالي الفاتورة المطلوب هو (${grandTotal.toFixed(2)} ${activeBranch?.currency || 'ل.س'}).`);
+        return;
+      }
+    } else if (paymentMethod === 'card') {
+      if (!cardAuthCode.trim() && !isCardConfirmed) {
+        playPosSound('error');
+        alert('⚠️ يلزم تأكيد عملية الدفع بالبطاقة أو إدخال مرجع التحصيل من جهاز الشبكة/مدى.');
+        return;
+      }
+    } else if (paymentMethod === 'split') {
+      const splitTotal = (cashReceived || 0) + (cardAmount || 0);
+      if (splitTotal < grandTotal) {
+        playPosSound('error');
+        alert(`⚠️ إجمالي المبلغ المدفوع (${splitTotal} ${activeBranch?.currency || 'ل.س'}) أقل من إجمالي الفاتورة (${grandTotal.toFixed(2)} ${activeBranch?.currency || 'ل.س'})!`);
+        return;
+      }
+      if (cardAmount > 0 && !cardAuthCode.trim() && !isCardConfirmed) {
+        playPosSound('error');
+        alert('⚠️ يلزم تأكيد تحصيل جزء البطاقة وإدخال مرجع التفويض من جهاز الشبكة.');
+        return;
+      }
+    }
+
     setIsSubmittingPayment(true);
     playPosSound('cash');
 
-    const receiptNum = `RCP-${activeBranch?.code || 'POS'}-${Date.now().toString().slice(-6)}`;
-    const idempotencyToken = `IDEM-POS-${activeBranch?.id || 'main'}-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
+    const effectiveBranchName = activeBranch?.name_ar || 'فرع جدة الكورنيش (واجهة البحر)';
 
-    const tx: PosTransaction = {
-      id: `tx-${Date.now()}`,
-      receipt_number: receiptNum,
-      branch_id: activeBranch?.id || '',
-      branch_name: activeBranch?.name_ar || 'فرع الديب مول',
-      terminal_code: terminalCode,
-      cashier_name: cashierName,
-      customer_name: customerName || 'عميل نقدي',
-      customer_phone: customerPhone,
-      created_at: new Date().toLocaleString('ar-SA'),
-      items: [...cart],
-      subtotal: subtotal - taxAmount,
-      tax_amount: taxAmount,
-      discount_amount: 0,
-      grand_total: grandTotal,
-      payment_method: paymentMethod,
-      cash_received: paymentMethod === 'cash' ? cashReceived : undefined,
-      change_given: paymentMethod === 'cash' ? Math.max(0, cashReceived - grandTotal) : undefined,
-      card_amount: paymentMethod === 'card' ? grandTotal : paymentMethod === 'split' ? cardAmount : undefined,
-      zatca_qr_payload: `ALDEEB-MALL|${receiptNum}|${grandTotal}|${taxAmount}|${new Date().toISOString()}`,
-    };
-
-    // Update active shift stats
-    if (activeShift) {
-      const isCash = paymentMethod === 'cash';
-      const isCard = paymentMethod === 'card';
-      const isSplit = paymentMethod === 'split';
-
-      const cashSalesAdd = isCash ? grandTotal : isSplit ? grandTotal - cardAmount : 0;
-      const cardSalesAdd = isCard ? grandTotal : isSplit ? cardAmount : 0;
-
-      const updatedShift: PosShift = {
-        ...activeShift,
-        cash_sales: activeShift.cash_sales + cashSalesAdd,
-        card_sales: activeShift.card_sales + cardSalesAdd,
-        total_sales: activeShift.total_sales + grandTotal,
-        transactions_count: activeShift.transactions_count + 1,
-      };
-      setActiveShift(updatedShift);
-      try {
-        localStorage.setItem(`pos_shift_${activeBranch?.id || 'default'}`, JSON.stringify(updatedShift));
-      } catch (_) {}
+    // Monotonic Consecutive Unique Invoice Number
+    let receiptNum = `INV-${activeBranch?.code || 'POS'}-${Date.now().toString().slice(-6)}`;
+    try {
+      const { data: dbInvoiceNum, error: genErr } = await supabase.rpc('generate_pos_invoice_number', {
+        p_branch_id: effectiveBranchId,
+        p_terminal_code: terminalCode,
+      });
+      if (!genErr && dbInvoiceNum) {
+        receiptNum = dbInvoiceNum;
+      }
+    } catch (e) {
+      console.warn('Fallback local invoice sequence used:', e);
     }
 
-    // Sync POS Transaction with Supabase Orders & Order Items
+    const idempotencyToken = `IDEM-POS-${effectiveBranchId}-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const effectiveCardAuth = (paymentMethod === 'card' || (paymentMethod === 'split' && cardAmount > 0))
+      ? (cardAuthCode.trim() || `MADA-${Date.now().toString().slice(-6)}`)
+      : null;
+
     try {
-      const isUuid = (id?: string) => !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
-      const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
-      const effectiveBranchName = activeBranch?.name_ar || 'فرع جدة الكورنيش (واجهة البحر)';
-
-      // Generate a client-side UUID so order_items can reference it reliably
-      const orderUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) 
-        ? crypto.randomUUID() 
-        : 'e' + Date.now().toString(16).padStart(7, '0') + '-1111-4111-a111-111111111111';
-
-      const { data, error: insertError } = await supabase
-        .from('orders')
-        .insert({
-          id: orderUuid,
-          order_number: receiptNum,
-          customer_name: customerName || 'عميل نقدي مباشر',
-          customer_phone: customerPhone || '+966 50 000 0000',
-          branch_id: effectiveBranchId,
-          branch_name: effectiveBranchName,
-          status: 'delivered',
-          delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
-          payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
-          payment_status: 'paid',
-          subtotal: subtotal - taxAmount,
-          delivery_fee: 0,
-          total_amount: grandTotal,
-          notes: `نقطة بيع POS • الكاشير: ${cashierName} • العميل: ${customerName || 'عميل نقدي'} • ${idempotencyToken}`,
-        })
-        .select('id')
-        .maybeSingle();
-
-      let effectiveOrderId = data?.id || orderUuid;
-
-      if (insertError) {
-        console.warn('POS order insertion initial attempt failed:', insertError);
-
-        // Defensive self-healing for JWT/Auth errors (e.g. malformed or single-part token in client cache)
-        const errMsg = String(insertError.message || '');
-        const isJwtIssue = errMsg.includes('JWT') || errMsg.includes('token') || (insertError as any).code === 'PGRST301';
-
-        if (isJwtIssue) {
-          console.warn('⚠️ [POS Self-Healing] Auto-purging corrupted client JWT and retrying order insertion with validated clean headers...');
-          try {
-            localStorage.removeItem('aldeeb_admin_jwt');
-          } catch (_) {}
-
-          const { data: retryData, error: retryError } = await supabase
-            .from('orders')
-            .insert({
-              id: orderUuid,
-              order_number: receiptNum,
-              customer_name: customerName || 'عميل نقدي مباشر',
-              customer_phone: customerPhone || '+966 50 000 0000',
-              branch_id: effectiveBranchId,
-              branch_name: effectiveBranchName,
-              status: 'delivered',
-              delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
-              payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
-              payment_status: 'paid',
-              subtotal: subtotal - taxAmount,
-              delivery_fee: 0,
-              total_amount: grandTotal,
-              notes: `نقطة بيع POS • الكاشير: ${cashierName} • العميل: ${customerName || 'عميل نقدي'} • ${idempotencyToken}`,
-            })
-            .select('id')
-            .maybeSingle();
-
-          if (retryError) {
-            console.error('POS order retry insertion error:', retryError);
-            alert(`⚠️ فشل تسجيل الطلب في الخادم: ${retryError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
-            setIsSubmittingPayment(false);
-            return;
-          }
-          if (retryData?.id) {
-            effectiveOrderId = retryData.id;
-          }
-        } else {
-          alert(`⚠️ فشل تسجيل الطلب في الخادم: ${insertError.message || 'خطأ في قاعدة البيانات'}. تم إلغاء العملية لحماية البيانات والمخزون.`);
-          setIsSubmittingPayment(false);
-          return;
-        }
-      }
-
-      const orderId = effectiveOrderId;
-
-      if (cart.length > 0) {
-        const itemsPayload = cart.map((item) => ({
-          order_id: orderId,
-          product_id: isUuid(item.product_id) ? item.product_id : null,
-          product_name_ar: item.name_ar,
-          product_name_en: item.name_en || item.name_ar,
+      const { data: saleResult, error: saleError } = await supabase.rpc('process_pos_sale_atomic', {
+        p_receipt_number: receiptNum,
+        p_idempotency_key: idempotencyToken,
+        p_branch_id: effectiveBranchId,
+        p_terminal_code: terminalCode,
+        p_staff_id: currentStaff?.id || 'staff-cashier-01',
+        p_shift_id: activeShift.id,
+        p_customer_name: customerName || 'عميل نقدي مباشر',
+        p_customer_phone: customerPhone || '+966 50 000 0000',
+        p_payment_method: paymentMethod,
+        p_cash_received: paymentMethod === 'cash' ? cashReceived : paymentMethod === 'split' ? cashReceived : 0,
+        p_card_amount: paymentMethod === 'card' ? grandTotal : paymentMethod === 'split' ? cardAmount : 0,
+        p_card_auth_code: effectiveCardAuth,
+        p_subtotal: subtotal - taxAmount,
+        p_tax_amount: taxAmount,
+        p_discount_amount: 0,
+        p_loyalty_points_used: 0,
+        p_loyalty_discount: 0,
+        p_total_amount: grandTotal,
+        p_items: cart.map(item => ({
+          product_id: item.product_id,
+          name_ar: item.name_ar,
+          name_en: item.name_en || item.name_ar,
           unit: item.unit || 'piece',
-          unit_price: item.price,
+          price: item.price,
           quantity: item.quantity,
-          total_price: item.total || item.price * item.quantity,
-        }));
-        await supabase.from('order_items').insert(itemsPayload);
+          total: item.total || item.price * item.quantity,
+        })),
+        p_notes: `نقطة بيع POS • الكاشير: ${cashierName} • الوردية: ${activeShift.shift_number}`,
+      });
 
-        // Atomic Branch Stock Deduction & Permanent Movement Recording
-        for (const item of cart) {
-          if (isUuid(item.product_id)) {
-            try {
-              const { error: rpcErr } = await supabase.rpc('record_inventory_movement_atomic', {
-                p_branch_id: effectiveBranchId,
-                p_product_id: item.product_id,
-                p_movement_type: 'sale',
-                p_qty_change: -item.quantity,
-                p_qty_reserved_change: 0,
-                p_ref_type: 'order',
-                p_ref_id: receiptNum,
-                p_actor_name: cashierName,
-                p_actor_role: 'cashier',
-                p_notes: `نقطة بيع POS • الكاشير: ${cashierName}`
-              });
-              if (rpcErr) {
-                console.warn('POS atomic inventory deduction warning:', rpcErr);
-              }
-            } catch (invErr) {
-              console.warn('POS stock deduction exception:', invErr);
-            }
-          }
-        }
+      if (saleError || !saleResult?.success) {
+        console.error('POS sale atomic failed:', saleError || saleResult);
+        playPosSound('error');
+        alert(`⚠️ فشل إتمام معاملة البيع في الخادم: ${saleError?.message || saleResult?.error || 'خطأ غير متوقع'}.\n\nتم إلغاء العملية لحماية البيانات والمخزون، ولم يتم تفريغ السلة.`);
+        setIsSubmittingPayment(false);
+        return; // Zero fake receipt, zero emptied cart!
       }
 
-      // Notify Vision Edge Server of cashier scans for realtime footfall/loss prevention correlation
-      try {
-        for (const item of cart) {
-          fetch('http://127.0.0.1:8095/api/pos/scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              barcode: item.barcode || 'POS-ITEM',
-              product_name: item.name_ar,
-              cashier_id: terminalCode,
-            })
-          }).catch(() => {});
-        }
-      } catch (_) {}
+      // Refresh shift metrics from database
+      loadActiveShiftFromDb(effectiveBranchId, terminalCode);
 
-      // Construct live Order for immediate local synchronization with Admin Dashboard
+      // Record thermal receipt print audit
+      recordInvoicePrintInDb(receiptNum, 'original', cashierName, terminalCode);
+
+      const tx: PosTransaction = {
+        id: saleResult.order_id || `tx-${Date.now()}`,
+        receipt_number: receiptNum,
+        branch_id: effectiveBranchId,
+        branch_name: effectiveBranchName,
+        terminal_code: terminalCode,
+        cashier_name: cashierName,
+        customer_name: customerName || 'عميل نقدي',
+        customer_phone: customerPhone,
+        created_at: new Date().toLocaleString('ar-SA'),
+        items: [...cart],
+        subtotal: subtotal - taxAmount,
+        tax_amount: taxAmount,
+        discount_amount: 0,
+        grand_total: grandTotal,
+        payment_method: paymentMethod,
+        cash_received: paymentMethod === 'cash' ? cashReceived : undefined,
+        change_given: paymentMethod === 'cash' ? Math.max(0, cashReceived - grandTotal) : undefined,
+        card_amount: paymentMethod === 'card' ? grandTotal : paymentMethod === 'split' ? cardAmount : undefined,
+        zatca_qr_payload: `ALDEEB-MALL|${receiptNum}|${grandTotal}|${taxAmount}|${new Date().toISOString()}`,
+      };
+
       const createdOrder: Order = {
-        id: orderId,
+        id: saleResult.order_id || `order-${Date.now()}`,
         order_number: receiptNum,
         customer_name: customerName || 'عميل نقدي مباشر',
         customer_phone: customerPhone || '+966 50 000 0000',
         customer_address: `نقطة بيع كاشير - ${effectiveBranchName}`,
         status: 'delivered',
         delivery_slot: `كاشير مباشر - ${effectiveBranchName}`,
-        payment_method: paymentMethod === 'cash' ? 'cod' : 'card',
+        payment_method: paymentMethod === 'cash' ? 'cash' : paymentMethod === 'card' ? 'card' : 'split',
         subtotal: subtotal - taxAmount,
         delivery_fee: 0,
         discount_amount: 0,
@@ -862,24 +1145,39 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         onOrderCompleted(createdOrder);
       }
 
+      // Notify Vision server
       try {
-        const raw = localStorage.getItem('aldeeb_admin_orders_v5');
-        const existing: Order[] = raw ? JSON.parse(raw) : [];
-        const merged = [createdOrder, ...existing.filter(o => o.id !== createdOrder.id && o.order_number !== createdOrder.order_number)];
-        localStorage.setItem('aldeeb_admin_orders_v5', JSON.stringify(merged));
+        for (const item of cart) {
+          fetch('http://127.0.0.1:8095/api/pos/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              barcode: item.barcode || 'POS-ITEM',
+              product_name: item.name_ar,
+              cashier_id: terminalCode,
+            })
+          }).catch(() => {});
+        }
       } catch (_) {}
-    } catch (e) {
-      console.warn('POS order sync note:', e);
+
+      // Successful transaction finish
+      setCurrentTransaction(tx);
+      setIsPaymentModalOpen(false);
+      setIsReceiptModalOpen(true);
+      setCart([]);
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerTier(null);
+      setCustomerId(null);
+      setCardAuthCode('');
+      setIsCardConfirmed(false);
+    } catch (e: any) {
+      console.error('POS checkout exception:', e);
+      playPosSound('error');
+      alert(`⚠️ استثناء أثناء إتمام الدفع: ${e?.message || 'خطأ غير متوقع'}. لم يتم تفريغ السلة.`);
     } finally {
       setIsSubmittingPayment(false);
     }
-
-    setCurrentTransaction(tx);
-    setIsPaymentModalOpen(false);
-    setIsReceiptModalOpen(true);
-    setCart([]);
-    setCustomerName('');
-    setCustomerPhone('');
   };
 
   // Toggle Fullscreen
@@ -901,15 +1199,34 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
     setPinInput('');
   };
 
-  const handleUnlockTerminal = (e: React.FormEvent) => {
+  // Unlock Terminal with Genuine Database PIN Verification
+  const handleUnlockTerminal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === '1234' || pinInput === '0000' || pinInput.length >= 4) {
-      setIsLocked(false);
-      setPinInput('');
-      playPosSound('success');
-    } else {
+    const pin = pinInput.trim();
+    if (!pin) return;
+    setIsUnlockingPin(true);
+    setPinError(null);
+    try {
+      const staffIdentifier = currentStaff?.id || currentStaff?.username || 'cashier_omar';
+      const { data, error } = await supabase.rpc('verify_staff_pin', {
+        p_staff_id: staffIdentifier,
+        p_pin: pin,
+      });
+
+      if (!error && data?.success) {
+        setIsLocked(false);
+        setPinInput('');
+        setPinError(null);
+        playPosSound('success');
+      } else {
+        playPosSound('error');
+        setPinError(data?.message || 'رمز PIN غير صحيح! يرجى إدخال رمز الكاشير المعتمد.');
+      }
+    } catch (err: any) {
       playPosSound('error');
-      alert('رمز PIN غير صحيح! الرمز الافتراضي: 1234');
+      setPinError(`خطأ في التحقق: ${err?.message || 'تعذر الاتصال بقاعدة البيانات'}`);
+    } finally {
+      setIsUnlockingPin(false);
     }
   };
 
@@ -1004,13 +1321,32 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
           </div>
 
           {/* Shift Status */}
-          <button
-            onClick={() => setIsShiftModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>الوردية مفتوحة (Z-Report)</span>
-          </button>
+          {activeShift ? (
+            <button
+              onClick={() => {
+                setShiftActiveTab('summary');
+                setIsShiftModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all shadow-xs"
+              title="إدارة الوردية النشطة وحركات الصندوق وتقرير Z"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-mono text-emerald-900 font-black">{activeShift.shift_number}</span>
+              <span className="hidden md:inline text-[11px] text-emerald-700">({activeShift.cashier_name})</span>
+              <span className="font-mono font-black text-slate-800 bg-white/90 px-1.5 py-0.5 rounded-md border border-emerald-300">
+                درج: {(activeShift.expected_cash ?? 0).toFixed(2)} ل.س
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsOpenShiftModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-300 text-rose-800 rounded-xl text-xs font-black hover:bg-rose-100 transition-all shadow-xs animate-pulse"
+              title="لا توجد وردية مفتوحة - انقر لبدء وردية جديدة"
+            >
+              <Lock className="w-3.5 h-3.5 text-rose-600" />
+              <span>بدء وردية جديدة (مغلق)</span>
+            </button>
+          )}
 
           {/* Parked Carts Indicator */}
           <button
@@ -1119,37 +1455,83 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
             </form>
 
             {/* Customer Loyalty Search (Safe focus: no auto focus-stealing) */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Phone className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="رقم هاتف العميل لولاء الديب..."
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookupCustomer()}
-                  className="w-full pr-8 pl-2 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 shadow-xs"
-                />
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="رقم هاتف العميل لولاء الديب..."
+                    value={customerPhone}
+                    onChange={(e) => {
+                      setCustomerPhone(e.target.value);
+                      setCustomerLookupError(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLookupCustomer()}
+                    className="w-full pr-8 pl-2 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 shadow-xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={isLookingUpCustomer || !customerPhone.trim()}
+                  onClick={handleLookupCustomer}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1"
+                >
+                  {isLookingUpCustomer ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <span>تحقق</span>
+                  )}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleLookupCustomer}
-                className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs"
-              >
-                تحقق
-              </button>
-            </div>
 
-            {customerName && (
-              <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
-                <span className="font-bold text-blue-900">{customerName}</span>
-                <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                  ⭐ {loyaltyPoints} نقطة
-                </span>
-              </div>
-            )}
+              {customerLookupError && (
+                <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-1.5 flex items-center justify-between">
+                  <span>ℹ️ {customerLookupError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerLookupError(null)}
+                    className="text-amber-800 font-bold px-1"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {customerName && (
+                <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-blue-900">{customerName}</span>
+                    {customerTier && (
+                      <span className="px-1.5 py-0.2 bg-blue-200/80 text-blue-900 text-[10px] font-black rounded-md">
+                        {customerTier}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      ⭐ {loyaltyPoints} نقطة
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomerName('');
+                        setCustomerPhone('');
+                        setCustomerTier(null);
+                        setCustomerId(null);
+                        setLoyaltyPoints(0);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 p-1"
+                      title="إلغاء ربط العميل"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Cart Items List */}
@@ -1504,6 +1886,53 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                     {Math.max(0, cashReceived - grandTotal).toFixed(2)} {activeBranch?.currency || 'ل.س'}
                   </span>
                 </div>
+
+                {cashReceived < grandTotal && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>⚠️ المبلغ المستلم أقل من قيمة الفاتورة بمقدار {(grandTotal - cashReceived).toFixed(2)} {activeBranch?.currency || 'ل.س'}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Card Payment Confirmation */}
+            {paymentMethod === 'card' && (
+              <div className="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    تحصيل بطاقة شبكة مدى / POS Terminal
+                  </span>
+                  <span className="font-mono text-base font-black text-blue-700">
+                    {grandTotal.toFixed(2)} {activeBranch?.currency || 'ل.س'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    مرجع التفويض / رقم إيصال جهاز الشبكة (Auth / Ref Number):
+                  </label>
+                  <input
+                    type="text"
+                    value={cardAuthCode}
+                    onChange={(e) => setCardAuthCode(e.target.value)}
+                    placeholder="مثال: MADA-982145 أو مرجع العملية"
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm text-slate-900 focus:outline-none focus:border-blue-600 shadow-xs"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 p-2.5 bg-white border border-blue-200 rounded-xl cursor-pointer hover:bg-blue-50/30 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={isCardConfirmed}
+                    onChange={(e) => setIsCardConfirmed(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    تم تأكيد العملية بنجاح عبر جهاز نقاط البيع المعتمد
+                  </span>
+                </label>
               </div>
             )}
 
@@ -1515,9 +1944,9 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                     <label className="text-[11px] font-bold text-slate-500 block mb-1">المبلغ كاش (Cash)</label>
                     <input
                       type="number"
-                      value={Math.max(0, grandTotal - cardAmount)}
-                      readOnly
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-sm text-center font-bold text-emerald-700"
+                      value={cashReceived}
+                      onChange={(e) => setCashReceived(Number(e.target.value))}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-600 shadow-xs"
                     />
                   </div>
                   <div>
@@ -1526,10 +1955,29 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                       type="number"
                       value={cardAmount}
                       onChange={(e) => setCardAmount(Number(e.target.value))}
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm text-center font-bold text-blue-700 focus:outline-none focus:border-blue-600"
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm text-center font-bold text-blue-700 focus:outline-none focus:border-blue-600 shadow-xs"
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    مرجع تفويض البطاقة (Mada Auth Ref):
+                  </label>
+                  <input
+                    type="text"
+                    value={cardAuthCode}
+                    onChange={(e) => setCardAuthCode(e.target.value)}
+                    placeholder="مثال: MADA-SPLIT-1234"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
+                  />
+                </div>
+
+                {((cashReceived || 0) + (cardAmount || 0)) < grandTotal && (
+                  <div className="p-2 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-[11px] font-bold">
+                    ⚠️ المجموع ({(cashReceived || 0) + (cardAmount || 0)}) أقل من إجمالي الفاتورة ({grandTotal.toFixed(2)})
+                  </div>
+                )}
               </div>
             )}
 
@@ -1560,10 +2008,24 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
             {/* Confirm Payment Button */}
             <button
               onClick={handleCompletePayment}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+              disabled={isSubmittingPayment}
+              className={`w-full py-3.5 text-white rounded-2xl font-black text-sm shadow-xl transition-all flex items-center justify-center gap-2 ${
+                isSubmittingPayment
+                  ? 'bg-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
+              }`}
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>تأكيد وطباعة الفاتورة (Enter)</span>
+              {isSubmittingPayment ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>جاري تسجيل المعاملة وخصم المخزون...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>تأكيد وطباعة الفاتورة (Enter)</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1602,18 +2064,58 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
                   change_given: currentTransaction.change_given,
                 }}
                 settings={invoiceSettings}
+                isPreview={false}
+                isReprint={isReprint}
+                reprintCount={reprintCount}
               />
             </div>
 
             {/* Modal Actions */}
             <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 print:hidden">
               <button
-                onClick={() => window.print()}
+                onClick={async () => {
+                  window.print();
+                  const res = await recordInvoicePrintInDb(
+                    currentTransaction.receipt_number,
+                    isReprint ? 'reprint' : 'original',
+                    cashierName,
+                    terminalCode,
+                    isReprint ? reprintReasonInput : undefined
+                  );
+                  if (res.isReprint) {
+                    setReprintCount(res.reprintCount);
+                  }
+                }}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
               >
                 <Printer className="w-4 h-4" />
-                <span>طباعة الفاتورة الحرارية</span>
+                <span>{isReprint ? `طباعة نسخة إضافية (نسخة #${reprintCount + 1})` : 'طباعة الفاتورة الحرارية'}</span>
               </button>
+
+              <button
+                onClick={() => {
+                  const reason = window.prompt('يرجى كتابة سبب إعادة الطباعة:', 'طلب العميل نسخة إضافية للضمان');
+                  if (reason !== null) {
+                    setIsReprint(true);
+                    setReprintCount((prev) => prev + 1);
+                    setReprintReasonInput(reason || 'طلب نسخة إضافية');
+                  }
+                }}
+                className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5 text-rose-600" />
+                <span>إعادة طباعة (نسخة طبق الأصل معتمدة)</span>
+              </button>
+
+              <a
+                href={`#invoice?id=${encodeURIComponent(currentTransaction.receipt_number)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors text-center"
+              >
+                <Eye className="w-3.5 h-3.5 text-blue-600" />
+                <span>عرض الفاتورة الإلكترونية الكاملة</span>
+              </a>
 
               <div className="flex items-center gap-2">
                 {onNavigateToInvoiceDesigner && (
@@ -1691,15 +2193,110 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         </div>
       )}
 
-      {/* 6. MODAL: SHIFT Z-REPORT MANAGEMENT (LIGHT THEME) */}
-      {isShiftModalOpen && activeShift && (
+      {/* 6A. MODAL: OPEN NEW CASHIER SHIFT */}
+      {isOpenShiftModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-black flex items-center gap-2 text-emerald-700">
                 <Clock className="w-5 h-5 text-emerald-600" />
-                تقرير وردية الكاشير (Z-Report)
+                بدء وردية كاشير جديدة (Open Shift)
               </h3>
+              {activeShift && (
+                <button
+                  onClick={() => setIsOpenShiftModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              يرجى التحقق من الرصيد الافتتاحي الفعلي في درج النقدية قبل بدء عمليات البيع لضمان دقة المطابقة المحاسبية.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500">الفرع والجهاز:</span>
+                <span className="font-bold text-slate-900">{activeBranch?.name_ar} ({terminalCode})</span>
+              </div>
+              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500">اسم الكاشير:</span>
+                <span className="font-bold text-blue-700">{cashierName}</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  الرصيد الافتتاحي للدرج (Opening Cash Balance):
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={openingBalanceInput}
+                    onChange={(e) => setOpeningBalanceInput(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-base font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">
+                    {activeBranch?.currency || 'ل.س'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ملاحظات الفتح (اختياري):</label>
+                <input
+                  type="text"
+                  value={openShiftNotes}
+                  onChange={(e) => setOpenShiftNotes(e.target.value)}
+                  placeholder="مثال: فكة نقدية من الإدارة..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center gap-2">
+              <button
+                disabled={isOpeningShift}
+                onClick={handleOpenShiftSubmit}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+              >
+                {isOpeningShift ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>جاري فتح الوردية وتوثيق السجل...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>فتح الوردية واعتماد الصندوق</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6B. MODAL: SHIFT Z-REPORT MANAGEMENT & AUDIT TABS */}
+      {isShiftModalOpen && activeShift && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 text-slate-900 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black flex items-center gap-2 text-emerald-800">
+                  <Clock className="w-5 h-5 text-emerald-600" />
+                  <span>إدارة وردية الكاشير</span>
+                  <span className="text-xs font-mono font-bold text-slate-500">({activeShift.shift_number})</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  الفرع: {activeShift.branch_name} • الجهاز: {activeShift.terminal_code} • الكاشير: {activeShift.cashier_name}
+                </p>
+              </div>
               <button
                 onClick={() => setIsShiftModalOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
@@ -1708,44 +2305,562 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
               </button>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-700">
-              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500">الفرع والكاشير:</span>
-                <span className="font-bold text-slate-900">{activeShift.branch_name} ({activeShift.terminal_code})</span>
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
+              <button
+                onClick={() => setShiftActiveTab('summary')}
+                className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  shiftActiveTab === 'summary'
+                    ? 'bg-white text-emerald-800 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>الملخص والإغلاق</span>
+              </button>
+
+              <button
+                onClick={() => setShiftActiveTab('movements')}
+                className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  shiftActiveTab === 'movements'
+                    ? 'bg-white text-blue-800 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>حركات النقدية (توريد/تسليم)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShiftActiveTab('ledger');
+                  loadShiftMovements(activeShift.id);
+                }}
+                className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  shiftActiveTab === 'ledger'
+                    ? 'bg-white text-purple-800 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>سجل الحركات الدائم</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShiftActiveTab('remote_close');
+                  loadBranchOpenShifts(activeBranch?.id || targetBranchId || 'b-jed-01');
+                }}
+                className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  shiftActiveTab === 'remote_close'
+                    ? 'bg-white text-amber-800 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>إشراف الفرع وعن بعد</span>
+              </button>
+            </div>
+
+            {/* TAB 1: SUMMARY & CLOSE */}
+            {shiftActiveTab === 'summary' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-slate-500 block text-[11px]">الرصيد الافتتاحي</span>
+                    <strong className="text-slate-900 font-mono text-sm">{activeShift.opening_balance.toFixed(2)}</strong>
+                  </div>
+
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <span className="text-emerald-700 block text-[11px]">مبيعات الكاش (+)</span>
+                    <strong className="text-emerald-900 font-mono text-sm">{activeShift.cash_sales.toFixed(2)}</strong>
+                  </div>
+
+                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+                    <span className="text-blue-700 block text-[11px]">مبيعات الشبكة/مدى</span>
+                    <strong className="text-blue-900 font-mono text-sm">{activeShift.card_sales.toFixed(2)}</strong>
+                  </div>
+
+                  <div className="p-2.5 bg-teal-50 border border-teal-200 rounded-xl">
+                    <span className="text-teal-700 block text-[11px]">مقبوضات نقدية (+)</span>
+                    <strong className="text-teal-900 font-mono text-sm">{(activeShift.cash_receipts ?? 0).toFixed(2)}</strong>
+                  </div>
+
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl">
+                    <span className="text-rose-700 block text-[11px]">مرتجعات نقدية (-)</span>
+                    <strong className="text-rose-900 font-mono text-sm">{(activeShift.cash_refunds ?? 0).toFixed(2)}</strong>
+                  </div>
+
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                    <span className="text-amber-700 block text-[11px]">تسليم للخزينة (-)</span>
+                    <strong className="text-amber-900 font-mono text-sm">{(activeShift.cash_drops ?? 0).toFixed(2)}</strong>
+                  </div>
+                </div>
+
+                {/* Highlight: Expected Cash in Drawer */}
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-emerald-900 font-black block">المبلغ المتوقع في الدرج حالياً:</span>
+                    <span className="text-[10px] text-emerald-700">
+                      = الرصيد الافتتاحي + مبيعات الكاش + المقبوضات - المرتجعات - التسليمات
+                    </span>
+                  </div>
+                  <span className="font-mono text-lg font-black text-emerald-950">
+                    {(activeShift.expected_cash ?? 0).toFixed(2)} {activeBranch?.currency || 'ل.س'}
+                  </span>
+                </div>
+
+                {/* Shift Close Section */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-rose-600" />
+                    <span>إغلاق الوردية والمطابقة النقدية (Z-Report Close)</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        المبلغ الفعلي المعدود بالدرج (Actual Cash Counted):
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={actualCashCountedInput}
+                        onChange={(e) => setActualCashCountedInput(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-rose-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        الفرق المالي المحسوب (Variance):
+                      </label>
+                      {actualCashCountedInput !== '' ? (
+                        (() => {
+                          const actual = parseFloat(actualCashCountedInput) || 0;
+                          const diff = actual - (activeShift.expected_cash ?? 0);
+                          if (Math.abs(diff) < 0.01) {
+                            return (
+                              <div className="px-3 py-2 bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold rounded-xl text-xs flex items-center justify-between">
+                                <span>متطابق تماماً</span>
+                                <span className="font-mono">0.00 ل.س</span>
+                              </div>
+                            );
+                          } else if (diff > 0) {
+                            return (
+                              <div className="px-3 py-2 bg-blue-100 border border-blue-300 text-blue-900 font-bold rounded-xl text-xs flex items-center justify-between">
+                                <span>فائض نقدي (+)</span>
+                                <span className="font-mono">+{diff.toFixed(2)} ل.س</span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="px-3 py-2 bg-rose-100 border border-rose-300 text-rose-900 font-bold rounded-xl text-xs flex items-center justify-between">
+                                <span>عجز نقدي (-)</span>
+                                <span className="font-mono">{diff.toFixed(2)} ل.س</span>
+                              </div>
+                            );
+                          }
+                        })()
+                      ) : (
+                        <div className="px-3 py-2 bg-slate-100 border border-slate-200 text-slate-500 rounded-xl text-xs">
+                          بانتظار إدخال المبلغ المعدود...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">ملاحظات الإغلاق والتسليم:</label>
+                    <input
+                      type="text"
+                      value={closeShiftNotes}
+                      onChange={(e) => setCloseShiftNotes(e.target.value)}
+                      placeholder="أي فروقات أو مبررات يتم تدوينها هنا بشكل دائم..."
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+
+                  <button
+                    disabled={isClosingShift || actualCashCountedInput === ''}
+                    onClick={handleCloseShiftSubmit}
+                    className="w-full py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isClosingShift ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>جاري إغلاق الوردية وحساب الفروقات...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>تأكيد إغلاق الوردية واعتماد تقرير Z-Report</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500">وقت فتح الوردية:</span>
-                <span className="font-mono text-blue-700 font-bold">{activeShift.opened_at}</span>
+            )}
+
+            {/* TAB 2: CASH MOVEMENTS (DROP / RECEIPT / REFUND) */}
+            {shiftActiveTab === 'movements' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+                  <button
+                    onClick={() => setCashMovementType('cash_drop')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all ${
+                      cashMovementType === 'cash_drop' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600'
+                    }`}
+                  >
+                    تسليم نقدي للخزينة (Drop)
+                  </button>
+                  <button
+                    onClick={() => setCashMovementType('receipt')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all ${
+                      cashMovementType === 'receipt' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600'
+                    }`}
+                  >
+                    توريد نقدي إضافي (Inflow)
+                  </button>
+                  <button
+                    onClick={() => setCashMovementType('refund_cash')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all ${
+                      cashMovementType === 'refund_cash' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600'
+                    }`}
+                  >
+                    مرتجع نقدي لعميل (Refund)
+                  </button>
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">المبلغ (Amount):</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cashMovementAmount}
+                        onChange={(e) => setCashMovementAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">رقم السند / الإيصال المرجعي:</label>
+                      <input
+                        type="text"
+                        value={cashMovementRef}
+                        onChange={(e) => setCashMovementRef(e.target.value)}
+                        placeholder="مثال: VOUCHER-001 أو رقم الفاتورة"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">البيان / السبب:</label>
+                    <input
+                      type="text"
+                      value={cashMovementNotes}
+                      onChange={(e) => setCashMovementNotes(e.target.value)}
+                      placeholder="سبب الحركة أو اسم المستلم في الخزينة..."
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    disabled={isSubmittingMovement || !cashMovementAmount}
+                    onClick={handleRecordMovementSubmit}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    {isSubmittingMovement ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>جاري تسجيل الحركة...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>تأكيد تسجيل الحركة في الصندوق</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500">الرصيد الافتتاحي للدرج:</span>
-                <span className="font-mono font-bold text-slate-900">{activeShift.opening_balance.toFixed(2)}</span>
+            )}
+
+            {/* TAB 3: LIVE LEDGER */}
+            {shiftActiveTab === 'ledger' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600">
+                    سجل الحركات النقدية الدائم للوردية الحالية ({shiftMovements.length})
+                  </span>
+                  <button
+                    onClick={() => loadShiftMovements(activeShift.id)}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMovements ? 'animate-spin' : ''}`} />
+                    <span>تحديث</span>
+                  </button>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-64 overflow-y-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold sticky top-0">
+                      <tr>
+                        <th className="p-2.5">النوع</th>
+                        <th className="p-2.5">المبلغ</th>
+                        <th className="p-2.5">المرجع</th>
+                        <th className="p-2.5">المسؤول</th>
+                        <th className="p-2.5">الوقت</th>
+                        <th className="p-2.5">ملاحظات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {shiftMovements.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-slate-400">
+                            {isLoadingMovements ? 'جاري تحميل السجل...' : 'لا توجد حركات مسجلة بعد'}
+                          </td>
+                        </tr>
+                      ) : (
+                        shiftMovements.map((m) => (
+                          <tr key={m.id} className="hover:bg-slate-50">
+                            <td className="p-2.5">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                m.movement_type === 'sale_cash' ? 'bg-emerald-100 text-emerald-800' :
+                                m.movement_type === 'sale_card' ? 'bg-blue-100 text-blue-800' :
+                                m.movement_type === 'receipt' ? 'bg-teal-100 text-teal-800' :
+                                m.movement_type === 'cash_drop' ? 'bg-amber-100 text-amber-800' :
+                                m.movement_type === 'refund_cash' ? 'bg-rose-100 text-rose-800' :
+                                'bg-slate-100 text-slate-800'
+                              }`}>
+                                {m.movement_type}
+                              </span>
+                            </td>
+                            <td className="p-2.5 font-mono font-bold text-slate-900">
+                              {Number(m.amount).toFixed(2)}
+                            </td>
+                            <td className="p-2.5 font-mono text-[11px] text-slate-500">{m.reference_id || '-'}</td>
+                            <td className="p-2.5 text-slate-700">{m.performed_by}</td>
+                            <td className="p-2.5 text-slate-500 font-mono text-[10px]">
+                              {new Date(m.created_at).toLocaleTimeString('ar-SA')}
+                            </td>
+                            <td className="p-2.5 text-slate-600 text-[11px] max-w-[150px] truncate">{m.notes || '-'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500">إجمالي مبيعات الكاش:</span>
-                <span className="font-mono font-bold text-emerald-700">{activeShift.cash_sales.toFixed(2)}</span>
+            )}
+
+            {/* TAB 4: REMOTE SUPERVISOR CLOSE */}
+            {shiftActiveTab === 'remote_close' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">
+                    الورديات المفتوحة في هذا الفرع ({branchOpenShifts.length})
+                  </span>
+                  <button
+                    onClick={() => loadBranchOpenShifts(activeBranch?.id || targetBranchId || 'b-jed-01')}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBranchShifts ? 'animate-spin' : ''}`} />
+                    <span>تحديث القائمة</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {branchOpenShifts.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                      لا توجد أي ورديات مفتوحة حالياً في هذا الفرع.
+                    </div>
+                  ) : (
+                    branchOpenShifts.map((s) => (
+                      <div
+                        key={s.id}
+                        className={`p-3 rounded-xl border transition-all text-xs flex flex-wrap items-center justify-between gap-2 ${
+                          remoteShiftToClose?.id === s.id
+                            ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-500/20'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>{s.cashier_name}</span>
+                            <span className="text-slate-500 font-mono text-[11px]">({s.terminal_code})</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            رقم الوردية: <span className="font-mono">{s.shift_number}</span> • وقت الفتح:{' '}
+                            <span className="font-mono">{new Date(s.opened_at).toLocaleTimeString('ar-SA')}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-end">
+                            <span className="text-[10px] text-slate-500 block">المتوقع بالدرج:</span>
+                            <span className="font-mono font-bold text-emerald-800">{Number(s.expected_cash).toFixed(2)} ل.س</span>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setRemoteShiftToClose(s);
+                              setRemoteActualCash(String(s.expected_cash || ''));
+                            }}
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs transition-colors"
+                          >
+                            إغلاق إداري عن بعد
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Remote close action box */}
+                {remoteShiftToClose && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-2xl space-y-2.5 text-xs animate-in fade-in duration-150">
+                    <h5 className="font-black text-rose-900">
+                      تأكيد الإغلاق الإداري لوردية الكاشير: {remoteShiftToClose.cashier_name} ({remoteShiftToClose.shift_number})
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-bold text-rose-800 mb-1">المبلغ الفعلي المعدود في الصندوق:</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={remoteActualCash}
+                          onChange={(e) => setRemoteActualCash(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl font-mono font-bold text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-rose-800 mb-1">سبب الإغلاق الإداري:</label>
+                        <input
+                          type="text"
+                          value={remoteCloseNotes}
+                          onChange={(e) => setRemoteCloseNotes(e.target.value)}
+                          placeholder="مثال: مغادرة الكاشير المفاجئة / تعطل الجهاز..."
+                          className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        disabled={isClosingShift}
+                        onClick={handleRemoteCloseSubmit}
+                        className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black shadow-md shadow-rose-600/30 transition-all"
+                      >
+                        {isClosingShift ? 'جاري الإغلاق...' : 'اعتماد الإغلاق الإشرافي وتوليد تقرير Z'}
+                      </button>
+                      <button
+                        onClick={() => setRemoteShiftToClose(null)}
+                        className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500">إجمالي مبيعات الشبكة (Mada/Card):</span>
-                <span className="font-mono font-bold text-blue-700">{activeShift.card_sales.toFixed(2)}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 6C. MODAL: OFFICIAL Z-REPORT SUMMARY (PRINTABLE) */}
+      {isZReportModalOpen && closedShiftSummary && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white text-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto select-text">
+            <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
+              <h3 className="text-lg font-black text-slate-950">تقرير إغلاق الوردية النهائي (Z-REPORT)</h3>
+              <p className="text-xs text-slate-500 font-mono font-bold">{closedShiftSummary.shift_number}</p>
+              <div className="text-[11px] text-slate-600">
+                {closedShiftSummary.branch_name} • جهاز: {closedShiftSummary.terminal_code}
               </div>
-              <div className="flex justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-black">
-                <span className="text-emerald-900">المبيعات الكلية + الرصيد:</span>
-                <span className="font-mono text-emerald-700">
-                  {(activeShift.total_sales + activeShift.opening_balance).toFixed(2)} {activeBranch?.currency || 'ل.س'}
+            </div>
+
+            <div className="space-y-2 text-xs divide-y divide-slate-100">
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">الكاشير:</span>
+                <span className="font-bold text-slate-900">{closedShiftSummary.cashier_name}</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">تم الإغلاق بواسطة:</span>
+                <span className="font-bold text-slate-900">{closedShiftSummary.closed_by_name || cashierName}</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">وقت البدء والإغلاق:</span>
+                <span className="font-mono text-slate-700">{closedShiftSummary.opened_at} — {closedShiftSummary.closed_at}</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">الرصيد الافتتاحي:</span>
+                <span className="font-mono font-bold text-slate-900">{closedShiftSummary.opening_balance.toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">إجمالي مبيعات الكاش (+):</span>
+                <span className="font-mono font-bold text-emerald-700">+{closedShiftSummary.cash_sales.toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">إجمالي مبيعات الشبكة/مدى:</span>
+                <span className="font-mono font-bold text-blue-700">{closedShiftSummary.card_sales.toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">مقبوضات نقدية أخرى (+):</span>
+                <span className="font-mono font-bold text-teal-700">+{(closedShiftSummary.cash_receipts ?? 0).toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">مرتجعات نقدية (-):</span>
+                <span className="font-mono font-bold text-rose-700">-{(closedShiftSummary.cash_refunds ?? 0).toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">تسليم نقدي للخزينة (-):</span>
+                <span className="font-mono font-bold text-amber-700">-{(closedShiftSummary.cash_drops ?? 0).toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-2 bg-slate-50 px-2 rounded-xl border border-slate-200 font-bold">
+                <span className="text-slate-700">المبلغ المتوقع بالدرج:</span>
+                <span className="font-mono text-slate-900">{(closedShiftSummary.expected_cash ?? 0).toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-2 bg-slate-50 px-2 rounded-xl border border-slate-200 font-bold">
+                <span className="text-slate-700">المبلغ الفعلي المعدود:</span>
+                <span className="font-mono text-slate-900">{(closedShiftSummary.actual_cash || 0).toFixed(2)} ل.س</span>
+              </div>
+              <div className="flex justify-between py-2 px-2 rounded-xl font-black text-sm">
+                <span>الفارق النهائي (Variance):</span>
+                <span className={`font-mono ${
+                  (closedShiftSummary.difference || 0) === 0 ? 'text-emerald-700' :
+                  (closedShiftSummary.difference || 0) > 0 ? 'text-blue-700' : 'text-rose-700'
+                }`}>
+                  {(closedShiftSummary.difference || 0) > 0 ? `+${closedShiftSummary.difference?.toFixed(2)} (فائض)` :
+                   (closedShiftSummary.difference || 0) < 0 ? `${closedShiftSummary.difference?.toFixed(2)} (عجز)` :
+                   '0.00 (متطابق)'}
                 </span>
               </div>
             </div>
 
-            <div className="pt-2 flex items-center gap-2">
+            <div className="pt-2 flex items-center gap-2 print:hidden">
               <button
-                onClick={() => {
-                  alert('تم إغلاق الوردية وطباعة تقرير Z-Report بنجاح!');
-                  setIsShiftModalOpen(false);
-                }}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/30 transition-all"
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
               >
-                إغلاق الوردية ومطابقة الصندوق
+                <Printer className="w-4 h-4" />
+                <span>طباعة تقرير Z-Report</span>
+              </button>
+              <button
+                onClick={() => setIsZReportModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
+              >
+                إغلاق
               </button>
             </div>
           </div>
@@ -1761,24 +2876,44 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900">نقطة البيع مقفلة مؤقتاً</h3>
-              <p className="text-xs text-slate-500 mt-1">أدخل رمز PIN للكاشير للاستئناف (الرمز: 1234)</p>
+              <p className="text-xs text-slate-500 mt-1">
+                أدخل رمز PIN للموظف ({currentStaff?.full_name || cashierName}) للاستئناف
+              </p>
             </div>
+
+            {pinError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl animate-shake">
+                ⚠️ {pinError}
+              </div>
+            )}
 
             <form onSubmit={handleUnlockTerminal} className="space-y-3">
               <input
                 type="password"
-                maxLength={4}
+                maxLength={6}
                 autoFocus
+                disabled={isUnlockingPin}
                 placeholder="• • • •"
                 value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
+                onChange={(e) => {
+                  setPinInput(e.target.value);
+                  setPinError(null);
+                }}
                 className="w-full text-center font-mono text-2xl tracking-widest py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 shadow-xs"
               />
               <button
                 type="submit"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/30 transition-all"
+                disabled={isUnlockingPin || !pinInput.trim()}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
               >
-                فتح القفل والاستئناف
+                {isUnlockingPin ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>جاري التحقق...</span>
+                  </>
+                ) : (
+                  <span>فتح القفل والاستئناف</span>
+                )}
               </button>
             </form>
           </div>

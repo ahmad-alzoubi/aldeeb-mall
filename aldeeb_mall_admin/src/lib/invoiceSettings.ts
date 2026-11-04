@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
+import { supabase } from './supabase';
 
 export interface InvoiceSettings {
   // Store info & Header
@@ -150,6 +151,112 @@ export function resetInvoiceSettings(): InvoiceSettings {
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: DEFAULT_INVOICE_SETTINGS }));
   }
   return DEFAULT_INVOICE_SETTINGS;
+}
+
+/**
+ * Loads the active template from Supabase PostgreSQL (branch-specific or global default)
+ */
+export async function fetchActiveInvoiceTemplate(branchId?: string): Promise<InvoiceSettings> {
+  try {
+    let query = supabase
+      .from('invoice_templates')
+      .select('*')
+      .eq('is_active', true);
+
+    if (branchId) {
+      query = query.or(`branch_id.eq.${branchId},branch_id.is.null`);
+    } else {
+      query = query.is('branch_id', null);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(1);
+
+    if (!error && data && data.length > 0) {
+      const remoteSettings = data[0].settings as InvoiceSettings;
+      const merged = { ...DEFAULT_INVOICE_SETTINGS, ...remoteSettings };
+      saveInvoiceSettings(merged);
+      return merged;
+    }
+  } catch (err) {
+    console.warn('Could not fetch remote invoice template, using cached settings', err);
+  }
+  return getInvoiceSettings();
+}
+
+/**
+ * Saves template to Supabase PostgreSQL using atomic save_invoice_template RPC
+ */
+export async function saveInvoiceTemplateToDb(
+  settings: InvoiceSettings,
+  branchId?: string,
+  templateName: string = 'قالب الفاتورة المعتمد'
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    saveInvoiceSettings(settings);
+
+    const { data, error } = await supabase.rpc('save_invoice_template', {
+      p_name: templateName,
+      p_branch_id: branchId || null,
+      p_paper_width: settings.paperWidth || '80mm',
+      p_settings: settings,
+    });
+
+    if (error) {
+      console.warn('RPC save_invoice_template error, falling back to direct table insert:', error);
+      const { data: insertData, error: insertError } = await supabase
+        .from('invoice_templates')
+        .insert({
+          name: templateName,
+          branch_id: branchId || null,
+          is_active: true,
+          paper_width: settings.paperWidth || '80mm',
+          settings: settings,
+        })
+        .select()
+        .maybeSingle();
+
+      if (insertError) {
+        return { success: false, error: insertError.message };
+      }
+      return { success: true, data: insertData };
+    }
+
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'فشل الاتصال بالخادم لحفظ القالب' };
+  }
+}
+
+/**
+ * Records print and reprint events in PostgreSQL audit ledger
+ */
+export async function recordInvoicePrintInDb(
+  orderNumber: string,
+  printType: 'original' | 'reprint' | 'electronic_view' | 'preview' = 'original',
+  printedBy: string = 'كاشير',
+  deviceCode: string = 'POS-01',
+  reprintReason?: string
+): Promise<{ success: boolean; reprintCount: number; isReprint: boolean }> {
+  try {
+    const { data, error } = await supabase.rpc('record_invoice_print', {
+      p_order_number: orderNumber,
+      p_print_type: printType,
+      p_printed_by: printedBy,
+      p_device_code: deviceCode,
+      p_reprint_reason: reprintReason || null,
+    });
+
+    if (!error && data) {
+      return {
+        success: true,
+        reprintCount: Number(data.reprint_count || 0),
+        isReprint: Boolean(data.is_reprint),
+      };
+    }
+  } catch (err) {
+    console.warn('Failed to record print audit in DB:', err);
+  }
+  return { success: false, reprintCount: 0, isReprint: printType === 'reprint' };
 }
 
 export function useInvoiceSettings(): [InvoiceSettings, (s: InvoiceSettings) => void] {

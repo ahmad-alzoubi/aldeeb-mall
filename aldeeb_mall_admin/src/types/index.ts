@@ -55,13 +55,38 @@ export interface OrderItem {
   bin_location?: string;
 }
 
+export type OrderStatus = 
+  | 'pending'
+  | 'confirmed'
+  | 'packing'
+  | 'assigned'
+  | 'ready_for_driver'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'cancelled'
+  | 'failed';
+
+export interface OrderStatusHistoryItem {
+  id: string;
+  order_id: string;
+  from_status: OrderStatus | null;
+  to_status: OrderStatus;
+  reason?: string;
+  notes?: string;
+  staff_id?: string;
+  staff_name?: string;
+  staff_role?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;
   customer_name: string;
   customer_phone: string;
   customer_address: string;
-  status: 'pending' | 'packing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   delivery_slot: string;
   delivery_type?: '15_min_express' | 'scheduled';
   payment_method: string;
@@ -79,8 +104,12 @@ export interface Order {
   courier_name?: string;
   delivery_otp?: string;
   delivery_failure_reason?: string;
+  cancellation_reason?: string;
+  failure_reason?: string;
   delivered_at?: string;
   assigned_at?: string;
+  version?: number;
+  is_stock_restored?: boolean;
 }
 
 export interface Coupon {
@@ -237,13 +266,46 @@ export interface TransferOrder {
 export interface PickerTask {
   id: string;
   order_number: string;
+  order_id?: string;
+  order_item_id?: string;
+  product_id?: string;
   product_name_ar: string;
+  product_name_en?: string;
+  product_image?: string;
   bin_location: string;
   barcode: string;
   quantity_required: number;
   quantity_picked: number;
   is_verified: boolean;
-  status: 'pending' | 'picked' | 'verified';
+  status: 'pending' | 'picked' | 'sorted' | 'packed' | 'verified' | 'out_of_stock' | 'substituted' | 'completed';
+  branch_id?: string;
+  branch_name?: string;
+  assigned_staff_id?: string;
+  assigned_staff_name?: string;
+  stage?: 'picking' | 'sorting' | 'packing' | 'completed';
+  item_type?: 'unit' | 'weighed';
+  unit?: string;
+  expected_weight?: number;
+  actual_weight?: number;
+  verification_method?: 'pending' | 'barcode_scan' | 'verified_manual';
+  scanned_barcode?: string;
+  is_substituted?: boolean;
+  substitute_product_id?: string;
+  substitute_product_name?: string;
+  substitute_barcode?: string;
+  substitution_reason?: string;
+  price_difference?: number;
+  is_shortage?: boolean;
+  shortage_qty?: number;
+  shortage_reason?: string;
+  notes?: string;
+  packing_box_id?: string;
+  sorted_bin?: string;
+  scanned_at?: string;
+  sorted_at?: string;
+  packed_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FlashDeal {
@@ -275,6 +337,7 @@ export interface Courier {
   license_plate: string;
   current_location: string;
   status: 'idle' | 'on_delivery' | 'returning' | 'offline' | 'break';
+  is_online?: boolean;
   shift_status?: 'active' | 'break' | 'off_duty';
   earnings_today?: number;
   tips_today?: number;
@@ -393,7 +456,13 @@ export interface MarketingCampaign {
 export interface DeliveryZone {
   id: string;
   zone_name_ar: string;
+  zone_name_en?: string;
+  city?: string;
+  district?: string;
+  branch_id?: string;
   dark_store_code: string;
+  center_latitude?: number;
+  center_longitude?: number;
   radius_km: number;
   base_delivery_fee: number;
   free_delivery_threshold: number;
@@ -401,6 +470,16 @@ export interface DeliveryZone {
   is_surge_pricing_active: boolean;
   surge_fee: number;
   is_active: boolean;
+  opening_time?: string;
+  closing_time?: string;
+  max_hourly_capacity?: number;
+  current_hourly_load?: number;
+  delivery_options?: Array<{
+    id: string;
+    name_ar: string;
+    fee_modifier?: number;
+    estimated_minutes?: number;
+  }>;
 }
 
 export interface ColdChainSensor {
@@ -620,18 +699,70 @@ export interface ParkedCart {
 
 export interface PosShift {
   id: string;
+  shift_number?: string;
   branch_id: string;
   branch_name: string;
   terminal_code: string;
+  device_fingerprint?: string;
+  cashier_id?: string;
   cashier_name: string;
   opened_at: string;
   closed_at?: string;
+  closed_by_id?: string;
+  closed_by_name?: string;
+  status: 'open' | 'closed' | 'suspended';
   opening_balance: number;
   cash_sales: number;
   card_sales: number;
+  other_sales?: number;
   total_sales: number;
+  cash_receipts?: number;
+  cash_refunds?: number;
+  card_refunds?: number;
+  cash_drops?: number;
+  expected_cash?: number;
+  actual_cash?: number;
+  difference?: number;
   transactions_count: number;
-  status: 'open' | 'closed';
+  notes?: string;
+}
+
+export interface CashierShiftMovement {
+  id: string;
+  shift_id: string;
+  movement_type: 'opening' | 'sale_cash' | 'sale_card' | 'sale_split' | 'receipt' | 'refund_cash' | 'refund_card' | 'cash_drop' | 'closing';
+  amount: number;
+  payment_method: string;
+  reference_id?: string;
+  performed_by: string;
+  performed_by_id?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface InvoiceTemplateRecord {
+  id: string;
+  name: string;
+  branch_id?: string | null;
+  is_active: boolean;
+  paper_width: '80mm' | '58mm' | 'a4';
+  settings: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceAuditLog {
+  id: string;
+  order_id?: string;
+  order_number: string;
+  shift_id?: string;
+  print_type: 'original' | 'reprint' | 'electronic_view' | 'preview';
+  reprint_count: number;
+  printed_by: string;
+  printed_by_id?: string;
+  device_code: string;
+  reprint_reason?: string;
+  created_at: string;
 }
 
 export interface PosTransaction {

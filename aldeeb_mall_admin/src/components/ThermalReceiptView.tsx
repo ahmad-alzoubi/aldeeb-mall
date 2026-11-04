@@ -48,6 +48,9 @@ interface ThermalReceiptViewProps {
   onInspectElement?: (target: InspectTarget) => void;
   onToggleElementVisibility?: (toggleKey: keyof InvoiceSettings) => void;
   activeInspectedKey?: string;
+  isPreview?: boolean;
+  isReprint?: boolean;
+  reprintCount?: number;
 }
 
 export const ThermalReceiptView: React.FC<ThermalReceiptViewProps> = ({
@@ -59,6 +62,9 @@ export const ThermalReceiptView: React.FC<ThermalReceiptViewProps> = ({
   onInspectElement,
   onToggleElementVisibility,
   activeInspectedKey,
+  isPreview = false,
+  isReprint = false,
+  reprintCount = 0,
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [eInvoiceTargetUrl, setEInvoiceTargetUrl] = useState<string>('');
@@ -183,6 +189,19 @@ export const ThermalReceiptView: React.FC<ThermalReceiptViewProps> = ({
       dir="rtl"
       id="aldeeb-thermal-receipt"
     >
+      {/* Visual Banners: Preview vs Reprint indicator */}
+      {isPreview && (
+        <div className="bg-amber-50 border border-dashed border-amber-300 text-amber-800 rounded-lg p-2 text-center text-xs font-black tracking-wide mb-3 print:hidden shadow-xs">
+          ⚠️ معاينة تصميم تجريبية حية • غير مخصصة للبيع (PREVIEW ONLY)
+        </div>
+      )}
+
+      {isReprint && (
+        <div className="bg-rose-50 border-2 border-rose-400 text-rose-800 rounded-lg p-2 text-center text-xs font-black tracking-wide mb-3 shadow-xs">
+          🔴 نسخة معاد طباعتها (REPRINT) • نسخة رقم {reprintCount > 0 ? reprintCount : 1}
+        </div>
+      )}
+
       {/* 1. Header Section */}
       <div className={`text-center space-y-1 pb-3 ${dividerClass}`}>
         {settings.showLogo && settings.logoUrl && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Receipt, 
   Eye, 
@@ -25,7 +25,9 @@ import {
 import { 
   InvoiceSettings, 
   DEFAULT_INVOICE_SETTINGS, 
-  useInvoiceSettings 
+  useInvoiceSettings,
+  fetchActiveInvoiceTemplate,
+  saveInvoiceTemplateToDb
 } from '../lib/invoiceSettings';
 import { ThermalReceiptView, ReceiptData, InspectTarget } from '../components/ThermalReceiptView';
 
@@ -61,7 +63,20 @@ export const InvoiceDesignerPage: React.FC<InvoiceDesignerPageProps> = ({ onOpen
   const [draft, setDraft] = useState<InvoiceSettings>(settings);
   const [activeSubTab, setActiveSubTab] = useState<'elements' | 'store' | 'style' | 'qrcode' | 'texts'>('elements');
   const [showSavedBadge, setShowSavedBadge] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [serverSaveNotice, setServerSaveNotice] = useState<string | null>(null);
   const [previewPaper, setPreviewPaper] = useState<'80mm' | '58mm'>('80mm');
+
+  // Load active template from Supabase DB on mount
+  useEffect(() => {
+    let isMounted = true;
+    fetchActiveInvoiceTemplate().then((remote) => {
+      if (isMounted && remote) {
+        setDraft(remote);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   // Interactive Inspector States
   const [isInspectorActive, setIsInspectorActive] = useState(true);
@@ -73,10 +88,23 @@ export const InvoiceDesignerPage: React.FC<InvoiceDesignerPageProps> = ({ onOpen
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
+    setServerSaveNotice(null);
     setSettings(draft);
+    
+    const res = await saveInvoiceTemplateToDb(draft, undefined, 'قالب الفاتورة المعتمد - الديب مول');
+    setIsSaving(false);
     setShowSavedBadge(true);
-    setTimeout(() => setShowSavedBadge(false), 2500);
+    if (res.success) {
+      setServerSaveNotice('✅ تم حفظ واعتماد القالب بنجاح في قاعدة البيانات المركزية');
+    } else {
+      setServerSaveNotice(`⚠️ تم الحفظ محلياً (تعذر المزامنة السحابية: ${res.error})`);
+    }
+    setTimeout(() => {
+      setShowSavedBadge(false);
+      setServerSaveNotice(null);
+    }, 3500);
   };
 
   const handleReset = () => {
@@ -885,6 +913,7 @@ export const InvoiceDesignerPage: React.FC<InvoiceDesignerPageProps> = ({ onOpen
                 onToggleElementVisibility={handleToggleElementVisibility}
                 activeInspectedKey={inspectedTarget?.key}
                 onOpenElectronicInvoice={onOpenElectronicInvoice}
+                isPreview={true}
               />
 
               {/* Bottom paper tear serrated edge simulation */}

@@ -12,7 +12,8 @@ import {
   CreditCard, 
   ArrowRight,
   FileCheck2,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { 
   InvoiceSettings, 
@@ -20,6 +21,7 @@ import {
   decodeElectronicInvoicePayload,
   generateQrCodeDataUrl
 } from '../lib/invoiceSettings';
+import { supabase } from '../lib/supabase';
 
 interface ElectronicInvoicePageProps {
   onBackToApp?: () => void;
@@ -27,56 +29,141 @@ interface ElectronicInvoicePageProps {
 
 export const ElectronicInvoicePage: React.FC<ElectronicInvoicePageProps> = ({ onBackToApp }) => {
   const [invoiceData, setInvoiceData] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [settings] = useState<InvoiceSettings>(() => getInvoiceSettings());
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
-    // Parse URL params from hash or search
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const urlString = hash.includes('?') ? hash.split('?')[1] : search.replace('?', '');
-    const urlParams = new URLSearchParams(urlString);
-    
-    const idParam = urlParams.get('id') || 'RCP-POS-948102';
-    const dataParam = urlParams.get('d');
+    let isMounted = true;
 
-    if (dataParam) {
-      const decoded = decodeElectronicInvoicePayload(dataParam);
-      if (decoded) {
-        setInvoiceData(decoded);
-        return;
+    async function resolveInvoice() {
+      setIsLoading(true);
+
+      // Parse URL params from hash or search
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const urlString = hash.includes('?') ? hash.split('?')[1] : search.replace('?', '');
+      const urlParams = new URLSearchParams(urlString);
+      
+      const idParam = urlParams.get('id') || urlParams.get('order') || '';
+      const dataParam = urlParams.get('d');
+      const isExplicitPreview = urlParams.get('preview') === 'true' || idParam.toLowerCase().includes('preview');
+
+      // 1. Try querying real order from Supabase database if ID exists
+      if (idParam && !isExplicitPreview) {
+        try {
+          const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(idParam);
+          let query = supabase.from('orders').select(`
+            *,
+            order_items (*)
+          `);
+
+          if (isUuid) {
+            query = query.or(`id.eq.${idParam},order_number.eq.${idParam}`);
+          } else {
+            query = query.eq('order_number', idParam);
+          }
+
+          const { data: dbOrder, error: dbError } = await query.maybeSingle();
+
+          if (!dbError && dbOrder && isMounted) {
+            // Extract cashier from notes if available
+            let cashierName = 'كاشير نقطة البيع';
+            if (dbOrder.notes && dbOrder.notes.includes('الكاشير:')) {
+              const match = dbOrder.notes.match(/الكاشير:\s*([^•\n]+)/);
+              if (match) cashierName = match[1].trim();
+            }
+
+            const mappedItems = (dbOrder.order_items || []).map((item: any) => ({
+              name_ar: item.product_name || 'منتج',
+              quantity: item.quantity,
+              price: item.unit_price,
+              total: item.total_price,
+              unit: 'حبة',
+            }));
+
+            setInvoiceData({
+              receipt_number: dbOrder.order_number,
+              branch_name: dbOrder.branch_name || 'فرع الديب مول',
+              cashier_name: cashierName,
+              terminal_code: 'POS-01',
+              customer_name: dbOrder.customer_name || 'عميل نقدي مباشر',
+              customer_phone: dbOrder.customer_phone || '-',
+              created_at: new Date(dbOrder.created_at).toLocaleString('ar-SA'),
+              items: mappedItems.length > 0 ? mappedItems : [
+                { name_ar: 'مشتريات نقطة البيع POS', quantity: 1, price: dbOrder.total_amount, total: dbOrder.total_amount, unit: 'طلب' }
+              ],
+              subtotal: Number(dbOrder.subtotal || dbOrder.total_amount),
+              tax_amount: Math.max(0, Number(dbOrder.total_amount) - Number(dbOrder.subtotal || dbOrder.total_amount)),
+              grand_total: Number(dbOrder.total_amount),
+              payment_method: dbOrder.payment_method || 'cash',
+              cash_received: undefined,
+              change_given: undefined,
+              is_reprinted: Boolean(dbOrder.is_reprinted),
+              reprint_count: Number(dbOrder.reprint_count || 0),
+              isVerifiedServerOrder: true,
+              isPreview: false,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('Could not query database order, checking URL payload:', err);
+        }
+      }
+
+      // 2. Fallback to decoded base64 URL payload
+      if (dataParam) {
+        const decoded = decodeElectronicInvoicePayload(dataParam);
+        if (decoded && isMounted) {
+          setInvoiceData({
+            ...decoded,
+            isVerifiedServerOrder: false,
+            isPreview: false,
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // 3. Fallback to preview sample data with explicit preview notice
+      if (isMounted) {
+        setInvoiceData({
+          receipt_number: idParam || 'PREVIEW-POS-001',
+          branch_name: 'الفرع الرئيسي - برج الديب التجاري',
+          cashier_name: 'أحمد السعيد (كاشير تجريبي)',
+          terminal_code: 'POS-01',
+          customer_name: 'عميل نقدي تجريبي',
+          customer_phone: '0501234567',
+          created_at: new Date().toLocaleDateString('ar-SA', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          items: [
+            { name_ar: 'حليب كامل الدسم المراعي 1 لتر', quantity: 2, price: 6.50, total: 13.00, unit: 'حبة' },
+            { name_ar: 'أرز بسمتي الشعلان 5 كغ', quantity: 1, price: 42.00, total: 42.00, unit: 'كيس' },
+            { name_ar: 'زيت دوار الشمس عافية 1.5 لتر', quantity: 2, price: 18.50, total: 37.00, unit: 'حبة' },
+            { name_ar: 'بيض طازج مزارع الديب 30 حبة', quantity: 1, price: 19.50, total: 19.50, unit: 'طبق' },
+          ],
+          subtotal: 96.96,
+          tax_amount: 14.54,
+          grand_total: 111.50,
+          payment_method: 'card',
+          cash_received: undefined,
+          change_given: undefined,
+          isVerifiedServerOrder: false,
+          isPreview: true,
+        });
+        setIsLoading(false);
       }
     }
 
-    // Default sample/fallback invoice data
-    setInvoiceData({
-      receipt_number: idParam,
-      branch_name: 'الفرع الرئيسي - برج الديب التجاري',
-      cashier_name: 'أحمد السعيد',
-      terminal_code: 'POS-01',
-      customer_name: 'عميل نقدي معتمد',
-      customer_phone: '0501234567',
-      created_at: new Date().toLocaleDateString('ar-SA', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      items: [
-        { name_ar: 'حليب كامل الدسم المراعي 1 لتر', quantity: 2, price: 6.50, total: 13.00, unit: 'حبة' },
-        { name_ar: 'أرز بسمتي الشعلان 5 كغ', quantity: 1, price: 42.00, total: 42.00, unit: 'كيس' },
-        { name_ar: 'زيت دوار الشمس عافية 1.5 لتر', quantity: 2, price: 18.50, total: 37.00, unit: 'حبة' },
-        { name_ar: 'بيض طازج مزارع الديب 30 حبة', quantity: 1, price: 19.50, total: 19.50, unit: 'طبق' },
-      ],
-      subtotal: 96.96,
-      tax_amount: 14.54,
-      grand_total: 111.50,
-      payment_method: 'card',
-      cash_received: undefined,
-      change_given: undefined,
-    });
+    resolveInvoice();
+    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {
@@ -127,10 +214,28 @@ export const ElectronicInvoicePage: React.FC<ElectronicInvoicePageProps> = ({ on
               <span>العودة للنظام</span>
             </button>
           )}
-          <div className="flex items-center gap-1 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>فاتورة ضريبية رسمية وموثقة</span>
-          </div>
+          {invoiceData.isPreview ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs font-black">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span>معاينة تصميم تجريبية • غير مخصصة للبيع (PREVIEW ONLY)</span>
+            </div>
+          ) : invoiceData.isVerifiedServerOrder ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-black">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>فاتورة إلكترونية مؤكدة ومحفوظة في الخادم</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs font-bold">
+              <FileCheck2 className="w-4 h-4 text-blue-600" />
+              <span>إيصال بيع إلكتروني تجاري</span>
+            </div>
+          )}
+
+          {invoiceData.is_reprinted && (
+            <div className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 border border-rose-300 text-rose-800 rounded-xl text-xs font-black">
+              <span>نسخة معاد طباعتها (#{invoiceData.reprint_count || 1})</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -167,7 +272,11 @@ export const ElectronicInvoicePage: React.FC<ElectronicInvoicePageProps> = ({ on
           <div className="relative z-10 space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold backdrop-blur-xs">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>فاتورة إلكترونية معتمدة ونظامية 100%</span>
+              <span>
+                {invoiceData.isPreview
+                  ? 'معاينة قالب الفاتورة الإلكترونية - غير معتمدة للبيع'
+                  : 'فاتورة إلكترونية تجارية قياسية مسجلة في سجلات المتجر'}
+              </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight">{settings.storeNameAr}</h1>
             <p className="text-xs text-slate-300 font-mono tracking-wider">{settings.storeNameEn}</p>
