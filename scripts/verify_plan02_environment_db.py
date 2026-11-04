@@ -158,18 +158,18 @@ def main():
             ('ORD-LEGACY-DAM-01', v_user, v_addr_dam, 'delivered', 50000.00, 50000.00, 'دمشق فوري');
     END $$;
     """
-    res = run_cmd(["psql", "-d", upgrade_db, "-c", seed_sql])
+    res = run_cmd(["psql", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", "-d", upgrade_db, "-c", seed_sql])
     if res.returncode != 0:
-        run_cmd(["dropdb", upgrade_db])
+        run_cmd(["dropdb", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", upgrade_db])
         fail_test(f"Failed to seed legacy test orders: {res.stderr}")
 
     # Now apply migration 016, 017, 018
     for mf in all_files:
         if mf >= "20261104_016":
             mf_path = os.path.join(migrations_dir, mf)
-            res = run_cmd(["psql", "-d", upgrade_db, "-f", mf_path])
+            res = run_cmd(["psql", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", "-d", upgrade_db, "-f", mf_path])
             if res.returncode != 0:
-                run_cmd(["dropdb", upgrade_db])
+                run_cmd(["dropdb", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", upgrade_db])
                 fail_test(f"Upgrade migration {mf} failed on populated database: {res.stderr}")
 
     # Verify order branch assignments
@@ -179,9 +179,9 @@ def main():
     WHERE order_number LIKE 'ORD-LEGACY-%' 
     ORDER BY order_number;
     """
-    res = run_cmd(["psql", "-d", upgrade_db, "-t", "-c", verify_sql])
+    res = run_cmd(["psql", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", "-d", upgrade_db, "-t", "-c", verify_sql])
     lines = [l.strip() for l in res.stdout.strip().splitlines() if l.strip()]
-    run_cmd(["dropdb", upgrade_db])
+    run_cmd(["dropdb", "-h", "localhost", "-p", "5432", "-U", "ahmad_alzoubi", upgrade_db])
 
     order_map = {}
     for line in lines:
