@@ -1016,10 +1016,33 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Status & Order Updater
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+  // Status & Order Updater with Authoritative RPC & Stock Sync
+  const handleUpdateOrderStatus = async (
+    orderId: string, 
+    newStatus: Order['status'],
+    options?: {
+      reason?: string;
+      notes?: string;
+      courierId?: string;
+      courierName?: string;
+      courierPhone?: string;
+      expectedVersion?: number;
+    }
+  ) => {
     setOrders((prev) => {
-      const updated = prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
+      const updated = prev.map((o) => (
+        o.id === orderId 
+          ? { 
+              ...o, 
+              status: newStatus,
+              courier_id: options?.courierId || o.courier_id,
+              courier_name: options?.courierName || o.courier_name,
+              cancellation_reason: newStatus === 'cancelled' ? (options?.reason || o.cancellation_reason) : o.cancellation_reason,
+              failure_reason: newStatus === 'failed' ? (options?.reason || o.failure_reason) : o.failure_reason,
+              version: (o.version || 1) + 1
+            } 
+          : o
+      ));
       try {
         localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
       } catch (e) {}
@@ -1029,18 +1052,38 @@ export const App: React.FC = () => {
 
     try {
       if (orderId && orderId.length > 10) {
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: newStatus, updated_at: new Date().toISOString() })
-          .eq('id', orderId);
-        if (error) {
-          console.warn('⚠️ Supabase order update warning:', error.message);
+        const targetOrder = orders.find((o) => o.id === orderId);
+        const { updateOrderStatusAtomic } = await import('./lib/ordersApi');
+        const res = await updateOrderStatusAtomic({
+          orderId,
+          newStatus,
+          expectedVersion: options?.expectedVersion ?? targetOrder?.version,
+          reason: options?.reason,
+          notes: options?.notes,
+          courierId: options?.courierId,
+          courierName: options?.courierName,
+          courierPhone: options?.courierPhone,
+          staffId: currentUser.id,
+          staffName: currentUser.full_name,
+          staffRole: currentUser.role
+        });
+
+        if (!res.success) {
+          console.warn('⚠️ Supabase order update warning:', res.error);
+          showSyncNotification(`❌ ${res.error || 'تعذر تحديث حالة الطلب'}`, 'error');
+          loadCloudData(false);
+          return false;
         } else {
           showSyncNotification(`✅ تم تحديث حالة الطلب إلى "${newStatus}" في السحابة والمتجر!`, 'success');
+          loadCloudData(false);
+          return true;
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Could not update order status in Supabase:', e);
+      showSyncNotification(`❌ خطأ أثناء تحديث حالة الطلب: ${e?.message || e}`, 'error');
+      loadCloudData(false);
+      return false;
     }
   };
 
@@ -2122,6 +2165,7 @@ export const App: React.FC = () => {
         onNavigateToInvoiceDesigner={() => setActiveTab('invoice_designer')}
         isBranchLocked={currentUser.role !== 'super_admin'}
         currentCashierName={currentUser.full_name}
+        currentStaff={currentUser}
         products={products}
         onOrderCompleted={handlePosOrderCompleted}
       />
@@ -2315,6 +2359,9 @@ export const App: React.FC = () => {
             <OrdersPage
               orders={visibleOrders}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+              currentUser={currentUser}
+              couriers={visibleCouriers}
+              onRefreshOrders={() => loadCloudData(true)}
             />
           )}
 
@@ -2330,6 +2377,12 @@ export const App: React.FC = () => {
             <FulfillmentPage
               darkStores={darkStores}
               pickerTasks={pickerTasks}
+              currentUser={currentUser}
+              activeBranchId={activeBranchId}
+              branches={branches}
+              orders={orders}
+              products={products}
+              onOrderUpdated={() => loadCloudData(true)}
             />
           )}
 

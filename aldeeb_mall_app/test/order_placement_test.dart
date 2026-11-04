@@ -104,14 +104,14 @@ void main() {
         id: 'a0000000-0000-0000-0000-000000000005',
         nameAr: 'مياه العين كرتونة',
         nameEn: 'Al Ain Bottled Water Carton',
-        price: 55.00,
+        price: 80000.00,
       );
 
-      cart.addToCart(testProd, quantity: 2.0); // Subtotal: 110.00 >= 100 threshold => Delivery Free!
-      expect(cart.subtotal, equals(110.00));
+      cart.addToCart(testProd, quantity: 2.0); // Subtotal: 160,000.00 >= 150,000 threshold => Delivery Free!
+      expect(cart.subtotal, equals(160000.00));
       expect(cart.isFreeDelivery, isTrue);
       expect(cart.deliveryFee, equals(0.0));
-      expect(cart.totalAmount, equals(110.00));
+      expect(cart.totalAmount, equals(160000.00));
     });
 
     test('OrderProvider tracks error state when order placement fails', () {

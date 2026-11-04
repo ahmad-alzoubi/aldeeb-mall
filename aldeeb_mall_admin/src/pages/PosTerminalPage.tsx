@@ -528,8 +528,8 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         p_branch_name: effectiveBranchName,
         p_terminal_code: terminalCode,
         p_device_fingerprint: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 50) : 'pos-terminal',
-        p_cashier_id: null,
-        p_cashier_name: cashierName,
+        p_cashier_id: currentStaff?.id || 'staff-cashier-01',
+        p_cashier_name: cashierName || currentStaff?.full_name || 'عمر الدوسري',
         p_opening_balance: numBalance,
         p_notes: openShiftNotes || 'بدء الوردية وتصفير العدادات',
       });

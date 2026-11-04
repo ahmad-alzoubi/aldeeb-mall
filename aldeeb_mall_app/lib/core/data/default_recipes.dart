@@ -4,10 +4,11 @@ import '../services/supabase_service.dart';
 
 class DefaultRecipes {
   static ProductModel _find(String id, String fallbackName, double fallbackPrice) {
+    final canonicalId = SupabaseService.mapProductIdToCanonical(id);
     return SupabaseService.defaultProducts.firstWhere(
-      (p) => p.id == id,
+      (p) => p.id == id || p.id == canonicalId,
       orElse: () => ProductModel(
-        id: id,
+        id: canonicalId,
         nameAr: fallbackName,
         nameEn: fallbackName,
         price: fallbackPrice,

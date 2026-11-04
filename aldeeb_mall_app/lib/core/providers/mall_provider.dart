@@ -27,7 +27,7 @@ class MallProvider extends ChangeNotifier {
   final List<FlashDealModel> _flashDeals = [
     const FlashDealModel(
       id: 'fd-1',
-      productId: 'p1',
+      productId: 'a0000000-0000-0000-0000-000000000001',
       productNameAr: 'موز فلبيني طازج كافنديش درجة أولى',
       productImage: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=400&q=80',
       originalPrice: 22000.0,
@@ -40,7 +40,7 @@ class MallProvider extends ChangeNotifier {
     ),
     const FlashDealModel(
       id: 'fd-2',
-      productId: 'p3',
+      productId: 'a0000000-0000-0000-0000-000000000003',
       productNameAr: 'طماطم مزارع محلية قطاف الصباح',
       productImage: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
       originalPrice: 15000.0,
@@ -53,7 +53,7 @@ class MallProvider extends ChangeNotifier {
     ),
     const FlashDealModel(
       id: 'fd-3',
-      productId: 'p5',
+      productId: 'a0000000-0000-0000-0000-000000000006',
       productNameAr: 'دجاج التنمية طازج مبرد 1000 غرام',
       productImage: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=400&q=80',
       originalPrice: 42000.0,
@@ -66,7 +66,7 @@ class MallProvider extends ChangeNotifier {
     ),
     const FlashDealModel(
       id: 'fd-4',
-      productId: 'p8',
+      productId: 'a0000000-0000-0000-0000-000000000008',
       productNameAr: 'زيت دوار الشمس عافية نقي 2 لتر',
       productImage: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80',
       originalPrice: 65000.0,
@@ -79,7 +79,7 @@ class MallProvider extends ChangeNotifier {
     ),
     const FlashDealModel(
       id: 'fd-5',
-      productId: 'p12',
+      productId: 'a0000000-0000-0000-0000-000000000017',
       productNameAr: 'أرز بسمتي هندي كلاسيك 5 كغ',
       productImage: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80',
       originalPrice: 110000.0,

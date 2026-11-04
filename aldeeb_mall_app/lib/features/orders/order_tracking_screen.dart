@@ -48,15 +48,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             if (mounted && data.isNotEmpty) {
               final row = data.first;
               final newStatus = row['status']?.toString();
-              if (newStatus != null && newStatus != _currentOrder.status) {
-                setState(() {
-                  _currentOrder = _currentOrder.copyWith(
-                    status: newStatus,
-                    driverName: row['delivery_driver_name']?.toString() ?? _currentOrder.driverName,
-                    driverPhone: row['delivery_driver_phone']?.toString() ?? _currentOrder.driverPhone,
-                  );
-                });
-              }
+              setState(() {
+                _currentOrder = _currentOrder.copyWith(
+                  status: newStatus ?? _currentOrder.status,
+                  driverName: row['delivery_driver_name']?.toString() ?? _currentOrder.driverName,
+                  driverPhone: row['delivery_driver_phone']?.toString() ?? _currentOrder.driverPhone,
+                  cancellationReason: row['cancellation_reason']?.toString() ?? _currentOrder.cancellationReason,
+                  failureReason: row['failure_reason']?.toString() ?? _currentOrder.failureReason,
+                );
+              });
             }
           });
     }
@@ -160,6 +160,61 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              if (order.status == 'cancelled' || order.status == 'failed') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: order.status == 'cancelled' ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: order.status == 'cancelled' ? const Color(0xFFFCA5A5) : const Color(0xFFFCD34D),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        order.status == 'cancelled' ? Icons.cancel_outlined : Icons.error_outline,
+                        color: order.status == 'cancelled' ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.status == 'cancelled' ? 'تم إلغاء هذا الطلب' : 'تعذر تسليم الطلب (إخفاق)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: order.status == 'cancelled' ? const Color(0xFF991B1B) : const Color(0xFF92400E),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              order.status == 'cancelled'
+                                  ? (order.cancellationReason?.isNotEmpty == true
+                                      ? 'سبب الإلغاء: ${order.cancellationReason}'
+                                      : 'تم إلغاء الطلب واسترجاع المخزون تلقائياً.')
+                                  : (order.failureReason?.isNotEmpty == true
+                                      ? 'سبب الإخفاق: ${order.failureReason}'
+                                      : 'تعذر التوصيل وتمت إعادة الأصناف إلى المستودع وحفظ المخزون.'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: order.status == 'cancelled' ? const Color(0xFFB91C1C) : const Color(0xFFB45309),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // 2. Live Radar & Simulated Courier Route Card
               Container(

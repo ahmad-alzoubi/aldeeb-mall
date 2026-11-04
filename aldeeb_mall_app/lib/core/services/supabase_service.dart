@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/supabase_constants.dart';
 import '../models/category_model.dart';
@@ -7,6 +9,49 @@ import '../models/banner_model.dart';
 import '../models/coupon_model.dart';
 import '../models/order_model.dart';
 import '../models/cart_item_model.dart';
+import '../models/delivery_zone_model.dart';
+import '../models/delivery_coverage_result.dart';
+
+class CouponValidationResult {
+  final bool isValid;
+  final CouponModel? coupon;
+  final String? errorMessage;
+  final double? calculatedDiscount;
+  final double? minOrderAmount;
+  final double? amountNeeded;
+
+  const CouponValidationResult({
+    required this.isValid,
+    this.coupon,
+    this.errorMessage,
+    this.calculatedDiscount,
+    this.minOrderAmount,
+    this.amountNeeded,
+  });
+
+  factory CouponValidationResult.success(CouponModel coupon, double discount) {
+    return CouponValidationResult(
+      isValid: true,
+      coupon: coupon,
+      calculatedDiscount: discount,
+    );
+  }
+
+  factory CouponValidationResult.failure(
+    String message, {
+    double? minOrderAmount,
+    double? amountNeeded,
+    CouponModel? coupon,
+  }) {
+    return CouponValidationResult(
+      isValid: false,
+      coupon: coupon,
+      errorMessage: message,
+      minOrderAmount: minOrderAmount,
+      amountNeeded: amountNeeded,
+    );
+  }
+}
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -17,15 +62,38 @@ class SupabaseService {
 
   Future<void> initialize() async {
     try {
-      if (SupabaseConstants.supabaseUrl.contains('YOUR_PROJECT_ID')) {
+      String targetUrl = SupabaseConstants.supabaseUrl;
+      String targetAnonKey = SupabaseConstants.supabaseAnonKey;
+
+      if (kIsWeb) {
+        final origin = Uri.base.origin;
+        final host = Uri.base.host;
+        final port = Uri.base.port;
+
+        // Auto-detect local development or self-hosted hypermarket LAN environment
+        if (host == 'localhost' ||
+            host == '127.0.0.1' ||
+            host.startsWith('192.168.') ||
+            host.startsWith('10.') ||
+            host.startsWith('172.') ||
+            port == 8080 ||
+            port == 4174 ||
+            port == 3000 ||
+            port == 5173) {
+          targetUrl = origin;
+          targetAnonKey = SupabaseConstants.localPostgrestAnonKey;
+        }
+      }
+
+      if (targetUrl.contains('YOUR_PROJECT_ID')) {
         // Not configured yet, will use offline mock store data
         _isInitialized = false;
         return;
       }
       await Supabase.initialize(
-        url: SupabaseConstants.supabaseUrl,
+        url: targetUrl,
         // ignore: deprecated_member_use
-        anonKey: SupabaseConstants.supabaseAnonKey,
+        anonKey: targetAnonKey,
       );
       _isInitialized = true;
     } catch (e) {
@@ -68,6 +136,56 @@ class SupabaseService {
       'c9': 'c0000000-0000-0000-0000-000000000009',
     };
     return map[catId] ?? catId;
+  }
+
+  // Canonical product ID mapping between short catalog codes and PostgreSQL UUIDs
+  static String mapProductIdToCanonical(String prodId) {
+    if (prodId.isEmpty) return prodId;
+    if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(prodId)) {
+      return prodId;
+    }
+    const map = {
+      'p1': 'a0000000-0000-0000-0000-000000000001',
+      'p2': 'a0000000-0000-0000-0000-000000000002',
+      'p3': 'a0000000-0000-0000-0000-000000000003',
+      'p4': 'a0000000-0000-0000-0000-000000000004',
+      'p5': 'a0000000-0000-0000-0000-000000000005',
+      'p6': 'a0000000-0000-0000-0000-000000000006',
+      'p7': 'a0000000-0000-0000-0000-000000000007',
+      'p8': 'a0000000-0000-0000-0000-000000000008',
+      'p9': 'a0000000-0000-0000-0000-000000000009',
+      'p10': 'a0000000-0000-0000-0000-000000000010',
+      'p11': 'a0000000-0000-0000-0000-000000000011',
+      'p12': 'a0000000-0000-0000-0000-000000000012',
+      'p13': 'a0000000-0000-0000-0000-000000000013',
+      'p14': 'a0000000-0000-0000-0000-000000000014',
+      'p15': 'a0000000-0000-0000-0000-000000000015',
+      'p16': 'a0000000-0000-0000-0000-000000000016',
+      'p17': 'a0000000-0000-0000-0000-000000000017',
+      'p18': 'a0000000-0000-0000-0000-000000000018',
+      'p19': 'a0000000-0000-0000-0000-000000000019',
+      'p20': 'a0000000-0000-0000-0000-000000000020',
+      'p21': 'a0000000-0000-0000-0000-000000000021',
+      'p22': 'a0000000-0000-0000-0000-000000000022',
+      'p23': 'a0000000-0000-0000-0000-000000000023',
+      'p24': 'a0000000-0000-0000-0000-000000000024',
+      'p25': 'a0000000-0000-0000-0000-000000000025',
+      'p26': 'a0000000-0000-0000-0000-000000000026',
+      'p27': 'a0000000-0000-0000-0000-000000000027',
+      'p_dates_1': 'a0000000-0000-0000-0000-000000000028',
+      'p_appliances_1': 'a0000000-0000-0000-0000-000000000029',
+      'p_eggs_1': 'a0000000-0000-0000-0000-000000000030',
+      'p_beauty_1': 'a0000000-0000-0000-0000-000000000031',
+      'p_clean_1': 'a0000000-0000-0000-0000-000000000032',
+      'p_rice_1': 'a0000000-0000-0000-0000-000000000033',
+      'p_pet_1': 'a0000000-0000-0000-0000-000000000034',
+    };
+    if (map.containsKey(prodId)) return map[prodId]!;
+    if (prodId.startsWith('p') && int.tryParse(prodId.substring(1)) != null) {
+      final numVal = int.parse(prodId.substring(1));
+      return 'a0000000-0000-0000-0000-${numVal.toString().padLeft(12, '0')}';
+    }
+    return prodId;
   }
 
   static bool _matchesCategory(String? itemCatId, String queryCatId) {
@@ -144,10 +262,47 @@ class SupabaseService {
     return _defaultBanners;
   }
 
-  // 4. Validate Coupon
-  Future<CouponModel?> validateCoupon(String code, double subtotal) async {
+  // 4. Validate Coupon (Detailed Result with Exact Explanations)
+  Future<CouponValidationResult> validateCouponDetailed(String code, double subtotal) async {
     final cleanCode = code.trim().toUpperCase();
+    if (cleanCode.isEmpty) {
+      return CouponValidationResult.failure('يرجى إدخال رمز كود الخصم');
+    }
+
     if (_isInitialized && client != null) {
+      // 1. Try atomic RPC validate_coupon first
+      try {
+        final rpcRes = await client!.rpc('validate_coupon', params: {
+          'p_code': cleanCode,
+          'p_subtotal': subtotal,
+        });
+
+        if (rpcRes != null && rpcRes is Map) {
+          final isValid = rpcRes['valid'] == true;
+          if (isValid) {
+            final coupon = CouponModel(
+              id: rpcRes['coupon_id']?.toString() ?? '',
+              code: rpcRes['code']?.toString() ?? cleanCode,
+              discountType: rpcRes['discount_type']?.toString() ?? 'percentage',
+              discountValue: (rpcRes['discount_value'] as num?)?.toDouble() ?? 0.0,
+              minOrderAmount: (rpcRes['min_order_amount'] as num?)?.toDouble() ?? 0.0,
+              maxDiscount: (rpcRes['max_discount'] as num?)?.toDouble(),
+              isActive: true,
+            );
+            final discount = (rpcRes['calculated_discount'] as num?)?.toDouble() ?? coupon.calculateDiscount(subtotal);
+            return CouponValidationResult.success(coupon, discount);
+          } else {
+            final msg = rpcRes['message_ar']?.toString() ?? 'كود الخصم غير صالح أو منتهي الصلاحية';
+            final minAmt = (rpcRes['min_order_amount'] as num?)?.toDouble();
+            final amtNeeded = (rpcRes['amount_needed'] as num?)?.toDouble();
+            return CouponValidationResult.failure(msg, minOrderAmount: minAmt, amountNeeded: amtNeeded);
+          }
+        }
+      } catch (_) {
+        // Fallback to direct table query if RPC is not deployed in current schema
+      }
+
+      // 2. Direct table query
       try {
         final response = await client!
             .from(SupabaseConstants.couponsTable)
@@ -158,20 +313,140 @@ class SupabaseService {
 
         if (response != null) {
           final coupon = CouponModel.fromJson(response);
-          if (subtotal >= coupon.minOrderAmount) {
-            return coupon;
+          if (subtotal < coupon.minOrderAmount) {
+            final needed = (coupon.minOrderAmount - subtotal);
+            return CouponValidationResult.failure(
+              'الحد الأدنى لتفعيل كود الخصم هو ${coupon.minOrderAmount.toStringAsFixed(0)} ل.س (ينقص سلتك ${needed.toStringAsFixed(0)} ل.س)',
+              minOrderAmount: coupon.minOrderAmount,
+              amountNeeded: needed,
+              coupon: coupon,
+            );
           }
+          return CouponValidationResult.success(coupon, coupon.calculateDiscount(subtotal));
         }
       } catch (e) {
-        // fallback
+        // fallback to offline dataset
       }
     }
 
-    final match = _defaultCoupons.where((c) => c.code == cleanCode).toList();
-    if (match.isNotEmpty && subtotal >= match.first.minOrderAmount) {
-      return match.first;
+    // 3. Fallback to resilient in-app coupons (zero downtime guaranteed)
+    final match = _defaultCoupons.where((c) => c.code.toUpperCase() == cleanCode).toList();
+    if (match.isNotEmpty) {
+      final coupon = match.first;
+      if (subtotal < coupon.minOrderAmount) {
+        final needed = (coupon.minOrderAmount - subtotal);
+        return CouponValidationResult.failure(
+          'الحد الأدنى لتفعيل كود الخصم هو ${coupon.minOrderAmount.toStringAsFixed(0)} ل.س (ينقص سلتك ${needed.toStringAsFixed(0)} ل.س)',
+          minOrderAmount: coupon.minOrderAmount,
+          amountNeeded: needed,
+          coupon: coupon,
+        );
+      }
+      return CouponValidationResult.success(coupon, coupon.calculateDiscount(subtotal));
     }
-    return null;
+
+    return CouponValidationResult.failure('كود الخصم "$cleanCode" غير صحيح أو غير متاح حالياً');
+  }
+
+  // Backwards-compatible validateCoupon returning CouponModel?
+  Future<CouponModel?> validateCoupon(String code, double subtotal) async {
+    final result = await validateCouponDetailed(code, subtotal);
+    return result.isValid ? result.coupon : null;
+  }
+
+  // 6. Check Delivery Coverage & Calculate Dynamic Fee (Task 15: Server Authoritative)
+  Future<DeliveryCoverageResult> checkDeliveryCoverage({
+    double? latitude,
+    double? longitude,
+    String? city,
+    String? district,
+    double subtotal = 0.0,
+    String? deliverySlot,
+  }) async {
+    if (client != null) {
+      try {
+        final response = await client!.rpc('check_delivery_coverage', params: {
+          'p_latitude': latitude,
+          'p_longitude': longitude,
+          'p_city': city,
+          'p_district': district,
+          'p_subtotal': subtotal,
+          'p_delivery_slot': deliverySlot,
+        });
+
+        if (response != null && response is Map) {
+          return DeliveryCoverageResult.fromJson(Map<String, dynamic>.from(response));
+        }
+      } catch (e) {
+        // Fallback to direct HTTP PostgREST
+      }
+    }
+
+    try {
+      final uri = Uri.parse('${SupabaseConstants.supabaseUrl}/rest/v1/rpc/check_delivery_coverage');
+      final res = await http.post(
+        uri,
+        headers: {
+          'apikey': SupabaseConstants.supabaseAnonKey,
+          'Authorization': 'Bearer ${SupabaseConstants.supabaseAnonKey}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'p_latitude': latitude,
+          'p_longitude': longitude,
+          'p_city': city,
+          'p_district': district,
+          'p_subtotal': subtotal,
+          'p_delivery_slot': deliverySlot,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map) {
+          return DeliveryCoverageResult.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+    } catch (_) {}
+
+    return DeliveryCoverageResult.offlineDefault();
+  }
+
+  // 7. Get Authoritative Delivery Zones
+  Future<List<DeliveryZoneModel>> getDeliveryZones() async {
+    if (client != null) {
+      try {
+        final response = await client!
+            .from('delivery_zones')
+            .select()
+            .order('is_active', ascending: false)
+            .order('city', ascending: true);
+        return (response as List)
+            .map((z) => DeliveryZoneModel.fromJson(Map<String, dynamic>.from(z)))
+            .toList();
+      } catch (_) {}
+    }
+
+    try {
+      final uri = Uri.parse('${SupabaseConstants.supabaseUrl}/rest/v1/delivery_zones?select=*&order=is_active.desc,city.asc');
+      final res = await http.get(
+        uri,
+        headers: {
+          'apikey': SupabaseConstants.supabaseAnonKey,
+          'Authorization': 'Bearer ${SupabaseConstants.supabaseAnonKey}',
+        },
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return (data)
+              .map((z) => DeliveryZoneModel.fromJson(Map<String, dynamic>.from(z)))
+              .toList();
+        }
+      }
+    } catch (_) {}
+
+    return [];
   }
 
   // 5. Normalizer for payment method to match SQL CHECK constraint:
@@ -242,16 +517,17 @@ class SupabaseService {
 
     final itemsPayload = items.map((item) {
       final p = item.product;
+      final canonicalId = mapProductIdToCanonical(p.id);
       final isUuid = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-      ).hasMatch(p.id);
+      ).hasMatch(canonicalId);
 
       if (!isUuid) {
         throw Exception('⚠️ معرف المنتج غير صالح (${p.nameAr}): ${p.id}');
       }
 
       return {
-        'product_id': p.id,
+        'product_id': canonicalId,
         'product_name_ar': p.nameAr,
         'product_name_en': p.nameEn,
         'product_image': p.images.isNotEmpty ? p.images.first : '',
@@ -704,7 +980,7 @@ class SupabaseService {
 
   static final List<ProductModel> _defaultProducts = [
     const ProductModel(
-      id: 'p1',
+      id: 'a0000000-0000-0000-0000-000000000001',
       categoryId: 'c1',
       nameAr: 'موز فلبيني طازج كافنديش درجة أولى',
       nameEn: 'Fresh Cavendish Bananas',
@@ -727,7 +1003,7 @@ class SupabaseService {
       bundleProductIds: ['p2', 'p4'],
     ),
     const ProductModel(
-      id: 'p2',
+      id: 'a0000000-0000-0000-0000-000000000002',
       categoryId: 'c1',
       nameAr: 'تفاح رويال جالا إيطالي مقرمش فاخر',
       nameEn: 'Italian Royal Gala Apples',
@@ -746,7 +1022,7 @@ class SupabaseService {
       salesCount: 890,
     ),
     const ProductModel(
-      id: 'p3',
+      id: 'a0000000-0000-0000-0000-000000000003',
       categoryId: 'c1',
       nameAr: 'طماطم مزارع محلية قطاف الصباح',
       nameEn: 'Fresh Local Vine Tomatoes',
@@ -765,7 +1041,7 @@ class SupabaseService {
       salesCount: 1450,
     ),
     const ProductModel(
-      id: 'p4',
+      id: 'a0000000-0000-0000-0000-000000000004',
       categoryId: 'c2',
       nameAr: 'حليب المراعي كامل الدسم طازج 2 لتر',
       nameEn: 'Almarai Fresh Milk Full Fat 2L',
@@ -784,7 +1060,7 @@ class SupabaseService {
       salesCount: 2300,
     ),
     const ProductModel(
-      id: 'p5',
+      id: 'a0000000-0000-0000-0000-000000000005',
       categoryId: 'c2',
       nameAr: 'جبنة بوك كريمية بيضاء أصلية 500 غرام',
       nameEn: 'Puck Cream Cheese Jar 500g',
@@ -803,7 +1079,7 @@ class SupabaseService {
       salesCount: 1150,
     ),
     const ProductModel(
-      id: 'p6',
+      id: 'a0000000-0000-0000-0000-000000000006',
       categoryId: 'c3',
       nameAr: 'دجاج التنمية طازج مبرد 1000 غرام',
       nameEn: 'Tanmiah Fresh Chilled Chicken 1000g',
@@ -822,7 +1098,7 @@ class SupabaseService {
       salesCount: 870,
     ),
     const ProductModel(
-      id: 'p7',
+      id: 'a0000000-0000-0000-0000-000000000007',
       categoryId: 'c4',
       nameAr: 'كرواسان فرنسي بالزبدة الطبيعية (4 حبات)',
       nameEn: 'Fresh Butter French Croissants (Pack 4)',
@@ -841,7 +1117,7 @@ class SupabaseService {
       salesCount: 1340,
     ),
     const ProductModel(
-      id: 'p8',
+      id: 'a0000000-0000-0000-0000-000000000008',
       categoryId: 'c5',
       nameAr: 'مياه العين الطبيعية كرتون (24 × 500 مل)',
       nameEn: 'Al Ain Bottled Mineral Water (24 x 500ml)',
@@ -860,7 +1136,7 @@ class SupabaseService {
       salesCount: 3400,
     ),
     const ProductModel(
-      id: 'p9',
+      id: 'a0000000-0000-0000-0000-000000000009',
       categoryId: 'c6',
       nameAr: 'مسحوق غسيل تايد الأصلي الأوتوماتيكي 5 كجم',
       nameEn: 'Tide Original Automatic Detergent 5kg',
@@ -879,7 +1155,7 @@ class SupabaseService {
       salesCount: 1500,
     ),
     const ProductModel(
-      id: 'p10',
+      id: 'a0000000-0000-0000-0000-000000000010',
       categoryId: 'c3',
       nameAr: 'لحم عجل بلدي طازج مفروم ناعم 1 كجم',
       nameEn: 'Fresh Local Minced Veal 1kg',
@@ -898,7 +1174,7 @@ class SupabaseService {
       salesCount: 1100,
     ),
     const ProductModel(
-      id: 'p11',
+      id: 'a0000000-0000-0000-0000-000000000011',
       categoryId: 'c3',
       nameAr: 'فيليه سلمون نرويجي طازج فاخر 500 غ',
       nameEn: 'Fresh Norwegian Salmon Fillet 500g',
@@ -917,7 +1193,7 @@ class SupabaseService {
       salesCount: 840,
     ),
     const ProductModel(
-      id: 'p12',
+      id: 'a0000000-0000-0000-0000-000000000012',
       categoryId: 'c3',
       nameAr: 'ستيك ريب آي أنجوس معتق فاخر 400 غ',
       nameEn: 'Prime Dry-Aged Angus Ribeye Steak 400g',
@@ -936,7 +1212,7 @@ class SupabaseService {
       salesCount: 620,
     ),
     const ProductModel(
-      id: 'p13',
+      id: 'a0000000-0000-0000-0000-000000000013',
       categoryId: 'c2',
       nameAr: 'بيض مزارع عضوي طازج كرتون 30 حبة',
       nameEn: 'Fresh Organic Farm Eggs 30-Pack',
@@ -955,7 +1231,7 @@ class SupabaseService {
       salesCount: 2900,
     ),
     const ProductModel(
-      id: 'p14',
+      id: 'a0000000-0000-0000-0000-000000000014',
       categoryId: 'c2',
       nameAr: 'لبنة تركية فاخرة طازجة كاملة الدسم 500 غ',
       nameEn: 'Fresh Turkish Creamy Labneh 500g',
@@ -974,7 +1250,7 @@ class SupabaseService {
       salesCount: 1420,
     ),
     const ProductModel(
-      id: 'p15',
+      id: 'a0000000-0000-0000-0000-000000000015',
       categoryId: 'c4',
       nameAr: 'خبز ساوردو ريفيّ عضوي طازج مخبوز بالفرن',
       nameEn: 'Artisan Fresh Organic Sourdough Bread',
@@ -993,7 +1269,7 @@ class SupabaseService {
       salesCount: 970,
     ),
     const ProductModel(
-      id: 'p16',
+      id: 'a0000000-0000-0000-0000-000000000016',
       categoryId: 'c4',
       nameAr: 'بقلاوة مشكلة بالفستق والكاجو الفاخر 500 غ',
       nameEn: 'Assorted Royal Pistachio Baklava 500g',
@@ -1012,7 +1288,7 @@ class SupabaseService {
       salesCount: 1250,
     ),
     const ProductModel(
-      id: 'p17',
+      id: 'a0000000-0000-0000-0000-000000000017',
       categoryId: 'c5',
       nameAr: 'عصير برتقال طبيعي معصور طازج 1 لتر',
       nameEn: 'Freshly Squeezed 100% Orange Juice 1L',
@@ -1031,7 +1307,7 @@ class SupabaseService {
       salesCount: 1890,
     ),
     const ProductModel(
-      id: 'p18',
+      id: 'a0000000-0000-0000-0000-000000000018',
       categoryId: 'c5',
       nameAr: 'قهوة عربية فاخرة بالهيل والزعفران 250 غ',
       nameEn: 'Premium Arabic Coffee with Saffron 250g',
@@ -1050,7 +1326,7 @@ class SupabaseService {
       salesCount: 2150,
     ),
     const ProductModel(
-      id: 'p19',
+      id: 'a0000000-0000-0000-0000-000000000019',
       categoryId: 'c6',
       nameAr: 'سائل غسيل الصحون فيري بلس ليمون 1 لتر',
       nameEn: 'Fairy Plus Lemon Dishwashing Liquid 1L',
@@ -1069,7 +1345,7 @@ class SupabaseService {
       salesCount: 3100,
     ),
     const ProductModel(
-      id: 'p20',
+      id: 'a0000000-0000-0000-0000-000000000020',
       categoryId: 'c6',
       nameAr: 'مطهر ومعقم ديتول الأصلي متعدد الاستعمالات 1 لتر',
       nameEn: 'Dettol Original Antiseptic Liquid 1L',
@@ -1088,7 +1364,7 @@ class SupabaseService {
       salesCount: 2780,
     ),
     const ProductModel(
-      id: 'p21',
+      id: 'a0000000-0000-0000-0000-000000000021',
       categoryId: 'c1',
       nameAr: 'زيت زيتون بكر ممتاز فلسطيني معصور على البارد 500 مل',
       nameEn: 'Extra Virgin Cold Pressed Palestinian Olive Oil 500ml',
@@ -1107,7 +1383,7 @@ class SupabaseService {
       salesCount: 1450,
     ),
     const ProductModel(
-      id: 'p22',
+      id: 'a0000000-0000-0000-0000-000000000022',
       categoryId: 'c1',
       nameAr: 'أرز بسمتي هندي عنبر طويل الحبة فاخر 2 كجم',
       nameEn: 'Premium Aged Long Grain Indian Basmati Rice 2kg',
@@ -1126,7 +1402,7 @@ class SupabaseService {
       salesCount: 2100,
     ),
     const ProductModel(
-      id: 'p23',
+      id: 'a0000000-0000-0000-0000-000000000023',
       categoryId: 'c2',
       nameAr: 'حليب لوز نباتي عضوي غير محلى 1 لتر',
       nameEn: 'Organic Unsweetened Almond Milk 1L',
@@ -1145,7 +1421,7 @@ class SupabaseService {
       salesCount: 780,
     ),
     const ProductModel(
-      id: 'p24',
+      id: 'a0000000-0000-0000-0000-000000000024',
       categoryId: 'c3',
       nameAr: 'صدور دجاج فيليه طازجة مبردة 500 غرام',
       nameEn: 'Fresh Chilled Chicken Breast Fillet 500g',
@@ -1164,7 +1440,7 @@ class SupabaseService {
       salesCount: 1640,
     ),
     const ProductModel(
-      id: 'p25',
+      id: 'a0000000-0000-0000-0000-000000000025',
       categoryId: 'c4',
       nameAr: 'عسل سدر جبلي طبيعي نقي 500 غرام',
       nameEn: 'Pure Mountain Sidr Natural Honey 500g',
@@ -1183,7 +1459,7 @@ class SupabaseService {
       salesCount: 990,
     ),
     const ProductModel(
-      id: 'p26',
+      id: 'a0000000-0000-0000-0000-000000000026',
       categoryId: 'c1',
       nameAr: 'أفوكادو هاس مكسيكي طازج جاهز للأكل (حبتين)',
       nameEn: 'Fresh Mexican Hass Avocados (2 Pack)',
@@ -1202,7 +1478,7 @@ class SupabaseService {
       salesCount: 1820,
     ),
     const ProductModel(
-      id: 'p27',
+      id: 'a0000000-0000-0000-0000-000000000027',
       categoryId: 'c4',
       nameAr: 'شوفان عضوي حبوب كاملة فاخر 500 غرام',
       nameEn: 'Organic Whole Rolled Oats 500g',
@@ -1221,7 +1497,7 @@ class SupabaseService {
       salesCount: 930,
     ),
     const ProductModel(
-      id: 'p_dates_1',
+      id: 'a0000000-0000-0000-0000-000000000028',
       categoryId: 'c_dates',
       nameAr: 'تمور خلاص الأحساء فاخرة ملكية 1 كجم',
       nameEn: 'Royal Khalas Premium Dates 1kg',
@@ -1240,7 +1516,7 @@ class SupabaseService {
       salesCount: 1420,
     ),
     const ProductModel(
-      id: 'p_appliances_1',
+      id: 'a0000000-0000-0000-0000-000000000029',
       categoryId: 'c_appliances',
       nameAr: 'قلاية هوائية رقمية فيليبس XXL بدون زيت 7.2 لتر',
       nameEn: 'Philips Digital Airfryer XXL 7.2L',
@@ -1259,7 +1535,7 @@ class SupabaseService {
       salesCount: 310,
     ),
     const ProductModel(
-      id: 'p_eggs_1',
+      id: 'a0000000-0000-0000-0000-000000000030',
       categoryId: 'c2',
       nameAr: 'بيض مزارع كويتي طازج كبير 30 حبة',
       nameEn: 'Fresh Farm Table Eggs 30s',
@@ -1278,7 +1554,7 @@ class SupabaseService {
       salesCount: 940,
     ),
     const ProductModel(
-      id: 'p_beauty_1',
+      id: 'a0000000-0000-0000-0000-000000000031',
       categoryId: 'c_beauty',
       nameAr: 'شامبو لوريال إلفيف للشعر الجاف 400 مل',
       nameEn: 'L\'Oreal Elvive Extraordinary Oil Shampoo 400ml',
@@ -1297,7 +1573,7 @@ class SupabaseService {
       salesCount: 760,
     ),
     const ProductModel(
-      id: 'p_clean_1',
+      id: 'a0000000-0000-0000-0000-000000000032',
       categoryId: 'c6',
       nameAr: 'مسحوق غسيل أريال أوتوماتيك للغسالات 5 كجم',
       nameEn: 'Ariel Automatic Laundry Detergent 5kg',
@@ -1316,7 +1592,7 @@ class SupabaseService {
       salesCount: 1890,
     ),
     const ProductModel(
-      id: 'p_rice_1',
+      id: 'a0000000-0000-0000-0000-000000000033',
       categoryId: 'c_supermarket',
       nameAr: 'أرز بسمتي الشعلان سيلا فاخر 5 كجم',
       nameEn: 'Al Shalan Basmati Sella Rice 5kg',
@@ -1335,7 +1611,7 @@ class SupabaseService {
       salesCount: 2200,
     ),
     const ProductModel(
-      id: 'p_pet_1',
+      id: 'a0000000-0000-0000-0000-000000000034',
       categoryId: 'c_pets',
       nameAr: 'طعام قطط ويلاس دجاج وتونة وخضار 1.5 كجم',
       nameEn: 'Whiskas Adult Cat Food Chicken & Tuna 1.5kg',
@@ -1357,12 +1633,67 @@ class SupabaseService {
 
   static final List<CouponModel> _defaultCoupons = [
     const CouponModel(
+      id: 'ca000000-0000-0000-0000-000000005555',
+      code: '5555',
+      discountType: 'percentage',
+      discountValue: 15.0,
+      minOrderAmount: 0.0,
+      maxDiscount: 50.0,
+      isActive: true,
+    ),
+    const CouponModel(
+      id: 'a845c641-c3f1-4105-adba-99758034e742',
+      code: 'WELCOME10',
+      discountType: 'percentage',
+      discountValue: 10.0,
+      minOrderAmount: 50.0,
+      maxDiscount: 20.0,
+      isActive: true,
+    ),
+    const CouponModel(
+      id: 'ad024fee-4279-45a8-a915-451056e2cde4',
+      code: 'DEEB20',
+      discountType: 'percentage',
+      discountValue: 20.0,
+      minOrderAmount: 100.0,
+      maxDiscount: 40.0,
+      isActive: true,
+    ),
+    const CouponModel(
+      id: '4e908d02-584c-452d-b8b2-0303ccb5fd4c',
+      code: 'FREEDEL',
+      discountType: 'fixed',
+      discountValue: 10.0,
+      minOrderAmount: 80.0,
+      maxDiscount: 10.0,
+      isActive: true,
+    ),
+    const CouponModel(
+      id: '6f29f5a8-2e23-4e1e-bb11-69a5d24a752d',
+      code: 'RAMADAN',
+      discountType: 'percentage',
+      discountValue: 15.0,
+      minOrderAmount: 150.0,
+      maxDiscount: 50.0,
+      isActive: true,
+    ),
+    const CouponModel(
+      id: '99a6fbac-3e08-4278-b7a8-481dd487c73e',
+      code: 'FRIDAY50',
+      discountType: 'fixed',
+      discountValue: 50.0,
+      minOrderAmount: 250.0,
+      maxDiscount: 50.0,
+      isActive: true,
+    ),
+    const CouponModel(
       id: 'cp1',
       code: 'ALDEEB10',
       discountType: 'percentage',
       discountValue: 10.0,
       minOrderAmount: 50.0,
       maxDiscount: 30.0,
+      isActive: true,
     ),
     const CouponModel(
       id: 'cp2',
@@ -1371,6 +1702,7 @@ class SupabaseService {
       discountValue: 20.0,
       minOrderAmount: 120.0,
       maxDiscount: 50.0,
+      isActive: true,
     ),
     const CouponModel(
       id: 'cp3',
@@ -1378,6 +1710,8 @@ class SupabaseService {
       discountType: 'fixed',
       discountValue: 15.0,
       minOrderAmount: 75.0,
+      maxDiscount: 15.0,
+      isActive: true,
     ),
   ];
 }

@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/product_model.dart';
+import '../../core/models/delivery_coverage_result.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/mall_provider.dart';
 import '../../core/providers/order_provider.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/utils/responsive.dart';
 import '../orders/order_tracking_screen.dart';
 
@@ -26,10 +28,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Timer? _reservationTimer;
   int _reservationSecondsRemaining = 15 * 60;
 
+  DeliveryCoverageResult? _coverageResult;
+  bool _isCheckingCoverage = false;
+  String? _coverageError;
+
   @override
   void initState() {
     super.initState();
     _startReservationTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verifyDeliveryCoverage();
+    });
+  }
+
+  Future<void> _verifyDeliveryCoverage() async {
+    if (!mounted) return;
+    setState(() {
+      _isCheckingCoverage = true;
+      _coverageError = null;
+    });
+
+    try {
+      final addr = _addresses[_selectedAddressIndex];
+      final slot = _deliverySlots[_selectedSlotIndex]['title'] as String;
+      final cart = Provider.of<CartProvider>(context, listen: false);
+
+      final result = await SupabaseService().checkDeliveryCoverage(
+        latitude: double.tryParse(addr['lat'] ?? ''),
+        longitude: double.tryParse(addr['lon'] ?? ''),
+        city: addr['city'],
+        district: addr['district'],
+        subtotal: cart.subtotal,
+        deliverySlot: slot,
+      );
+
+      if (mounted) {
+        setState(() {
+          _coverageResult = result;
+          _isCheckingCoverage = false;
+        });
+        if (result.isCovered) {
+          cart.setDeliveryCoverageQuote(result);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _coverageError = 'تعذر فحص التغطية مع الخادم';
+          _isCheckingCoverage = false;
+        });
+      }
+    }
   }
 
   void _startReservationTimer() {
@@ -46,14 +95,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   final List<Map<String, String>> _addresses = [
     {
-      'title': 'المنزل الرئيسي',
-      'details': 'دبي، وسط المدينة، برج فيوز برج B، شقة 1402',
-      'phone': '+971 50 123 4567',
+      'title': 'المنزل الرئيسي (دمشق - المزة)',
+      'details': 'دمشق، أوتوستراد المزة، جانب حديقة الجلاء، بناء 14',
+      'city': 'دمشق',
+      'district': 'المزة',
+      'lat': '33.5138',
+      'lon': '36.2765',
+      'phone': '+963 944 123 456',
     },
     {
-      'title': 'مكتب العمل',
-      'details': 'دبي، خليج الأعمال، برج أوبال، الطابق 8',
-      'phone': '+971 50 123 4567',
+      'title': 'مكتب العمل (دمشق - أبو رمانة)',
+      'details': 'دمشق، شارع الجلاء، بناء المهندسين، الطابق 4',
+      'city': 'دمشق',
+      'district': 'أبو رمانة',
+      'lat': '33.5200',
+      'lon': '36.2850',
+      'phone': '+963 944 123 456',
+    },
+    {
+      'title': 'بيت العائلة (حلب - الشهباء)',
+      'details': 'حلب، حي الشهباء الجديدة، شارع الكندي، فيلا 8',
+      'city': 'حلب',
+      'district': 'الشهباء',
+      'lat': '36.2021',
+      'lon': '37.1343',
+      'phone': '+963 944 987 654',
+    },
+    {
+      'title': 'منزل درعا (درعا المحطة - مستبعدة)',
+      'details': 'درعا المحطة، حي السبيل، جانب المجمع الحكومي',
+      'city': 'درعا',
+      'district': 'درعا المحطة',
+      'lat': '32.6250',
+      'lon': '36.1050',
+      'phone': '+963 944 111 222',
+    },
+    {
+      'title': 'موقع صحراوي (خارج نطاق التغطية)',
+      'details': 'بادية الشام، تدمر السخنة، موقع خارجي',
+      'city': 'تدمر',
+      'district': 'البادية',
+      'lat': '34.5600',
+      'lon': '38.2800',
+      'phone': '+963 944 000 000',
     },
   ];
 
@@ -281,12 +365,112 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               value: index,
               groupValue: _selectedAddressIndex,
               activeColor: AppColors.primary,
-              onChanged: (val) => setState(() => _selectedAddressIndex = val!),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedAddressIndex = val);
+                  _verifyDeliveryCoverage();
+                }
+              },
               title: Text(addr['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               subtitle: Text('${addr['details']}\nهاتف: ${addr['phone']}', style: const TextStyle(fontSize: 12)),
             ),
           );
         }),
+        if (_isCheckingCoverage) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: const [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                ),
+                SizedBox(width: 8),
+                Text('جاري التحقق من التغطية وحساب الرسوم من الخادم...', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ] else if (_coverageError != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text('⚠️ $_coverageError', style: const TextStyle(fontSize: 11, color: Colors.deepOrange)),
+          ),
+        ] else if (_coverageResult != null) ...[
+          if (!_coverageResult!.isCovered)
+            Container(
+              margin: const EdgeInsets.only(top: 4, bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_off_rounded, color: Color(0xFFDC2626), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _coverageResult!.message,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.only(top: 4, bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'العنوان مشمول بالتغطية اللوجستية (${_coverageResult!.zoneNameAr ?? ""})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _coverageResult!.isFreeDelivery ? 'توصيل مجاني' : '${_coverageResult!.finalDeliveryFee.toStringAsFixed(0)} ل.س',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'الفرع المخدم: ${_coverageResult!.branchNameAr ?? ""} • وقت الوصول التقديري: ${_coverageResult!.estimatedMinutes} دقيقة',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF14532D)),
+                  ),
+                  if (_coverageResult!.surgeApplied)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '⚡ تم تطبيق رسوم ذروة ${_coverageResult!.surgeFee.toStringAsFixed(0)} ل.س لضمان سرعة التوصيل',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
         const SizedBox(height: 24),
 
         // 2. Delivery Slot Section
@@ -309,7 +493,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               value: index,
               groupValue: _selectedSlotIndex,
               activeColor: AppColors.primary,
-              onChanged: (val) => setState(() => _selectedSlotIndex = val!),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedSlotIndex = val);
+                  _verifyDeliveryCoverage();
+                }
+              },
               title: Row(
                 children: [
                   Text(slot['title'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -462,14 +651,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 }
               }
 
+              // Coverage Verification Guard
+              if (_coverageResult != null && !_coverageResult!.isCovered) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.red.shade700,
+                    behavior: SnackBarBehavior.floating,
+                    content: Row(
+                      children: [
+                        const Icon(Icons.location_off_rounded, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _coverageResult!.message,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+                return;
+              }
+
               final slot = _deliverySlots[_selectedSlotIndex]['title'] as String;
               final payment = _paymentMethods[_selectedPaymentIndex]['title'] as String;
               final idempotencyKey = 'IDEMP-${DateTime.now().millisecondsSinceEpoch}-${cart.items.length}';
+              final finalFee = _coverageResult != null ? _coverageResult!.finalDeliveryFee : cart.deliveryFee;
+              final effectiveBranchId = _coverageResult?.branchId ?? cart.assignedBranchId;
 
               final order = await orderProv.placeOrder(
                 items: cart.items.values.toList(),
                 subtotal: cart.subtotal,
-                deliveryFee: cart.deliveryFee,
+                deliveryFee: finalFee,
                 discountAmount: cart.couponDiscount,
                 loyaltyPointsUsed: cart.loyaltyPointsUsed,
                 loyaltyDiscount: cart.loyaltyDiscount,
@@ -477,7 +691,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 deliverySlot: slot,
                 paymentMethod: payment,
                 notes: _notesController.text.trim(),
-                branchId: 'b-jed-01',
+                branchId: effectiveBranchId,
                 couponCode: cart.appliedCoupon?.code,
                 idempotencyKey: idempotencyKey,
                 customerName: auth.currentUser?.fullName,

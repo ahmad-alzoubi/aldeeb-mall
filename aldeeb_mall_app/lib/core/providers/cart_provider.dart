@@ -2,15 +2,22 @@ import 'package:flutter/foundation.dart';
 import '../models/product_model.dart';
 import '../models/cart_item_model.dart';
 import '../models/coupon_model.dart';
+import '../models/delivery_coverage_result.dart';
 import '../services/supabase_service.dart';
 
 class CartProvider extends ChangeNotifier {
   final Map<String, CartItemModel> _items = {};
   CouponModel? _appliedCoupon;
   int _loyaltyPointsUsed = 0;
+  DeliveryCoverageResult? _coverageResult;
 
-  final double freeDeliveryThreshold = 100.0;
-  final double baseDeliveryFee = 10.0;
+  DeliveryCoverageResult? get coverageResult => _coverageResult;
+
+  double get freeDeliveryThreshold => _coverageResult?.freeDeliveryThreshold ?? 150000.0;
+  double get baseDeliveryFee => _coverageResult?.baseDeliveryFee ?? 5000.0;
+  int get estimatedDeliveryMinutes => _coverageResult?.estimatedMinutes ?? 25;
+  String get assignedBranchId => _coverageResult?.branchId ?? 'b-dam-01';
+  String get assignedBranchName => _coverageResult?.branchNameAr ?? 'فرع دمشق المركزي (أوتوستراد المزة)';
 
   Map<String, CartItemModel> get items => {..._items};
   int get itemCount => _items.length;
@@ -29,7 +36,20 @@ class CartProvider extends ChangeNotifier {
 
   double get deliveryFee {
     if (subtotal == 0 || isFreeDelivery) return 0.0;
+    if (_coverageResult != null) {
+      return _coverageResult!.finalDeliveryFee;
+    }
     return baseDeliveryFee;
+  }
+
+  void setDeliveryCoverageQuote(DeliveryCoverageResult quote) {
+    _coverageResult = quote;
+    notifyListeners();
+  }
+
+  void resetDeliveryQuote() {
+    _coverageResult = null;
+    notifyListeners();
   }
 
   double get remainingForFreeDelivery {
@@ -142,13 +162,13 @@ class CartProvider extends ChangeNotifier {
 
   // 5. Apply Coupon
   Future<String?> applyCoupon(String code) async {
-    final coupon = await SupabaseService().validateCoupon(code, subtotal);
-    if (coupon != null) {
-      _appliedCoupon = coupon;
+    final result = await SupabaseService().validateCouponDetailed(code, subtotal);
+    if (result.isValid && result.coupon != null) {
+      _appliedCoupon = result.coupon;
       notifyListeners();
       return null; // Success, no error
     } else {
-      return 'كود الخصم غير صالح أو لم يصل للحد الأدنى للطلب';
+      return result.errorMessage ?? 'كود الخصم غير صالح أو لم يصل للحد الأدنى للطلب';
     }
   }
 

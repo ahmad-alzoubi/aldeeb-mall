@@ -18,6 +18,8 @@ class OrderModel {
   final String? notes;
   final String? driverName;
   final String? driverPhone;
+  final String? cancellationReason;
+  final String? failureReason;
 
   const OrderModel({
     required this.id,
@@ -37,6 +39,8 @@ class OrderModel {
     this.notes,
     this.driverName,
     this.driverPhone,
+    this.cancellationReason,
+    this.failureReason,
   });
 
   String get statusTitleAr {
@@ -47,12 +51,18 @@ class OrderModel {
         return 'تم التأكيد';
       case 'packing':
         return 'جاري التجهيز بالمستودع';
+      case 'assigned':
+        return 'تم تعيين السائق';
+      case 'ready_for_driver':
+        return 'جاهز للاستلام مع السائق';
       case 'out_for_delivery':
         return 'في الطريق مع السائق';
       case 'delivered':
         return 'تم التسليم بنجاح';
       case 'cancelled':
         return 'ملغي';
+      case 'failed':
+        return 'تعذر التسليم (إخفاق)';
       default:
         return 'غير محدد';
     }
@@ -65,6 +75,8 @@ class OrderModel {
       case 'confirmed':
       case 'packing':
         return 1;
+      case 'assigned':
+      case 'ready_for_driver':
       case 'out_for_delivery':
         return 2;
       case 'delivered':
@@ -92,6 +104,8 @@ class OrderModel {
       notes: json['notes'] as String?,
       driverName: json['delivery_driver_name'] as String?,
       driverPhone: json['delivery_driver_phone'] as String?,
+      cancellationReason: json['cancellation_reason'] as String?,
+      failureReason: json['failure_reason'] as String?,
     );
   }
 
@@ -113,6 +127,8 @@ class OrderModel {
     String? notes,
     String? driverName,
     String? driverPhone,
+    String? cancellationReason,
+    String? failureReason,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -132,6 +148,8 @@ class OrderModel {
       notes: notes ?? this.notes,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      failureReason: failureReason ?? this.failureReason,
     );
   }
 }
