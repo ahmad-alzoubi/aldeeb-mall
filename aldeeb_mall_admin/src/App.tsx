@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
@@ -464,7 +464,8 @@ export const App: React.FC = () => {
 
   // Synchronize Core Datasets with Supabase Cloud
   const loadCloudData = useCallback(async (notify = false) => {
-      try {
+    let isMounted = true;
+    try {
         // 1. Products
         const { data: dbProducts } = await supabase
           .from('products')
@@ -719,6 +720,7 @@ export const App: React.FC = () => {
       } finally {
         if (notify) {
           setSyncNotification({
+            id: Date.now(),
             message: 'تمت مزامنة كافة الطلبات والمبيعات والمخزون مع السيرفر بنجاح ⚡',
             type: 'success',
           });
@@ -752,6 +754,7 @@ export const App: React.FC = () => {
         playOrderChime();
       }
       setSyncNotification({
+        id: Date.now(),
         message: `تم تسجيل فاتورة كاشير جديدة بنجاح (${newOrder.order_number}) بمبلغ ${newOrder.total_amount.toFixed(2)} ل.س ✅`,
         type: 'success',
       });
@@ -1812,11 +1815,16 @@ export const App: React.FC = () => {
   if (activeTab === 'pos_terminal') {
     return (
       <PosTerminalPage
-        targetBranchId={currentUser.role === 'super_admin' ? posBranchId : currentUser.branch_id}
-        onExitPos={() => setActiveTab('branches')}
+        targetBranchId={currentUser.role === 'super_admin' ? (posBranchId || activeBranchId) : currentUser.branch_id}
+        onExitPos={() => {
+          loadCloudData();
+          setActiveTab('dashboard');
+        }}
         onNavigateToInvoiceDesigner={() => setActiveTab('invoice_designer')}
         isBranchLocked={currentUser.role !== 'super_admin'}
         currentCashierName={currentUser.full_name}
+        products={products}
+        onOrderCompleted={handlePosOrderCompleted}
       />
     );
   }
@@ -1900,7 +1908,10 @@ export const App: React.FC = () => {
           subtitle={pageInfo.subtitle}
           soundEnabled={soundEnabled}
           setSoundEnabled={setSoundEnabled}
-          onRefresh={() => playOrderChime()}
+          onRefresh={() => {
+            playOrderChime();
+            loadCloudData(true);
+          }}
           onToggleMobileMenu={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           currentUser={currentUser}
           staffList={staffList}
