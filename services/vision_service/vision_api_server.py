@@ -247,7 +247,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path in ("/health", "/api/health"):
+        if path in ("/health", "/api/health", "/api/vision/health"):
             self._set_headers(200)
             res = {
                 "service": "Aldeeb Mall Edge Vision Gateway",
@@ -259,7 +259,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/cameras", "/api/vision/cameras"):
+        elif path in ("/cameras", "/api/cameras", "/api/vision/cameras"):
             self._set_headers(200)
             camera_payload = []
             for conn in CONNECTORS:
@@ -285,7 +285,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 "cameras": camera_payload
             }, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/footfall", "/api/vision/footfall"):
+        elif path in ("/footfall", "/api/footfall", "/api/vision/footfall"):
             self._set_headers(200)
             stats = FOOTFALL_COUNTER.get_stats()
             self.wfile.write(json.dumps({
@@ -301,7 +301,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 }
             }, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/heatmap", "/api/vision/heatmap"):
+        elif path in ("/heatmap", "/api/heatmap", "/api/vision/heatmap"):
             self._set_headers(200)
             zones = HEATMAP_ENGINE.get_zone_densities()
             matrix = HEATMAP_ENGINE.get_heatmap_matrix()
@@ -311,7 +311,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 "matrix": matrix
             }, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/incidents", "/api/vision/incidents"):
+        elif path in ("/incidents", "/api/incidents", "/api/vision/incidents"):
             self._set_headers(200)
             incidents = LOSS_PREVENTION.get_active_incidents()
             self.wfile.write(json.dumps({
@@ -319,7 +319,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 "incidents": incidents
             }, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/telemetry", "/api/vision/telemetry"):
+        elif path in ("/telemetry", "/api/telemetry", "/api/vision/telemetry"):
             # Single aggregated call for dashboard load
             self._set_headers(200)
             cameras_data = []
@@ -373,7 +373,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Invalid JSON body"}).encode('utf-8'))
             return
 
-        if path in ("/api/actions/trigger", "/api/vision/actions/trigger"):
+        if path in ("/actions/trigger", "/api/actions/trigger", "/api/vision/actions/trigger"):
             action = data.get("action", "unknown")
             msg = data.get("message", "تم تنفيذ الإجراء")
             logger.info("Operational Action Triggered: [%s] -> %s", action, msg)
@@ -385,7 +385,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 "timestamp": time.time()
             }, ensure_ascii=False).encode('utf-8'))
 
-        elif path in ("/api/incidents/update", "/api/vision/incidents/update"):
+        elif path in ("/incidents/update", "/api/incidents/update", "/api/vision/incidents/update"):
             incident_id = data.get("incidentId")
             new_status = data.get("status")
             action_taken = data.get("actionTaken", "")
@@ -407,7 +407,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": f"Incident {incident_id} not found."}).encode('utf-8'))
 
-        elif path in ("/api/pos/scan", "/api/vision/pos/scan"):
+        elif path in ("/pos/scan", "/api/pos/scan", "/api/vision/pos/scan"):
             barcode = data.get("barcode", "")
             product_name = data.get("product_name", "Unknown Item")
             cashier_id = data.get("cashier_id", "pos-01")

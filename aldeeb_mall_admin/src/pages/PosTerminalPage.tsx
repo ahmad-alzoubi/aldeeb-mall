@@ -693,9 +693,15 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
       const effectiveBranchId = activeBranch?.id || targetBranchId || 'b-jed-01';
       const effectiveBranchName = activeBranch?.name_ar || 'فرع جدة الكورنيش (واجهة البحر)';
 
-      const { data } = await supabase
+      // Generate a client-side UUID so order_items can reference it reliably
+      const orderUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? crypto.randomUUID() 
+        : 'e' + Date.now().toString(16).padStart(7, '0') + '-1111-4111-a111-111111111111';
+
+      const { data, error: insertError } = await supabase
         .from('orders')
         .insert({
+          id: orderUuid,
           order_number: receiptNum,
           customer_name: customerName || 'عميل نقدي مباشر',
           customer_phone: customerPhone || '+966 50 000 0000',
@@ -713,7 +719,11 @@ export const PosTerminalPage: React.FC<PosTerminalPageProps> = ({
         .select('id')
         .maybeSingle();
 
-      const orderId = data?.id || `ord-pos-${Date.now()}`;
+      if (insertError) {
+        console.warn('POS order insertion warning:', insertError);
+      }
+
+      const orderId = data?.id || orderUuid;
 
       if (cart.length > 0) {
         const itemsPayload = cart.map((item) => ({
